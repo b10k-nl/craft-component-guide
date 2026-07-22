@@ -1,0 +1,11 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    # Craft aliases a global `Craft` class at runtime (Craft::$app, Craft::t(),
+    # Craft::error()). Vanilla PHPStan can't see that alias; the craftcms/phpstan
+    # extension is the full fix, but for this MVP we ignore the dynamic-symbol
+    # noise so the run stays green at level 5.
+    ignoreErrors:
+        - '#unknown class Craft#'

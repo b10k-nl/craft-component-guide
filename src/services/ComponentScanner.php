@@ -1,0 +1,223 @@
+<?php
+
+namespace b10k\componentguide\services;
+
+use b10k\componentguide\models\ComponentDefinition;
+use b10k\componentguide\models\ScanError;
+use yii\base\Component;
+
+/**
+ * Discovers components by walking the configured directory for story files and
+ * pairing each with its Twig template.
+ *
+ * Pure and Craft-free by design (paths are passed in), so it can be unit tested
+ * without booting the CP. One broken component never aborts the whole scan.
+ */
+class ComponentScanner extends Component
+{
+    private const IGNORED_DIRS = ['node_modules', 'vendor', 'cache', '.git'];
+
+    public function __construct(private StoryParser $storyParser, array $config = [])
+    {
+        parent::__construct($config);
+    }
+
+    /**
+     * @return array{components: ComponentDefinition[], errors: ScanError[]}
+     */
+    public function scan(string $templatesRoot, string $componentPath, string $storySuffix): array
+    {
+        $errors = [];
+
+        $templatesRoot = $this->normalize($templatesRoot);
+        $realTemplatesRoot = realpath($templatesRoot);
+        $componentDir = $this->normalize(rtrim($templatesRoot, '/') . '/' . trim($componentPath, '/'));
+        $realComponentDir = realpath($componentDir);
+
+        if ($realComponentDir === false || !is_dir($realComponentDir)) {
+            $errors[] = new ScanError(
+                ScanError::MISSING_COMPONENT_DIRECTORY,
+                sprintf('Component directory “%s” was not found.', $componentPath),
+            );
+            return ['components' => [], 'errors' => $errors];
+        }
+
+        $realComponentDir = $this->normalize($realComponentDir);
+
+        // Traversal guard: resolved directory must live inside the templates root.
+        if ($realTemplatesRoot !== false) {
+            $realTemplatesRoot = $this->normalize($realTemplatesRoot);
+            if ($realComponentDir !== $realTemplatesRoot && !str_starts_with($realComponentDir . '/', $realTemplatesRoot . '/')) {
+                $errors[] = new ScanError(
+                    ScanError::INVALID_COMPONENT_DIRECTORY,
+                    'The component directory resolves outside the templates folder.',
+                );
+                return ['components' => [], 'errors' => $errors];
+            }
+        }
+
+        if (!is_readable($realComponentDir)) {
+            $errors[] = new ScanError(
+                ScanError::INVALID_COMPONENT_DIRECTORY,
+                sprintf('Component directory “%s” is not readable.', $componentPath),
+            );
+            return ['components' => [], 'errors' => $errors];
+        }
+
+        $storyFiles = [];
+        $this->collectStoryFiles($realComponentDir, $storySuffix, $storyFiles, $errors);
+        sort($storyFiles);
+
+        $components = [];
+        $seenIds = [];
+
+        foreach ($storyFiles as $storyFile) {
+            $component = $this->buildComponent($storyFile, $realComponentDir, $realTemplatesRoot ?: $templatesRoot, $storySuffix);
+            if ($component === null) {
+                continue;
+            }
+
+            if (isset($seenIds[$component->id])) {
+                $errors[] = new ScanError(
+                    ScanError::DUPLICATE_COMPONENT_ID,
+                    sprintf('Duplicate component ID “%s”.', $component->id),
+                    $component->storyFilePath,
+                    componentId: $component->id,
+                );
+                continue;
+            }
+
+            $seenIds[$component->id] = true;
+            $components[] = $component;
+        }
+
+        usort($components, static function (ComponentDefinition $a, ComponentDefinition $b): int {
+            return [strtolower($a->effectiveGroup()), strtolower($a->title)]
+                <=> [strtolower($b->effectiveGroup()), strtolower($b->title)];
+        });
+
+        return ['components' => $components, 'errors' => $errors];
+    }
+
+    /**
+     * @param string[] $out
+     */
+    private function collectStoryFiles(string $dir, string $storySuffix, array &$out, array &$errors): void
+    {
+        $entries = @scandir($dir);
+        if ($entries === false) {
+            $errors[] = new ScanError(
+                ScanError::INVALID_COMPONENT_DIRECTORY,
+                sprintf('Could not read directory “%s”.', $dir),
+            );
+            return;
+        }
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+                continue;
+            }
+
+            $path = $this->normalize($dir . '/' . $entry);
+
+            if (is_dir($path)) {
+                if (in_array(strtolower($entry), self::IGNORED_DIRS, true)) {
+                    continue;
+                }
+                $this->collectStoryFiles($path, $storySuffix, $out, $errors);
+                continue;
+            }
+
+            if (str_ends_with($entry, $storySuffix)) {
+                $out[] = $path;
+            }
+        }
+    }
+
+    private function buildComponent(string $storyFile, string $componentDir, string $templatesRoot, string $storySuffix): ?ComponentDefinition
+    {
+        $dir = dirname($storyFile);
+        $base = substr(basename($storyFile), 0, -strlen($storySuffix));
+
+        if ($base === '') {
+            return null;
+        }
+
+        $templateAbs = $this->normalize($dir . '/' . $base . '.twig');
+        $relativeToRoot = $this->relativePath($storyFile, $templatesRoot);
+        $templateRelative = $this->relativePath($templateAbs, $templatesRoot);
+        $relativeToComponentDir = $this->relativePath($storyFile, $componentDir);
+
+        // Component ID is derived from the template's path relative to the
+        // component directory (without extension), so it is deterministic and
+        // stable across machines but never leaks an absolute path. A repeated
+        // "folder/name" segment (e.g. button/button) collapses to "button".
+        $idPath = str_replace('\\', '/', substr($relativeToComponentDir, 0, -strlen($storySuffix)));
+        $segments = explode('/', $idPath);
+        $count = count($segments);
+        if ($count >= 2 && $segments[$count - 1] === $segments[$count - 2]) {
+            array_pop($segments);
+        }
+        $id = $this->slugPath(implode('/', $segments));
+
+        $relativeDirectory = trim(implode('/', array_slice($segments, 0, -1)), '/');
+
+        $parsed = $this->storyParser->parse($storyFile, $relativeToRoot);
+        $componentErrors = $parsed['errors'];
+
+        if (!is_file($templateAbs)) {
+            $componentErrors[] = new ScanError(
+                ScanError::MISSING_TEMPLATE,
+                sprintf('No “%s.twig” template found next to the story file.', $base),
+                $relativeToRoot,
+                componentId: $id,
+            );
+        }
+
+        $meta = $parsed['meta'];
+
+        return new ComponentDefinition(
+            id: $id,
+            name: $base,
+            title: $meta['title'] ?? $this->humanize($base),
+            templatePath: $templateRelative,
+            absoluteTemplatePath: $templateAbs,
+            relativeDirectory: $relativeDirectory,
+            group: $meta['group'] ?? null,
+            description: $meta['description'] ?? null,
+            status: $meta['status'] ?? null,
+            storyFilePath: $relativeToRoot,
+            stories: $parsed['stories'],
+            errors: $componentErrors,
+        );
+    }
+
+    private function relativePath(string $path, string $base): string
+    {
+        $path = $this->normalize($path);
+        $base = rtrim($this->normalize($base), '/');
+        if (str_starts_with($path, $base . '/')) {
+            return substr($path, strlen($base) + 1);
+        }
+        return ltrim(str_replace($base, '', $path), '/');
+    }
+
+    private function slugPath(string $path): string
+    {
+        $path = strtolower(str_replace('\\', '/', $path));
+        $path = preg_replace('/[^a-z0-9\/]+/', '-', $path) ?? '';
+        $path = str_replace('/', '-', $path);
+        return trim(preg_replace('/-+/', '-', $path) ?? '', '-');
+    }
+
+    private function humanize(string $value): string
+    {
+        $value = str_replace(['-', '_'], ' ', $value);
+        return ucwords(trim($value));
+    }
+
+    private function normalize(string $path): string
+    {
+        return rtrim(str_replace('\\', '/', $path), '/') ?: '/';
+    }
+}

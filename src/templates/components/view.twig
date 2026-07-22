@@ -1,0 +1,123 @@
+{% extends "_layouts/cp" %}
+
+{% set title = component.title %}
+{% set docTitle = component.title ~ " · " ~ "Component Guide"|t('component-guide') %}
+
+{% set crumbs = [
+    { label: "Component Guide"|t('component-guide'), url: cpUrl('component-guide') },
+] %}
+
+{% do view.registerAssetBundle("b10k\\componentguide\\assetbundles\\ComponentGuideAsset") %}
+
+{% set previewUrl = story ? cpUrl('component-guide/preview/' ~ component.id ~ '/' ~ story.id) : null %}
+
+{% block content %}
+    <div class="cg-detail">
+        <header class="cg-detail__header">
+            <div class="cg-detail__meta">
+                <span class="cg-chip">{{ component.effectiveGroup }}</span>
+                {% if component.status %}<span class="cg-chip cg-chip--status">{{ component.status }}</span>{% endif %}
+                <span class="cg-detail__path code">{{ component.templatePath }}</span>
+            </div>
+            {% if component.description %}
+                <p class="cg-detail__desc">{{ component.description }}</p>
+            {% endif %}
+        </header>
+
+        {% include "component-guide/components/_errors" with { errors: component.errors } only %}
+
+        {% if component.stories is empty %}
+            <div class="cg-empty zilch">
+                <p>{{ "This component has no valid stories."|t('component-guide') }}</p>
+            </div>
+        {% else %}
+            <div class="cg-layout">
+                <nav class="cg-stories" aria-label="{{ 'Stories'|t('component-guide') }}">
+                    <h2 class="cg-stories__title">
+                        {{ "Stories"|t('component-guide') }}
+                        <span class="light">({{ component.storyCount }})</span>
+                    </h2>
+                    <ul>
+                        {% for s in component.stories %}
+                            <li>
+                                <a href="{{ cpUrl('component-guide/components/' ~ component.id ~ '/' ~ s.id) }}"
+                                   class="cg-stories__item{{ story and s.id == story.id ? ' is-selected' : '' }}">
+                                    {{ s.title }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+
+                <div class="cg-main">
+                    <div class="cg-preview">
+                        <div class="cg-preview__bar">
+                            <span class="cg-preview__label light">{{ "Preview"|t('component-guide') }}</span>
+                            <span class="cg-preview__actions">
+                                <button type="button" class="btn small" data-cg-refresh>{{ "Refresh"|t('component-guide') }}</button>
+                                <a class="btn small" href="{{ previewUrl }}" target="_blank" rel="noopener">{{ "Open in new tab"|t('component-guide') }}</a>
+                            </span>
+                        </div>
+
+                        {% if enableIframePreview %}
+                            <div class="cg-preview__frame"{% if story.background %} style="background: {{ story.background }};"{% endif %}>
+                                <div class="cg-preview__loading">{{ "Loading…"|t('component-guide') }}</div>
+                                <iframe
+                                    data-cg-iframe
+                                    src="{{ previewUrl }}"
+                                    title="{{ component.title }} — {{ story.title }}"
+                                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                                    loading="lazy"></iframe>
+                            </div>
+                        {% else %}
+                            <p class="light cg-preview__note">
+                                {{ "Iframe preview is disabled. "|t('component-guide') }}
+                                <a href="{{ previewUrl }}" target="_blank" rel="noopener">{{ "Open the preview"|t('component-guide') }}</a>.
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <div class="cg-info">
+                        {% if story.description %}
+                            <div class="cg-info__block">
+                                <h3>{{ "Description"|t('component-guide') }}</h3>
+                                <p>{{ story.description }}</p>
+                            </div>
+                        {% endif %}
+
+                        {% if story.tags is not empty %}
+                            <div class="cg-info__block">
+                                <h3>{{ "Tags"|t('component-guide') }}</h3>
+                                <div class="cg-tags">
+                                    {% for tag in story.tags %}<span class="cg-chip">{{ tag }}</span>{% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if story.viewport %}
+                            <div class="cg-info__block">
+                                <h3>{{ "Viewport"|t('component-guide') }}</h3>
+                                <p class="code">{{ story.viewport }}</p>
+                            </div>
+                        {% endif %}
+
+                        <div class="cg-info__block">
+                            <h3>{{ "Args"|t('component-guide') }}</h3>
+                            <pre class="cg-code">{{ story.args|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+                        </div>
+
+                        {% if snippet %}
+                            <div class="cg-info__block">
+                                <h3>
+                                    {{ "Twig usage"|t('component-guide') }}
+                                    <button type="button" class="btn small" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
+                                </h3>
+                                <pre class="cg-code" data-cg-snippet>{{ snippet }}</pre>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

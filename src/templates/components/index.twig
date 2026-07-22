@@ -1,0 +1,82 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Component Guide"|t('component-guide') %}
+{% set docTitle = title %}
+
+{% do view.registerAssetBundle("b10k\\componentguide\\assetbundles\\ComponentGuideAsset") %}
+
+{% block content %}
+    <p class="cg-intro light">
+        {{ "A browser for reusable Twig components and their story states, discovered from your templates directory."|t('component-guide') }}
+    </p>
+
+    {% include "component-guide/components/_errors" with { errors: scanErrors } only %}
+
+    <div class="cg-toolbar">
+        <div class="cg-stats">
+            <span class="cg-stat">
+                <strong>{{ componentCount }}</strong>
+                {{ (componentCount == 1 ? "component" : "components")|t('component-guide') }}
+            </span>
+            <span class="cg-stat">
+                <strong>{{ storyCount }}</strong>
+                {{ (storyCount == 1 ? "story" : "stories")|t('component-guide') }}
+            </span>
+        </div>
+
+        {% if componentCount > 0 %}
+            <div class="cg-search">
+                {{ forms.text({
+                    id: 'cg-search',
+                    placeholder: "Search components…"|t('component-guide'),
+                    autofocus: true,
+                }) }}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if componentCount == 0 %}
+        <div class="cg-empty zilch">
+            <p>{{ "No components found."|t('component-guide') }}</p>
+            <p class="light">
+                {{ "Add a story file (e.g. {suffix}) next to any Twig template inside {path} to show it here."|t('component-guide', {
+                    suffix: settings.storySuffix,
+                    path: 'templates/' ~ settings.componentPath,
+                }) }}
+            </p>
+        </div>
+    {% else %}
+        <div id="cg-results">
+            {% for group, components in grouped %}
+                <section class="cg-group" data-group>
+                    <h2 class="cg-group__title">{{ group }}</h2>
+                    <ul class="cg-grid">
+                        {% for component in components %}
+                            {% set search = [component.title, component.name, group, component.templatePath]|join(' ')|lower %}
+                            <li class="cg-card" data-card data-search="{{ search }}">
+                                <a class="cg-card__link" href="{{ cpUrl('component-guide/components/' ~ component.id) }}">
+                                    <span class="cg-card__title">
+                                        {{ component.title }}
+                                        {% if component.hasErrors %}
+                                            <span class="cg-badge cg-badge--error" title="{{ 'This component has errors'|t('component-guide') }}">!</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="cg-card__meta code">{{ component.templatePath }}</span>
+                                    <span class="cg-card__meta light">
+                                        {{ component.storyCount }} {{ (component.storyCount == 1 ? "story" : "stories")|t('component-guide') }}
+                                        {%- if component.status %} · {{ component.status }}{% endif %}
+                                    </span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% endfor %}
+
+            <div id="cg-no-results" class="cg-empty zilch hidden">
+                <p>{{ "No components match your search."|t('component-guide') }}</p>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

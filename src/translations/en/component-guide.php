@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * Component Guide translations (source strings; keys equal values in English).
+ */
+
+return [
+    'Component Guide' => 'Component Guide',
+    'Access the component guide' => 'Access the component guide',
+    'A browser for reusable Twig components and their story states, discovered from your templates directory.' => 'A browser for reusable Twig components and their story states, discovered from your templates directory.',
+    'component' => 'component',
+    'components' => 'components',
+    'story' => 'story',
+    'stories' => 'stories',
+    'Search components…' => 'Search components…',
+    'No components found.' => 'No components found.',
+    'No components match your search.' => 'No components match your search.',
+    'Add a story file (e.g. {suffix}) next to a Twig template inside {path}.' => 'Add a story file (e.g. {suffix}) next to a Twig template inside {path}.',
+    'This component has errors' => 'This component has errors',
+    'This component has no valid stories.' => 'This component has no valid stories.',
+    'Stories' => 'Stories',
+    'Preview' => 'Preview',
+    'Refresh' => 'Refresh',
+    'Open in new tab' => 'Open in new tab',
+    'Loading…' => 'Loading…',
+    'Iframe preview is disabled. ' => 'Iframe preview is disabled. ',
+    'Open the preview' => 'Open the preview',
+    'Description' => 'Description',
+    'Tags' => 'Tags',
+    'Viewport' => 'Viewport',
+    'Args' => 'Args',
+    'Twig usage' => 'Twig usage',
+    'Copy' => 'Copy',
+    'Render error' => 'Render error',
+    'Component Path' => 'Component Path',
+    'Story File Suffix' => 'Story File Suffix',
+    'Enable Control-Panel Section' => 'Enable Control-Panel Section',
+    'Show the Component Guide item in the CP navigation.' => 'Show the Component Guide item in the CP navigation.',
+    'Isolated Iframe Preview' => 'Isolated Iframe Preview',
+    'Folder to scan, relative to your templates directory. Example: {ex} → {full}.' => 'Folder to scan, relative to your templates directory. Example: {ex} → {full}.',
+    'Suffix that identifies a story definition file.' => 'Suffix that identifies a story definition file.',
+    'Render component previews inside a sandboxed iframe so project CSS and CP CSS stay isolated.' => 'Render component previews inside a sandboxed iframe so project CSS and CP CSS stay isolated.',
+    'Preview CSS' => 'Preview CSS',
+    'Preview JavaScript' => 'Preview JavaScript',
+    'Front-end CSS URLs to load into the preview document — one per line.' => 'Front-end CSS URLs to load into the preview document — one per line.',
+    'Front-end JS URLs to load into the preview document — one per line.' => 'Front-end JS URLs to load into the preview document — one per line.',
+    'This value is being overridden by config/component-guide.php.' => 'This value is being overridden by config/component-guide.php.',
+];

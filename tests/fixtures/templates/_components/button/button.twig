@@ -1,0 +1,7 @@
+{% set label = label ?? 'Button' %}
+{% set variant = variant ?? 'primary' %}
+{% set disabled = disabled ?? false %}
+
+<button type="button" class="button button--{{ variant }}"{% if disabled %} disabled{% endif %}>
+    {{ label }}
+</button>

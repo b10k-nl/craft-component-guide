@@ -1,0 +1,79 @@
+{% import "_includes/forms" as forms %}
+
+{% macro overrideNote(overrides, key) %}
+    {% if overrides[key] is defined %}
+        {{ "This value is being overridden by config/component-guide.php."|t('component-guide') }}
+    {% endif %}
+{% endmacro %}
+{% from _self import overrideNote %}
+
+{{ forms.autosuggestField({
+    label: "Scan Root"|t('component-guide'),
+    instructions: "Folder to scan recursively, relative to your templates directory. Leave empty to scan the entire templates directory. Every Twig template that has an adjacent {suffix} file is shown."|t('component-guide', {
+        suffix: settings.storySuffix,
+    }),
+    id: 'componentPath',
+    name: 'componentPath',
+    suggestEnvVars: true,
+    value: settings.componentPath,
+    errors: settings.getErrors('componentPath'),
+    disabled: overrides.componentPath is defined,
+    warning: overrideNote(overrides, 'componentPath'),
+    placeholder: '(entire templates directory)',
+}) }}
+
+{{ forms.textField({
+    label: "Story File Suffix"|t('component-guide'),
+    instructions: "Suffix that identifies a story definition file."|t('component-guide'),
+    id: 'storySuffix',
+    name: 'storySuffix',
+    value: settings.storySuffix,
+    errors: settings.getErrors('storySuffix'),
+    disabled: overrides.storySuffix is defined,
+    warning: overrideNote(overrides, 'storySuffix'),
+    required: true,
+}) }}
+
+{{ forms.lightswitchField({
+    label: "Enable Control-Panel Section"|t('component-guide'),
+    instructions: "Show the Component Guide item in the CP navigation."|t('component-guide'),
+    id: 'enableCpSection',
+    name: 'enableCpSection',
+    on: settings.enableCpSection,
+    disabled: overrides.enableCpSection is defined,
+    warning: overrideNote(overrides, 'enableCpSection'),
+}) }}
+
+{{ forms.lightswitchField({
+    label: "Isolated Iframe Preview"|t('component-guide'),
+    instructions: "Render component previews inside a sandboxed iframe so project CSS and CP CSS stay isolated."|t('component-guide'),
+    id: 'enableIframePreview',
+    name: 'enableIframePreview',
+    on: settings.enableIframePreview,
+    disabled: overrides.enableIframePreview is defined,
+    warning: overrideNote(overrides, 'enableIframePreview'),
+}) }}
+
+{{ forms.textareaField({
+    label: "Preview CSS"|t('component-guide'),
+    instructions: "Front-end CSS URLs to load into the preview document — one per line."|t('component-guide'),
+    id: 'previewCss',
+    name: 'previewCss',
+    rows: 3,
+    value: settings.previewCss|join("\n"),
+    disabled: overrides.previewCss is defined,
+    warning: overrideNote(overrides, 'previewCss'),
+    placeholder: '/dist/css/app.css',
+}) }}
+
+{{ forms.textareaField({
+    label: "Preview JavaScript"|t('component-guide'),
+    instructions: "Front-end JS URLs to load into the preview document — one per line."|t('component-guide'),
+    id: 'previewJs',
+    name: 'previewJs',
+    rows: 3,
+    value: settings.previewJs|join("\n"),
+    disabled: overrides.previewJs is defined,
+    warning: overrideNote(overrides, 'previewJs'),
+    placeholder: '/dist/js/app.js',
+}) }}

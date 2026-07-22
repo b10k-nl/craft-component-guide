@@ -1,0 +1,22 @@
+{# Renders a list of ScanError objects as concise CP warnings. #}
+{% if errors is not empty %}
+    <div class="cg-errors">
+        {% for error in errors %}
+            <div class="cg-error">
+                <div class="cg-error__head">
+                    <span class="cg-badge cg-badge--error">!</span>
+                    <span class="cg-error__msg">{{ error.message }}</span>
+                </div>
+                {% if error.file %}
+                    <div class="cg-error__file code">{{ error.file }}</div>
+                {% endif %}
+                {% if error.recommendation %}
+                    <div class="cg-error__rec light">{{ error.recommendation }}</div>
+                {% endif %}
+                {% if error.details and currentUser and craft.app.config.general.devMode %}
+                    <pre class="cg-error__details">{{ error.details }}</pre>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

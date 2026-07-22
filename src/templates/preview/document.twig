@@ -1,0 +1,36 @@
+{% apply spaceless %}
+<!DOCTYPE html>
+<html lang="{{ craft.app.language }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ component.title }} — {{ story.title }}</title>
+    {% for href in previewCss %}
+        <link rel="stylesheet" href="{{ href }}">
+    {% endfor %}
+    <style>
+        html, body { margin: 0; padding: 0; }
+        body { padding: 16px; box-sizing: border-box; {% if story.background %}background: {{ story.background }};{% endif %} }
+        .cg-render-error { font-family: system-ui, sans-serif; color: #9a1f11; background: #fcebea; border: 1px solid #f3c1bd; border-radius: 6px; padding: 16px; }
+        .cg-render-error pre { white-space: pre-wrap; overflow-x: auto; font-size: 12px; color: #444; }
+    </style>
+</head>
+<body>
+{% endapply %}
+{% if result.success %}
+    {{ result.html|raw }}
+{% else %}
+    <div class="cg-render-error">
+        <strong>{{ "Render error"|t('component-guide') }}</strong>
+        <p>{{ result.error }}</p>
+        {% if devMode and result.details %}
+            <pre>{{ result.details }}</pre>
+        {% endif %}
+    </div>
+{% endif %}
+{% for src in previewJs %}
+    <script src="{{ src }}"></script>
+{% endfor %}
+</body>
+</html>

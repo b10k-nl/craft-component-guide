@@ -1,0 +1,9 @@
+{% set title = title ?? 'Card title' %}
+{% set body = body ?? null %}
+{% set image = image ?? null %}
+
+<article class="card">
+    {% if image %}<img class="card__image" src="{{ image }}" alt="">{% endif %}
+    <h3 class="card__title">{{ title }}</h3>
+    {% if body %}<p class="card__body">{{ body }}</p>{% endif %}
+</article>

@@ -9,8 +9,9 @@
 
 {{ forms.autosuggestField({
     label: "Scan Root"|t('component-guide'),
-    instructions: "Folder to scan recursively, relative to your templates directory. Leave empty to scan the entire templates directory. Every Twig template that has an adjacent {suffix} file is shown."|t('component-guide', {
+    instructions: "Folder to scan recursively, relative to your templates directory. Leave empty to scan the entire templates directory. Every Twig template that has an adjacent {suffix} (or {twigSuffix}) file is shown."|t('component-guide', {
         suffix: settings.storySuffix,
+        twigSuffix: settings.storySuffix|replace({'.php': '.twig'}),
     }),
     id: 'componentPath',
     name: 'componentPath',

@@ -74,6 +74,11 @@
 .cg-detail__desc { max-width: 70ch; margin: 8px 0 0; }
 
 .cg-layout { display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: start; }
+/* min-width:0 is load-bearing: grid items default to min-width:auto, so the
+   args/snippet <pre> (long single-line JSON) would blow the 1fr track out to
+   the widest line — making the preview stage thousands of px wide. An iframe
+   that wide exceeds Chrome's rasterization budget and paints blank. */
+.cg-layout > * { min-width: 0; }
 @media (max-width: 760px) { .cg-layout { grid-template-columns: 1fr; } }
 
 .cg-stories__title { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #8b97a3; margin: 0 0 8px; }
@@ -94,12 +99,65 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 12px; background: #f3f5f7; border-bottom: 1px solid #cdd8e4;
 }
-.cg-preview__actions { display: flex; gap: 6px; }
-.cg-preview__frame { position: relative; min-height: 320px; background: #fff; }
-.cg-preview__frame iframe { display: block; width: 100%; height: 480px; border: 0; }
+.cg-preview__actions { display: flex; align-items: center; gap: 8px; }
+.cg-preview__width { font-size: 12px; min-width: 52px; text-align: right; }
+
+/* Device switcher (icon buttons, à la Craft Live Preview) */
+.cg-preview__devices { display: inline-flex; border: 1px solid #cdd8e4; border-radius: 6px; overflow: hidden; }
+.cg-dev {
+    appearance: none; border: 0; border-left: 1px solid #cdd8e4; background: #fff no-repeat center;
+    /* The icon SVGs have no intrinsic size and different aspect ratios
+       (desktop 34×28, tablet 19×28, phone 13×28) — scale them by HEIGHT so the
+       narrow phone icon doesn't blow up into a stripe. */
+    background-size: auto 16px; width: 44px; height: 32px; cursor: pointer; opacity: .55;
+}
+.cg-dev:first-child { border-left: 0; }
+.cg-dev:hover { opacity: .85; }
+.cg-dev.is-active { background-color: #dbe4f2; opacity: 1; box-shadow: inset 0 -2px 0 #4a5560; }
+.cg-dev--desktop { background-image: url(../img/preview/icon-desktop.svg); }
+.cg-dev--tablet  { background-image: url(../img/preview/icon-tablet.svg); }
+.cg-dev--phone   { background-image: url(../img/preview/icon-phone.svg); }
+
+/* Preview stage — a fixed-height box the device frame scales to fit within. */
+.cg-preview__frame { position: relative; height: 640px; background: #fff; overflow: hidden; }
+.cg-preview__stage { position: absolute; inset: 0; background: var(--gray-100, #f3f5f7); }
+
+/* Device preview container — sized to exact device px by JS, then transform:scaled
+   to fit. The iframe inside is always width/height:100% (reliable compositing). */
+/* Horizontal anchor is 50% (the translate() math re-centres); the VERTICAL
+   anchor is set by JS to 16px + half the scaled device height, so the device
+   hugs the top of the stage instead of floating in the middle. */
+.cg-device-preview-container {
+    position: absolute; inset-inline-start: 50%;
+    overflow: auto; z-index: 2; background: #fff;
+}
+.cg-device-preview-container iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+
+/* Desktop mode: a scaled 1920×1080 "monitor" — no bezel, just a screen shadow. */
+.cg-preview__stage.is-desktop .cg-device-preview-container {
+    box-shadow: 0 0 58px rgba(6, 67, 117, .3);
+}
+
+/* SVG bezel mask (phone/tablet), drawn behind the screen. Rounded white body +
+   shadow from CSS; the top/bottom SVGs add the notch + home indicator. */
+.cg-device-mask {
+    display: none; position: absolute; inset-inline-start: 50%; z-index: 1;
+    background-color: #fff; background-repeat: no-repeat; background-position: top, bottom;
+    background-size: contain; border-radius: 18px; box-shadow: 0 0 58px rgba(6, 67, 117, .3);
+    transition: transform .2s;
+}
+.cg-preview__stage.is-phone .cg-device-mask,
+.cg-preview__stage.is-tablet .cg-device-mask { display: block; }
+.cg-preview__stage.is-phone .cg-device-mask {
+    background-image: url(../img/preview/chrome-phone-top.svg), url(../img/preview/chrome-phone-bottom.svg);
+}
+.cg-preview__stage.is-tablet .cg-device-mask {
+    background-image: url(../img/preview/chrome-tablet-top.svg), url(../img/preview/chrome-tablet-bottom.svg);
+}
+
 .cg-preview__loading {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #8b97a3; pointer-events: none;
+    color: #8b97a3; pointer-events: none; z-index: 3;
 }
 .cg-preview__frame.is-loaded .cg-preview__loading { display: none; }
 .cg-preview__note { padding: 16px; }

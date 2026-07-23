@@ -5,6 +5,7 @@
 
 {% set crumbs = [
     { label: "Component Guide"|t('component-guide'), url: cpUrl('component-guide') },
+    { label: component.title, url: cpUrl('component-guide/components/' ~ component.id) },
 ] %}
 
 {% do view.registerAssetBundle("b10k\\componentguide\\assetbundles\\ComponentGuideAsset") %}
@@ -52,22 +53,32 @@
                 <div class="cg-main">
                     <div class="cg-preview">
                         <div class="cg-preview__bar">
-                            <span class="cg-preview__label light">{{ "Preview"|t('component-guide') }}</span>
+                            <span class="cg-preview__devices" role="group" aria-label="{{ 'Preview device'|t('component-guide') }}">
+                                <button type="button" class="cg-dev cg-dev--desktop is-active" data-cg-device="desktop" title="{{ 'Desktop'|t('component-guide') }}" aria-label="{{ 'Desktop'|t('component-guide') }}"></button>
+                                <button type="button" class="cg-dev cg-dev--tablet" data-cg-device="tablet" title="{{ 'Tablet'|t('component-guide') }}" aria-label="{{ 'Tablet'|t('component-guide') }}"></button>
+                                <button type="button" class="cg-dev cg-dev--phone" data-cg-device="phone" title="{{ 'Phone'|t('component-guide') }}" aria-label="{{ 'Phone'|t('component-guide') }}"></button>
+                            </span>
                             <span class="cg-preview__actions">
+                                <span class="cg-preview__width light" data-cg-width></span>
+                                <button type="button" class="btn small" data-cg-rotate hidden>{{ "Rotate"|t('component-guide') }}</button>
                                 <button type="button" class="btn small" data-cg-refresh>{{ "Refresh"|t('component-guide') }}</button>
                                 <a class="btn small" href="{{ previewUrl }}" target="_blank" rel="noopener">{{ "Open in new tab"|t('component-guide') }}</a>
                             </span>
                         </div>
 
                         {% if enableIframePreview %}
-                            <div class="cg-preview__frame"{% if story.background %} style="background: {{ story.background }};"{% endif %}>
+                            {# Device preview, mirroring Craft's own Live Preview: the iframe
+                               holder is sized to exact device pixels and the whole thing is
+                               transform:scale()'d to fit — the iframe stays width/height:100%,
+                               which is the one layout Chrome composites reliably. JS builds the
+                               device container + SVG bezel mask inside the stage (see
+                               component-guide.js). #}
+                            <div class="cg-preview__frame"
+                                 data-cg-default-device="{{ story.viewport }}"
+                                 data-cg-src="{{ previewUrl }}"
+                                 data-cg-title="{{ component.title }} — {{ story.title }}">
                                 <div class="cg-preview__loading">{{ "Loading…"|t('component-guide') }}</div>
-                                <iframe
-                                    data-cg-iframe
-                                    src="{{ previewUrl }}"
-                                    title="{{ component.title }} — {{ story.title }}"
-                                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                                    loading="lazy"></iframe>
+                                <div class="cg-preview__stage" data-cg-stage{% if story.background %} style="background: {{ story.background }};"{% endif %}></div>
                             </div>
                         {% else %}
                             <p class="light cg-preview__note">

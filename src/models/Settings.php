@@ -49,6 +49,14 @@ class Settings extends Model
      */
     public array $previewJs = [];
 
+    /**
+     * @var string Optional site template rendered into the preview <head>,
+     * in SITE mode. Use it to emit whatever your frontend needs — e.g. Vite tags
+     * ({{ craft.vite.script('src/js/app.js') }}) so HMR/Tailwind previews match
+     * the real site. Leave empty to rely on previewCss / previewJs.
+     */
+    public string $previewTemplate = '';
+
     public function init(): void
     {
         parent::init();
@@ -82,10 +90,10 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['componentPath', 'storySuffix'], 'trim'],
+            [['componentPath', 'storySuffix', 'previewTemplate'], 'trim'],
             [['storySuffix'], 'required'],
             [['enableCpSection', 'enableIframePreview'], 'boolean'],
-            [['previewCss', 'previewJs'], 'safe'],
+            [['previewCss', 'previewJs', 'previewTemplate'], 'safe'],
             ['storySuffix', 'match', 'pattern' => '/\.php$/', 'message' => 'The story suffix must end in “.php”.'],
             ['componentPath', 'validateComponentPath'],
         ];
@@ -126,6 +134,7 @@ class Settings extends Model
             'enableIframePreview' => 'Isolated Iframe Preview',
             'previewCss' => 'Preview CSS',
             'previewJs' => 'Preview JavaScript',
+            'previewTemplate' => 'Preview Head Template',
         ];
     }
 }

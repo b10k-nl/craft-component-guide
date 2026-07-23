@@ -17,16 +17,25 @@ class ComponentScanner extends Component
 {
     private const IGNORED_DIRS = ['node_modules', 'vendor', 'cache', '.git'];
 
-    public function __construct(private StoryParser $storyParser, array $config = [])
-    {
+    public function __construct(
+        private StoryParser $storyParser,
+        private ?TwigStoryLoader $twigStoryLoader = null,
+        array $config = [],
+    ) {
         parent::__construct($config);
     }
 
     /**
+     * @param string|string[] $storySuffix One or more story-file suffixes
+     *        (e.g. '.stories.php', '.stories.twig').
      * @return array{components: ComponentDefinition[], errors: ScanError[]}
      */
-    public function scan(string $templatesRoot, string $componentPath, string $storySuffix): array
+    public function scan(string $templatesRoot, string $componentPath, string|array $storySuffix): array
     {
+        // Longest suffix first so an overlapping pair can never mis-match.
+        $storySuffixes = array_values(array_filter((array)$storySuffix));
+        usort($storySuffixes, static fn(string $a, string $b): int => strlen($b) <=> strlen($a));
+
         $errors = [];
 
         $templatesRoot = $this->normalize($templatesRoot);
@@ -65,14 +74,18 @@ class ComponentScanner extends Component
         }
 
         $storyFiles = [];
-        $this->collectStoryFiles($realComponentDir, $storySuffix, $storyFiles, $errors);
+        $this->collectStoryFiles($realComponentDir, $storySuffixes, $storyFiles, $errors);
         sort($storyFiles);
 
         $components = [];
         $seenIds = [];
 
         foreach ($storyFiles as $storyFile) {
-            $component = $this->buildComponent($storyFile, $realComponentDir, $realTemplatesRoot ?: $templatesRoot, $storySuffix);
+            $matchedSuffix = $this->matchSuffix($storyFile, $storySuffixes);
+            if ($matchedSuffix === null) {
+                continue;
+            }
+            $component = $this->buildComponent($storyFile, $realComponentDir, $realTemplatesRoot ?: $templatesRoot, $matchedSuffix);
             if ($component === null) {
                 continue;
             }
@@ -100,9 +113,23 @@ class ComponentScanner extends Component
     }
 
     /**
+     * @param string[] $storySuffixes Sorted longest-first.
+     */
+    private function matchSuffix(string $file, array $storySuffixes): ?string
+    {
+        foreach ($storySuffixes as $suffix) {
+            if (str_ends_with($file, $suffix)) {
+                return $suffix;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param string[] $storySuffixes
      * @param string[] $out
      */
-    private function collectStoryFiles(string $dir, string $storySuffix, array &$out, array &$errors): void
+    private function collectStoryFiles(string $dir, array $storySuffixes, array &$out, array &$errors): void
     {
         $entries = @scandir($dir);
         if ($entries === false) {
@@ -124,11 +151,11 @@ class ComponentScanner extends Component
                 if (in_array(strtolower($entry), self::IGNORED_DIRS, true)) {
                     continue;
                 }
-                $this->collectStoryFiles($path, $storySuffix, $out, $errors);
+                $this->collectStoryFiles($path, $storySuffixes, $out, $errors);
                 continue;
             }
 
-            if (str_ends_with($entry, $storySuffix)) {
+            if ($this->matchSuffix($entry, $storySuffixes) !== null) {
                 $out[] = $path;
             }
         }
@@ -162,7 +189,12 @@ class ComponentScanner extends Component
 
         $relativeDirectory = trim(implode('/', array_slice($segments, 0, -1)), '/');
 
-        $parsed = $this->storyParser->parse($storyFile, $relativeToRoot);
+        // Twig stories render through Craft's view; PHP stories are plain includes.
+        if (str_ends_with($storyFile, '.twig') && $this->twigStoryLoader !== null) {
+            $parsed = $this->twigStoryLoader->load($storyFile, $relativeToRoot);
+        } else {
+            $parsed = $this->storyParser->parse($storyFile, $relativeToRoot);
+        }
         $componentErrors = $parsed['errors'];
 
         if (!is_file($templateAbs)) {

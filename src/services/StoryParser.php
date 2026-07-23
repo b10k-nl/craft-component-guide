@@ -34,6 +34,19 @@ class StoryParser extends Component
             return ['meta' => [], 'stories' => [], 'errors' => $errors];
         }
 
+        return $this->parseData($data, $relativeFile);
+    }
+
+    /**
+     * Normalizes already-loaded story data — a PHP file's return value or a
+     * Twig StoryCollector's payload — into typed StoryDefinitions.
+     *
+     * @return array{meta: array<string, string>, stories: StoryDefinition[], errors: ScanError[]}
+     */
+    public function parseData(mixed $data, string $relativeFile): array
+    {
+        $errors = [];
+
         if (!is_array($data)) {
             $errors[] = new ScanError(
                 ScanError::STORY_FILE_NOT_ARRAY,

@@ -115,10 +115,18 @@ class ComponentRepository extends Component
     private function load(): void
     {
         $settings = $this->settings();
+
+        // Stories come in two formats: PHP (the configured suffix) and Twig
+        // (the same suffix with .php swapped for .twig, e.g. `.stories.twig`).
+        $suffixes = array_unique([
+            $settings->storySuffix,
+            preg_replace('/\.php$/', '.twig', $settings->storySuffix),
+        ]);
+
         $result = $this->scanner->scan(
             Craft::$app->getPath()->getSiteTemplatesPath(),
             $settings->componentPath,
-            $settings->storySuffix,
+            $suffixes,
         );
         $this->components = $result['components'];
         $this->errors = $result['errors'];

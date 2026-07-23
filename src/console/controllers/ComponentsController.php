@@ -17,6 +17,45 @@ use yii\console\ExitCode;
  */
 class ComponentsController extends Controller
 {
+    public function actionRender(string $componentId, string $storyId): int
+    {
+        $plugin = Plugin::getInstance();
+        $component = $plugin->getRepository()->getById($componentId);
+        if ($component === null) {
+            $this->stderr("Component not found: {$componentId}\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+        $story = $component->getStory($storyId);
+        if ($story === null) {
+            $this->stderr("Story not found: {$storyId}\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+        $result = $plugin->getPreviewRenderer()->render($component, $story);
+        $settings = $plugin->getSettings();
+
+        $view = \Craft::$app->getView();
+        $view->setTemplateMode(\craft\web\View::TEMPLATE_MODE_SITE);
+        $previewHead = '';
+        if ($settings->previewTemplate !== '' && $view->doesTemplateExist($settings->previewTemplate)) {
+            $previewHead = $view->renderTemplate($settings->previewTemplate, [], \craft\web\View::TEMPLATE_MODE_SITE);
+        }
+        $doc = $view->renderTemplate('component-guide/preview/document', [
+            'result' => $result,
+            'story' => $story,
+            'component' => $component,
+            'previewCss' => $settings->previewCss,
+            'previewJs' => $settings->previewJs,
+            'previewHead' => $previewHead,
+            'devMode' => \Craft::$app->getConfig()->getGeneral()->devMode,
+        ], \craft\web\View::TEMPLATE_MODE_CP);
+
+        $this->stdout("success=" . var_export($result->success, true) . "\n", Console::FG_CYAN);
+        $this->stdout("previewTemplate=" . var_export($settings->previewTemplate, true) . "\n", Console::FG_CYAN);
+        $this->stdout("docLen=" . strlen($doc) . "\n", Console::FG_CYAN);
+        $this->stdout("--- DOCUMENT ---\n" . $doc . "\n--- END ---\n");
+        return ExitCode::OK;
+    }
+
     public function actionScan(): int
     {
         $repository = Plugin::getInstance()->getRepository();

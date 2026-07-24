@@ -1,0 +1,89 @@
+/* Component Guide — Matrix block picker (gallery modal). */
+
+.cg-picker-open { margin-inline-start: 8px; }
+
+/* Docked right-hand panel — NOT a modal: no backdrop, the entry stays
+   interactive, and the panel stays open so many blocks can be added in a row. */
+.cg-picker-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 1000;
+    width: min(420px, 90vw);
+    background: #fff; box-shadow: -12px 0 40px rgba(31, 41, 51, .25);
+    border-left: 1px solid #e4e8ec;
+    display: flex; flex-direction: column;
+    animation: cg-picker-slide-in .18s ease-out;
+}
+@keyframes cg-picker-slide-in {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+.cg-picker-panel__head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px; border-bottom: 1px solid #e4e8ec; font-size: 15px;
+}
+.cg-picker-panel__hint { flex: 1; font-size: 12px; color: #8b97a3; }
+.cg-picker-panel__close {
+    appearance: none; border: 0; background: none; cursor: pointer;
+    font-size: 22px; line-height: 1; color: #7a8794; padding: 2px 6px;
+}
+.cg-picker-panel__close:hover { color: #3f4d5a; }
+
+.cg-picker-grid {
+    display: grid; grid-template-columns: 1fr;
+    gap: 14px; padding: 16px; overflow-y: auto;
+}
+
+.cg-picker-card {
+    appearance: none; text-align: start; cursor: pointer;
+    display: flex; flex-direction: column; gap: 8px; padding: 12px;
+    border: 1px solid #cdd8e4; border-radius: 8px; background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+}
+.cg-picker-card:hover { border-color: #3f6fa7; box-shadow: 0 1px 6px rgba(0, 0, 0, .12); }
+/* Author display:flex would beat the UA's [hidden] rule — restate it. */
+.cg-picker-card[hidden] { display: none; }
+
+/* "Added" feedback: brief green flash + checkmark when a block is created. */
+.cg-picker-card { position: relative; }
+.cg-picker-card.is-added { animation: cg-picker-added .8s ease-out; }
+.cg-picker-card.is-added::after {
+    content: '✓'; position: absolute; top: 8px; right: 10px;
+    font-size: 16px; font-weight: 700; color: #1c6b3c;
+    animation: cg-picker-added-check .8s ease-out forwards;
+}
+@keyframes cg-picker-added {
+    0% { border-color: #2f9e5f; box-shadow: 0 0 0 3px rgba(47, 158, 95, .25); }
+    100% { border-color: #cdd8e4; box-shadow: none; }
+}
+@keyframes cg-picker-added-check {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.cg-picker-card__thumb {
+    display: block; position: relative; aspect-ratio: 16 / 10;
+    background: #f3f5f7; border: 1px solid #eef1f4; border-radius: 6px;
+    overflow: hidden; pointer-events: none;
+}
+.cg-picker-card__thumb iframe {
+    position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
+    border: 0; background: #fff; transform-origin: 0 0;
+}
+.cg-picker-search { padding: 12px 16px 0; }
+
+.cg-picker-card__body { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cg-picker-card__icon svg { display: block; width: 14px; height: 14px; fill: currentColor; color: #596775; }
+.cg-picker-card__title { font-weight: 600; color: #1f2933; }
+.cg-picker-card__desc { flex-basis: 100%; font-size: 12px; color: #7a8794; }
+
+/* Status chips (duplicated from component-guide.css — that bundle only loads
+   on the guide's own pages, while the picker loads CP-wide). */
+.cg-picker-panel .cg-chip {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    background: #e4e8ec; color: #4a5560; font-size: 12px; line-height: 1.6;
+}
+.cg-picker-panel .cg-chip--stable { background: #d8f0e0; color: #1c6b3c; }
+.cg-picker-panel .cg-chip--beta { background: #dbe9fb; color: #1a5dab; }
+.cg-picker-panel .cg-chip--wip { background: #fbeeca; color: #8a5f0b; }
+.cg-picker-panel .cg-chip--deprecated { background: #fcdcd8; color: #9a1f11; }

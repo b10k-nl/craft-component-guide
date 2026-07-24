@@ -15,6 +15,7 @@ use craft\events\RegisterUrlRulesEvent;
 use craft\services\UserPermissions;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\web\UrlManager;
+use craft\web\View;
 use yii\base\Event;
 
 /**
@@ -60,6 +61,7 @@ class Plugin extends BasePlugin
 
         $this->registerPermissions();
         $this->registerCpRoutes();
+        $this->registerBlockPicker();
     }
 
     public function getRepository(): ComponentRepository
@@ -137,6 +139,30 @@ class Plugin extends BasePlugin
                 $event->rules['component-guide/components/<componentId:[\w\-]+>'] = 'component-guide/components/view';
                 $event->rules['component-guide/components/<componentId:[\w\-]+>/<storyId:[\w\-]+>'] = 'component-guide/components/view';
                 $event->rules['component-guide/preview/<componentId:[\w\-]+>/<storyId:[\w\-]+>'] = 'component-guide/preview/render';
+                $event->rules['component-guide/picker-map'] = 'component-guide/picker/map';
+            }
+        );
+    }
+
+    /**
+     * Loads the Matrix block-picker assets on CP pages for users who can
+     * access the guide. The JS enhances Matrix "New Block" menus with a
+     * visual gallery of matching components (see web/js/picker.js).
+     */
+    private function registerBlockPicker(): void
+    {
+        $request = Craft::$app->getRequest();
+        if (!$request->getIsCpRequest() || $request->getIsConsoleRequest()) {
+            return;
+        }
+
+        Event::on(
+            View::class,
+            View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
+            function (): void {
+                if (Craft::$app->getUser()->checkPermission(self::PERMISSION_ACCESS)) {
+                    Craft::$app->getView()->registerAssetBundle(assetbundles\PickerAsset::class);
+                }
             }
         );
     }

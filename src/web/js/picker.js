@@ -201,12 +201,33 @@
             card.appendChild(body);
 
             card.addEventListener('click', function () {
-                // Re-resolve the native item on every add — Matrix may have
-                // re-rendered its menu since the panel was built. Native code
-                // path: Matrix's own listener creates the block (at the end).
-                var fresh = collectTypeItems(field).find(function (it) { return it.type === item.type; });
-                if (fresh) {
-                    fresh.el.click();
+                // Entering Live Preview re-renders the editor, so every DOM
+                // reference from panel-build time may be stale. Re-resolve the
+                // LIVE field by id, then go straight to Matrix's own input
+                // instance (stored via jQuery data on the container) — clicking
+                // a stale menu item crashes MatrixInput on an unknown handle.
+                var liveField = field.isConnected
+                    ? field
+                    : (field.id ? document.getElementById(field.id) : null);
+                if (!liveField) { closePanel(); return; }
+
+                var matrix = window.jQuery ? window.jQuery(liveField).data('matrix') : null;
+                var added = false;
+
+                if (matrix && matrix.entryTypesByHandle && matrix.entryTypesByHandle[item.type]
+                    && typeof matrix.addEntry === 'function') {
+                    matrix.addEntry(item.type); // appends at the end
+                    added = true;
+                } else {
+                    // Fallback: click the live field's native menu item.
+                    var fresh = collectTypeItems(liveField).find(function (it) { return it.type === item.type; });
+                    if (fresh && fresh.el.isConnected) {
+                        fresh.el.click();
+                        added = true;
+                    }
+                }
+
+                if (added) {
                     card.classList.remove('is-added');
                     void card.offsetWidth; // restart the animation
                     card.classList.add('is-added');
@@ -258,9 +279,13 @@
             var anchor = field.querySelector(':scope > .buttons') || field.querySelector('.buttons');
             if (!anchor) { return; }
 
+            // NO `btn` class: MatrixInput binds its add-entry handler to every
+            // `.btn:not(.menubtn)` inside `.buttons` (re-running on re-init, e.g.
+            // entering Live Preview) — a captured button without data-type then
+            // crashes it. Styled to match via our own class instead.
             var btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn cg-picker-open';
+            btn.className = 'cg-picker-open';
             btn.textContent = Craft.t('component-guide', 'Blocks gallery');
             btn.addEventListener('click', function () {
                 openPanel(field, comps);

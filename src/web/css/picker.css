@@ -1,6 +1,19 @@
 /* Component Guide — Matrix block picker (gallery modal). */
 
-.cg-picker-open { margin-inline-start: 8px; }
+/* Mimics Craft's .btn WITHOUT the class — MatrixInput binds its add-entry
+   handler to every `.btn:not(.menubtn)` inside `.buttons` on (re)init, and a
+   captured button without data-type crashes it (see picker.js). */
+.cg-picker-open {
+    appearance: none; border: 0; cursor: pointer;
+    display: inline-flex; align-items: center;
+    margin-inline-start: 8px; padding: 0 14px; min-height: 34px;
+    border-radius: var(--large-border-radius, 5px);
+    background-color: var(--ui-control-bg-color, #e4e8ec);
+    color: var(--ui-control-color, #33414f);
+    font-size: 14px; line-height: 20px; font-family: inherit;
+}
+.cg-picker-open:hover { background-color: var(--ui-control-hover-bg-color, #d4dbe2); }
+.cg-picker-open:active { background-color: var(--ui-control-active-bg-color, #c9d1da); }
 
 /* Docked right-hand panel — NOT a modal: no backdrop, the entry stays
    interactive, and the panel stays open so many blocks can be added in a row. */

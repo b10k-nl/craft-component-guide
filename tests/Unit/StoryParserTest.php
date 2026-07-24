@@ -94,4 +94,29 @@ class StoryParserTest extends TestCase
         // Stable across calls.
         $this->assertSame($this->parser->slug('A B C'), $this->parser->slug('a b c'));
     }
+
+    public function testStatusNormalizesCaseAndAliases(): void
+    {
+        $result = $this->parser->parseData([
+            'meta' => ['status' => 'Draft'],
+            'stories' => ['Primary' => ['args' => []]],
+        ], 'x.stories.php');
+
+        $this->assertSame([], $result['errors']);
+        $this->assertSame('wip', $result['meta']['status']);
+    }
+
+    public function testUnknownStatusIsDroppedWithError(): void
+    {
+        $result = $this->parser->parseData([
+            'meta' => ['status' => 'stabel'],
+            'stories' => ['Primary' => ['args' => []]],
+        ], 'x.stories.php');
+
+        $this->assertArrayNotHasKey('status', $result['meta']);
+        $types = array_map(static fn(ScanError $e) => $e->type, $result['errors']);
+        $this->assertContains(ScanError::UNKNOWN_STATUS, $types);
+        // Stories still parse — a bad status must not kill the component.
+        $this->assertCount(1, $result['stories']);
+    }
 }

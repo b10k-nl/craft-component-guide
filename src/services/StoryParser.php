@@ -22,6 +22,19 @@ class StoryParser extends Component
     /** Reserved keys recognized inside a rich story entry. */
     private const STORY_KEYS = ['args', 'description', 'background', 'viewport', 'tags'];
 
+    /** Canonical component lifecycle statuses (what the UI color-codes). */
+    public const STATUSES = ['stable', 'beta', 'wip', 'deprecated'];
+
+    /** Accepted spellings that normalize to a canonical status. */
+    private const STATUS_ALIASES = [
+        'ready' => 'stable',
+        'draft' => 'wip',
+        'in progress' => 'wip',
+        'experimental' => 'beta',
+        'legacy' => 'deprecated',
+        'obsolete' => 'deprecated',
+    ];
+
     /**
      * @return array{meta: array<string, string>, stories: StoryDefinition[], errors: ScanError[]}
      */
@@ -65,7 +78,7 @@ class StoryParser extends Component
             return ['meta' => [], 'stories' => [], 'errors' => $errors];
         }
 
-        [$meta, $rawStories] = $this->splitFormat($data);
+        [$meta, $rawStories] = $this->splitFormat($data, $relativeFile, $errors);
         $stories = $this->normalizeStories($rawStories, $relativeFile, $errors);
 
         if ($stories === [] && $errors === []) {
@@ -106,14 +119,15 @@ class StoryParser extends Component
 
     /**
      * @param array<mixed> $data
+     * @param ScanError[] $errors
      * @return array{0: array<string, string>, 1: array<mixed>}
      */
-    private function splitFormat(array $data): array
+    private function splitFormat(array $data, string $relativeFile, array &$errors): array
     {
         // Rich format is identified by an explicit "stories" array.
         if (isset($data['stories']) && is_array($data['stories'])) {
             $meta = isset($data['meta']) && is_array($data['meta'])
-                ? $this->normalizeMeta($data['meta'])
+                ? $this->normalizeMeta($data['meta'], $relativeFile, $errors)
                 : [];
             return [$meta, $data['stories']];
         }
@@ -123,9 +137,10 @@ class StoryParser extends Component
 
     /**
      * @param array<mixed> $meta
+     * @param ScanError[] $errors
      * @return array<string, string>
      */
-    private function normalizeMeta(array $meta): array
+    private function normalizeMeta(array $meta, string $relativeFile, array &$errors): array
     {
         $out = [];
         foreach (['title', 'group', 'description', 'status'] as $key) {
@@ -136,6 +151,25 @@ class StoryParser extends Component
                 }
             }
         }
+
+        // Statuses come from a fixed vocabulary so the UI can color-code them
+        // and a typo can't silently produce a meaningless chip.
+        if (isset($out['status'])) {
+            $status = strtolower($out['status']);
+            $status = self::STATUS_ALIASES[$status] ?? $status;
+
+            if (in_array($status, self::STATUSES, true)) {
+                $out['status'] = $status;
+            } else {
+                $errors[] = new ScanError(
+                    ScanError::UNKNOWN_STATUS,
+                    sprintf('Unknown status “%s”.', $out['status']),
+                    $relativeFile,
+                );
+                unset($out['status']);
+            }
+        }
+
         return $out;
     }
 

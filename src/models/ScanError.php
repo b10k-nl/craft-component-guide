@@ -21,6 +21,7 @@ class ScanError
     public const DUPLICATE_STORY_ID = 'duplicate_story_id';
     public const EMPTY_STORY_FILE = 'empty_story_file';
     public const TEMPLATE_RENDER_ERROR = 'template_render_error';
+    public const UNKNOWN_STATUS = 'unknown_status';
 
     public function __construct(
         public string $type,
@@ -48,6 +49,7 @@ class ScanError
             self::DUPLICATE_COMPONENT_ID => 'Two components resolved to the same ID. Rename one of the templates.',
             self::DUPLICATE_STORY_ID => 'Two stories in this component share a name. Rename one of them.',
             self::TEMPLATE_RENDER_ERROR => 'The component template threw while rendering with these args.',
+            self::UNKNOWN_STATUS => 'Use one of: ' . implode(', ', \b10k\componentguide\services\StoryParser::STATUSES) . '.',
             default => '',
         };
     }

@@ -31,6 +31,27 @@
         search.addEventListener('input', filter);
     }
 
+    // --- Index: scale card thumbnails ---
+    // Each thumb iframe renders at a real 1280px viewport; scale it down to the
+    // thumb box width (the box's 16:10 aspect matches 1280×800, so it fills).
+    var thumbs = Array.prototype.slice.call(document.querySelectorAll('[data-cg-thumb]'));
+    if (thumbs.length) {
+        var scaleThumbs = function () {
+            thumbs.forEach(function (thumb) {
+                var iframe = thumb.querySelector('iframe');
+                if (iframe && thumb.clientWidth > 0) {
+                    iframe.style.transform = 'scale(' + (thumb.clientWidth / 1280) + ')';
+                }
+            });
+        };
+        var thumbRaf = null;
+        window.addEventListener('resize', function () {
+            if (thumbRaf) { return; }
+            thumbRaf = requestAnimationFrame(function () { thumbRaf = null; scaleThumbs(); });
+        });
+        scaleThumbs();
+    }
+
     // --- Detail: copy Twig snippet ---
     var copyBtn = document.querySelector('[data-cg-copy]');
     var snippet = document.querySelector('[data-cg-snippet]');
@@ -163,7 +184,6 @@
 
             iframe = document.createElement('iframe');
             iframe.setAttribute('title', title);
-            iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms');
             iframe.addEventListener('load', function () { frame.classList.add('is-loaded'); });
             container.appendChild(iframe);
 

@@ -40,9 +40,23 @@
     height: 100%;
 }
 .cg-card__link:hover { border-color: #5b6a7a; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+/* Live mini-preview: a fixed 1280×800 iframe scaled down by JS to the thumb's
+   width. The box keeps the same 16:10 aspect so the scaled iframe fills it
+   exactly; pointer-events:none keeps the whole card clickable. */
+.cg-card__thumb {
+    display: block; position: relative; aspect-ratio: 16 / 10;
+    background: #f3f5f7; border: 1px solid #eef1f4; border-radius: 6px;
+    overflow: hidden; pointer-events: none; margin-bottom: 4px;
+}
+.cg-card__thumb iframe {
+    position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
+    border: 0; background: #fff; transform-origin: 0 0;
+}
 .cg-card__title { font-weight: 600; color: #1f2933; display: flex; align-items: center; gap: 6px; }
 .cg-card__meta { font-size: 12px; word-break: break-all; }
-.cg-card__meta.code { color: #7a8794; }
+/* The template path is incidental info — keep it out of the way.
+   !important needed: the CP's own `.code, code` rule sets font-size .9em !important. */
+.cg-card__meta.code { color: #9aa5b1; font-size: .75em !important; line-height: 1.4; }
 
 /* Chips + badges */
 .cg-chip {
@@ -54,7 +68,14 @@
     font-size: 12px;
     line-height: 1.6;
 }
-.cg-chip--status { background: #d8f0e0; color: #1c6b3c; }
+/* Status lifecycle colors. The parser normalizes statuses to this canonical
+   vocabulary (stable | beta | wip | deprecated) and rejects typos with a scan
+   warning, so these four classes are exhaustive. */
+.cg-chip--status { background: #e4e8ec; color: #4a5560; }
+.cg-chip--stable { background: #d8f0e0; color: #1c6b3c; }
+.cg-chip--beta { background: #dbe9fb; color: #1a5dab; }
+.cg-chip--wip { background: #fbeeca; color: #8a5f0b; }
+.cg-chip--deprecated { background: #fcdcd8; color: #9a1f11; }
 .cg-badge {
     display: inline-flex;
     align-items: center;

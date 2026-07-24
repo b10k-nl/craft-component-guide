@@ -53,19 +53,34 @@
                     <h2 class="cg-group__title">{{ group }}</h2>
                     <ul class="cg-grid">
                         {% for component in components %}
-                            {% set search = [component.title, component.name, group, component.templatePath]|join(' ')|lower %}
+                            {% set search = [component.title, component.name, group, component.templatePath, component.status]|join(' ')|lower %}
                             <li class="cg-card" data-card data-search="{{ search }}">
                                 <a class="cg-card__link" href="{{ cpUrl('component-guide/components/' ~ component.id) }}">
+                                    {% set firstStory = component.stories|first %}
+                                    <span class="cg-card__thumb" data-cg-thumb aria-hidden="true">
+                                        {% if firstStory %}
+                                            {# Live mini-preview of the first story: a real 1280px-viewport
+                                               iframe scaled down by JS (fixed px on the iframe, scale on its
+                                               transform — same technique as the device preview). #}
+                                            <iframe src="{{ cpUrl('component-guide/preview/' ~ component.id ~ '/' ~ firstStory.id) }}"
+                                                    loading="lazy" tabindex="-1"
+                                                    title=""></iframe>
+                                        {% endif %}
+                                    </span>
                                     <span class="cg-card__title">
                                         {{ component.title }}
                                         {% if component.hasErrors %}
-                                            <span class="cg-badge cg-badge--error" title="{{ 'This component has errors'|t('component-guide') }}">!</span>
+                                            {# Surface the actual problems right on the card (native tooltip). #}
+                                            {% set errorText = component.errors|map(e => e.message ~ (e.recommendation() ? ' ' ~ e.recommendation() : ''))|join("\n") %}
+                                            <span class="cg-badge cg-badge--error" title="{{ errorText }}">!</span>
                                         {% endif %}
                                     </span>
                                     <span class="cg-card__meta code">{{ component.templatePath }}</span>
                                     <span class="cg-card__meta light">
                                         {{ component.storyCount }} {{ (component.storyCount == 1 ? "story" : "stories")|t('component-guide') }}
-                                        {%- if component.status %} · {{ component.status }}{% endif %}
+                                        {% if component.status %}
+                                            <span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}">{{ component.status }}</span>
+                                        {% endif %}
                                     </span>
                                 </a>
                             </li>

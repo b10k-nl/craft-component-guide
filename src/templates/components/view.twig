@@ -17,7 +17,7 @@
         <header class="cg-detail__header">
             <div class="cg-detail__meta">
                 <span class="cg-chip">{{ component.effectiveGroup }}</span>
-                {% if component.status %}<span class="cg-chip cg-chip--status">{{ component.status }}</span>{% endif %}
+                {% if component.status %}<span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}">{{ component.status }}</span>{% endif %}
                 <span class="cg-detail__path code">{{ component.templatePath }}</span>
             </div>
             {% if component.description %}

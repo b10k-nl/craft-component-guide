@@ -41,6 +41,7 @@ class PickerController extends Controller
                 'title' => $component->title,
                 'description' => $component->description,
                 'status' => $component->status,
+                'group' => $component->effectiveGroup(),
                 'previewUrl' => $firstStory !== null
                     ? UrlHelper::cpUrl("component-guide/preview/{$component->id}/{$firstStory->id}")
                     : null,

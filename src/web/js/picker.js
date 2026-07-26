@@ -11,7 +11,41 @@
     'use strict';
 
     var THUMB_VIEWPORT = 1280; // px — matches the guide's index thumbnails
+    var GROUP_COOKIE = 'cg-picker-grouped';
     var mapPromise = null;
+
+    var isGroupingEnabled = function () {
+        var m = document.cookie.match(/(?:^|;\s*)cg-picker-grouped=([^;]*)/);
+        return m ? m[1] === '1' : true; // grouped by default
+    };
+
+    var setGroupingEnabled = function (on) {
+        document.cookie = GROUP_COOKIE + '=' + (on ? '1' : '0')
+            + '; path=/; max-age=31536000; samesite=lax';
+    };
+
+    // Collapsed group labels, persisted as a JSON array in a cookie.
+    var COLLAPSED_COOKIE = 'cg-picker-collapsed';
+
+    var getCollapsedGroups = function () {
+        var m = document.cookie.match(/(?:^|;\s*)cg-picker-collapsed=([^;]*)/);
+        if (!m) { return {}; }
+        try {
+            var map = {};
+            JSON.parse(decodeURIComponent(m[1])).forEach(function (label) {
+                map[label] = true;
+            });
+            return map;
+        } catch (e) {
+            return {};
+        }
+    };
+
+    var setCollapsedGroups = function (map) {
+        var labels = Object.keys(map).filter(function (k) { return map[k]; });
+        document.cookie = COLLAPSED_COOKIE + '=' + encodeURIComponent(JSON.stringify(labels))
+            + '; path=/; max-age=31536000; samesite=lax';
+    };
 
     var loadMap = function () {
         if (!mapPromise) {
@@ -108,15 +142,32 @@
         search.placeholder = Craft.t('component-guide', 'Search blocks…');
         searchWrap.appendChild(search);
 
+        var groupToggle = document.createElement('label');
+        groupToggle.className = 'cg-picker-group-toggle';
+        var groupCheckbox = document.createElement('input');
+        groupCheckbox.type = 'checkbox';
+        groupCheckbox.checked = isGroupingEnabled();
+        groupToggle.appendChild(groupCheckbox);
+        groupToggle.appendChild(document.createTextNode(Craft.t('component-guide', 'Group')));
+        searchWrap.appendChild(groupToggle);
+
         var grid = document.createElement('div');
         grid.className = 'cg-picker-grid';
 
-        search.addEventListener('input', function () {
+        var applyFilter = function () {
             var term = search.value.trim().toLowerCase();
+            // While a term is active, collapsed groups open up visually so
+            // matches are never hidden; clearing restores the collapse state.
+            grid.classList.toggle('is-searching', term !== '');
             grid.querySelectorAll('.cg-picker-card').forEach(function (card) {
                 card.hidden = term !== '' && (card.dataset.search || '').indexOf(term) === -1;
             });
-        });
+            // A group with every card filtered out disappears, heading included.
+            grid.querySelectorAll('.cg-picker-group').forEach(function (group) {
+                group.hidden = !group.querySelector('.cg-picker-card:not([hidden])');
+            });
+        };
+        search.addEventListener('input', applyFilter);
 
         var onKey = function (e) {
             if (e.key === 'Escape') { closePanel(); }
@@ -141,12 +192,12 @@
             thumb.style.height = Math.ceil(h * s) + 'px';
         };
 
-        collectTypeItems(field).forEach(function (item) {
-            var comp = comps[item.type];
-
+        var buildCard = function (item, comp) {
+            // Craft's own card classes do the styling (border, titlebar,
+            // radius); cg-* classes only add picker behavior on top.
             var card = document.createElement('button');
             card.type = 'button';
-            card.className = 'cg-picker-card';
+            card.className = 'card cg-picker-card';
             card.dataset.search = [
                 item.type,
                 item.label,
@@ -154,51 +205,76 @@
                 comp && comp.description ? comp.description : '',
             ].join(' ').toLowerCase();
 
-            // Only components get a thumbnail — a big empty placeholder says
-            // nothing, so bare entry types collapse to icon + title.
-            if (comp && comp.previewUrl) {
-                var thumb = document.createElement('span');
-                thumb.className = 'cg-picker-card__thumb';
-                var iframe = document.createElement('iframe');
-                iframe.src = comp.previewUrl;
-                iframe.loading = 'lazy';
-                iframe.tabIndex = -1;
-                iframe.setAttribute('title', '');
-                iframe.addEventListener('load', function () { sizeThumb(iframe); });
-                thumb.appendChild(iframe);
-                card.appendChild(thumb);
-            }
+            // Native card titlebar, same markup as Cp::elementCardHtml().
+            var head = document.createElement('div');
+            head.className = 'card-titlebar';
+            var headFlex = document.createElement('div');
+            headFlex.className = 'flex flex-nowrap flex-gap-s';
 
-            var body = document.createElement('span');
-            body.className = 'cg-picker-card__body';
-
-            // Reuse the entry type's own icon from the native menu item.
-            var iconSvg = item.el.querySelector('svg');
-            if (iconSvg) {
-                var icon = document.createElement('span');
-                icon.className = 'cg-picker-card__icon';
+            // Reuse the entry type's icon from the native menu item; carry its
+            // color class over so Craft tints it exactly like the block does.
+            var nativeIcon = item.el.querySelector('span.icon, .cp-icon');
+            var nativeSvg = nativeIcon && nativeIcon.querySelector('svg');
+            if (nativeSvg) {
+                var icon = document.createElement('div');
+                icon.className = 'cp-icon small';
+                nativeIcon.classList.forEach(function (cls) {
+                    if (cls !== 'icon' && cls !== 'cp-icon') {
+                        icon.classList.add(cls);
+                    }
+                });
                 icon.setAttribute('aria-hidden', 'true');
-                icon.appendChild(iconSvg.cloneNode(true));
-                body.appendChild(icon);
+                icon.appendChild(nativeSvg.cloneNode(true));
+                headFlex.appendChild(icon);
             }
 
-            var title = document.createElement('span');
-            title.className = 'cg-picker-card__title';
+            var title = document.createElement('div');
+            title.className = 'card-titlebar-label';
             title.textContent = comp ? comp.title : item.label;
-            body.appendChild(title);
+            headFlex.appendChild(title);
             if (comp && comp.status) {
                 var chip = document.createElement('span');
                 chip.className = 'cg-chip cg-chip--status cg-chip--' + comp.status;
                 chip.textContent = comp.status;
-                body.appendChild(chip);
+                headFlex.appendChild(chip);
             }
-            if (comp && comp.description) {
-                var desc = document.createElement('span');
-                desc.className = 'cg-picker-card__desc';
-                desc.textContent = comp.description;
-                body.appendChild(desc);
+            head.appendChild(headFlex);
+            card.appendChild(head);
+
+            // Description + thumbnail in a native card body under the titlebar.
+            // Bare entry types (no matching component) collapse to the bar.
+            if (comp && (comp.description || comp.previewUrl)) {
+                var main = document.createElement('div');
+                main.className = 'card-main';
+                var content = document.createElement('div');
+                content.className = 'card-content';
+                var body = document.createElement('div');
+                body.className = 'card-body';
+
+                if (comp.description) {
+                    var desc = document.createElement('div');
+                    desc.className = 'cg-picker-card__desc';
+                    desc.textContent = comp.description;
+                    body.appendChild(desc);
+                }
+
+                if (comp.previewUrl) {
+                    var thumb = document.createElement('span');
+                    thumb.className = 'cg-picker-card__thumb';
+                    var iframe = document.createElement('iframe');
+                    iframe.src = comp.previewUrl;
+                    iframe.loading = 'lazy';
+                    iframe.tabIndex = -1;
+                    iframe.setAttribute('title', '');
+                    iframe.addEventListener('load', function () { sizeThumb(iframe); });
+                    thumb.appendChild(iframe);
+                    body.appendChild(thumb);
+                }
+
+                content.appendChild(body);
+                main.appendChild(content);
+                card.appendChild(main);
             }
-            card.appendChild(body);
 
             card.addEventListener('click', function () {
                 // Entering Live Preview re-renders the editor, so every DOM
@@ -234,7 +310,79 @@
                 }
             });
 
-            grid.appendChild(card);
+            return card;
+        };
+
+        // Build every card once, in native menu order — grouping only decides
+        // the layout, so toggling re-parents the same nodes.
+        var entries = collectTypeItems(field).map(function (item) {
+            var comp = comps[item.type];
+            return { comp: comp, card: buildCard(item, comp) };
+        });
+
+        var renderGrid = function (grouped) {
+            grid.textContent = '';
+
+            if (!grouped) {
+                entries.forEach(function (entry) {
+                    grid.appendChild(entry.card);
+                });
+                applyFilter();
+                return;
+            }
+
+            // Group cards by the component's story group ("Page Builder",
+            // "Content Blocks", …), in order of first appearance; entry types
+            // without a matching component collapse into a trailing "Other".
+            var groups = [];
+            var byLabel = {};
+            entries.forEach(function (entry) {
+                var label = entry.comp && entry.comp.group ? entry.comp.group : 'Other';
+                if (!byLabel[label]) {
+                    byLabel[label] = { label: label, entries: [] };
+                    groups.push(byLabel[label]);
+                }
+                byLabel[label].entries.push(entry);
+            });
+            groups.sort(function (a, b) {
+                return (a.label === 'Other' ? 1 : 0) - (b.label === 'Other' ? 1 : 0);
+            });
+
+            var collapsedMap = getCollapsedGroups();
+
+            groups.forEach(function (group) {
+                var section = document.createElement('div');
+                section.className = 'cg-picker-group';
+                if (groups.length > 1) {
+                    var heading = document.createElement('button');
+                    heading.type = 'button';
+                    heading.className = 'cg-picker-group__title';
+                    heading.textContent = group.label + ' (' + group.entries.length + ')';
+                    var isCollapsed = !!collapsedMap[group.label];
+                    section.classList.toggle('is-collapsed', isCollapsed);
+                    heading.setAttribute('aria-expanded', String(!isCollapsed));
+                    heading.addEventListener('click', function () {
+                        var nowCollapsed = !section.classList.contains('is-collapsed');
+                        section.classList.toggle('is-collapsed', nowCollapsed);
+                        heading.setAttribute('aria-expanded', String(!nowCollapsed));
+                        collapsedMap[group.label] = nowCollapsed;
+                        setCollapsedGroups(collapsedMap);
+                    });
+                    section.appendChild(heading);
+                }
+                group.entries.forEach(function (entry) {
+                    section.appendChild(entry.card);
+                });
+                grid.appendChild(section);
+            });
+            applyFilter();
+        };
+
+        renderGrid(groupCheckbox.checked);
+
+        groupCheckbox.addEventListener('change', function () {
+            setGroupingEnabled(groupCheckbox.checked);
+            renderGrid(groupCheckbox.checked);
         });
 
         panel.appendChild(head);

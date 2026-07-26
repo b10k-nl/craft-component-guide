@@ -41,18 +41,48 @@
 }
 .cg-picker-panel__close:hover { color: #3f4d5a; }
 
+/* Same var(--s) gap as Craft's .nested-element-cards, so cards sit as tight
+   as the Matrix blocks themselves. */
 .cg-picker-grid {
     display: grid; grid-template-columns: 1fr;
-    gap: 14px; padding: 16px; overflow-y: auto;
+    gap: var(--s, 8px); padding: 16px; overflow-y: auto;
 }
 
-.cg-picker-card {
-    appearance: none; text-align: start; cursor: pointer;
-    display: flex; flex-direction: column; gap: 8px; padding: 12px;
-    border: 1px solid #cdd8e4; border-radius: 8px; background: #fff;
-    transition: border-color .15s, box-shadow .15s;
+.cg-picker-group { display: grid; grid-template-columns: 1fr; gap: var(--s, 8px); }
+.cg-picker-group[hidden] { display: none; }
+.cg-picker-group__title {
+    appearance: none; border: 0; background: none; padding: 0;
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    font-family: inherit; text-align: start;
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #8b97a3; margin-top: 6px;
 }
-.cg-picker-card:hover { border-color: #3f6fa7; box-shadow: 0 1px 6px rgba(0, 0, 0, .12); }
+.cg-picker-group__title:hover { color: #596775; }
+.cg-picker-group__title::before {
+    content: ''; width: 0; height: 0; flex: none;
+    border-left: 5px solid currentColor;
+    border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+    transition: transform .15s;
+}
+.cg-picker-group:not(.is-collapsed) > .cg-picker-group__title::before { transform: rotate(90deg); }
+.cg-picker-group:first-child .cg-picker-group__title { margin-top: 0; }
+
+/* Collapsed: only the heading stays. An active search wins over the collapse
+   so matches are always visible ([hidden] cards stay filtered out). */
+.cg-picker-group.is-collapsed > .cg-picker-card { display: none; }
+.cg-picker-grid.is-searching .cg-picker-group.is-collapsed > .cg-picker-card:not([hidden]) { display: flex; }
+
+/* The look comes from Craft's own .card / .card-titlebar classes; this only
+   resets the <button> element and adds picker affordances on top. */
+.cg-picker-card {
+    appearance: none; border: 0; padding: 0; margin: 0; width: 100%;
+    font: inherit; text-align: start; cursor: pointer;
+    transition: box-shadow .15s;
+}
+.cg-picker-card:hover {
+    --custom-border-color: var(--gray-300, #9aa5b1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
 /* Author display:flex would beat the UA's [hidden] rule — restate it. */
 .cg-picker-card[hidden] { display: none; }
 
@@ -60,13 +90,13 @@
 .cg-picker-card { position: relative; }
 .cg-picker-card.is-added { animation: cg-picker-added .8s ease-out; }
 .cg-picker-card.is-added::after {
-    content: '✓'; position: absolute; top: 8px; right: 10px;
+    content: '✓'; position: absolute; top: 8px; right: 10px; z-index: 2;
     font-size: 16px; font-weight: 700; color: #1c6b3c;
     animation: cg-picker-added-check .8s ease-out forwards;
 }
 @keyframes cg-picker-added {
-    0% { border-color: #2f9e5f; box-shadow: 0 0 0 3px rgba(47, 158, 95, .25); }
-    100% { border-color: #cdd8e4; box-shadow: none; }
+    0% { box-shadow: 0 0 0 3px rgba(47, 158, 95, .45); }
+    100% { box-shadow: none; }
 }
 @keyframes cg-picker-added-check {
     0% { opacity: 1; }
@@ -83,12 +113,16 @@
     position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
     border: 0; background: #fff; transform-origin: 0 0;
 }
-.cg-picker-search { padding: 12px 16px 0; }
+.cg-picker-search { padding: 12px 16px 0; display: flex; align-items: center; gap: 12px; }
+.cg-picker-search .text { flex: 1; }
+.cg-picker-group-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #4a5560; cursor: pointer; white-space: nowrap;
+    user-select: none;
+}
+.cg-picker-group-toggle input { cursor: pointer; }
 
-.cg-picker-card__body { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.cg-picker-card__icon svg { display: block; width: 14px; height: 14px; fill: currentColor; color: #596775; }
-.cg-picker-card__title { font-weight: 600; color: #1f2933; }
-.cg-picker-card__desc { flex-basis: 100%; font-size: 12px; color: #7a8794; }
+.cg-picker-card__desc { font-size: 12px; color: var(--light-text-color, #7a8794); line-height: 1.5; }
 
 /* Status chips (duplicated from component-guide.css — that bundle only loads
    on the guide's own pages, while the picker loads CP-wide). */

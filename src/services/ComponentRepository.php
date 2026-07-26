@@ -13,14 +13,28 @@ use yii\base\Component;
 /**
  * Single entry point for discovered components.
  *
- * Centralizes access, counting, grouping and searching, and memoizes the scan
- * for the duration of the request. Structured so a persistent cache can be added
- * later without touching callers.
+ * Centralizes access, counting, grouping and searching. Two cache layers:
+ *
+ *  1. Request memoization — the scan runs at most once per request.
+ *  2. Persistent cache (Craft's cache component) — keyed by a filesystem
+ *     fingerprint (story-file paths + mtimes), so it invalidates automatically
+ *     the moment any story or template changes. Computing the fingerprint only
+ *     walks and stats the tree; the expensive part (require + parse of every
+ *     story file) is skipped on a hit. Disable via `enableScanCache`.
  */
 class ComponentRepository extends Component
 {
+    /** Persistent cache TTL, seconds. Correctness comes from the fingerprint;
+     *  the TTL only bounds how long stale keys linger in the cache backend. */
+    private const CACHE_TTL = 3600;
+
+    private const CACHE_KEY_PREFIX = 'component-guide:scan:';
+
     /** @var ComponentDefinition[]|null */
     private ?array $components = null;
+
+    /** @var array<string, ComponentDefinition> */
+    private array $byId = [];
 
     /** @var ScanError[] */
     private array $errors = [];
@@ -54,12 +68,8 @@ class ComponentRepository extends Component
 
     public function getById(string $id): ?ComponentDefinition
     {
-        foreach ($this->getAll() as $component) {
-            if ($component->id === $id) {
-                return $component;
-            }
-        }
-        return null;
+        $this->getAll();
+        return $this->byId[$id] ?? null;
     }
 
     public function getStory(string $componentId, string $storyId): ?StoryDefinition
@@ -109,12 +119,14 @@ class ComponentRepository extends Component
     public function flush(): void
     {
         $this->components = null;
+        $this->byId = [];
         $this->errors = [];
     }
 
     private function load(): void
     {
         $settings = $this->settings();
+        $templatesRoot = Craft::$app->getPath()->getSiteTemplatesPath();
 
         // Stories come in two formats: PHP (the configured suffix) and Twig
         // (the same suffix with .php swapped for .twig, e.g. `.stories.twig`).
@@ -123,13 +135,39 @@ class ComponentRepository extends Component
             preg_replace('/\.php$/', '.twig', $settings->storySuffix),
         ]);
 
-        $result = $this->scanner->scan(
-            Craft::$app->getPath()->getSiteTemplatesPath(),
-            $settings->componentPath,
-            $suffixes,
-        );
+        $result = null;
+        $cacheKey = null;
+
+        if ($settings->enableScanCache) {
+            $fingerprint = $this->scanner->fingerprint($templatesRoot, $settings->componentPath, $suffixes);
+            $cacheKey = self::CACHE_KEY_PREFIX . md5(json_encode([
+                $templatesRoot,
+                $settings->componentPath,
+                $suffixes,
+                $fingerprint,
+            ]));
+
+            $cached = Craft::$app->getCache()->get($cacheKey);
+            if (is_array($cached) && isset($cached['components'], $cached['errors'])) {
+                $result = $cached;
+            }
+        }
+
+        if ($result === null) {
+            $result = $this->scanner->scan($templatesRoot, $settings->componentPath, $suffixes);
+
+            if ($cacheKey !== null) {
+                Craft::$app->getCache()->set($cacheKey, $result, self::CACHE_TTL);
+            }
+        }
+
         $this->components = $result['components'];
         $this->errors = $result['errors'];
+
+        $this->byId = [];
+        foreach ($this->components as $component) {
+            $this->byId[$component->id] = $component;
+        }
     }
 
     private function settings(): Settings

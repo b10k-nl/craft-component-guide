@@ -40,6 +40,15 @@ class Settings extends Model
     public bool $enableIframePreview = true;
 
     /**
+     * @var bool Whether scan results are cached persistently (Craft's cache
+     * component). The cache key includes a filesystem fingerprint of every
+     * story file, so it invalidates automatically when stories or templates
+     * change — disabling this is only useful for debugging. Overridable via
+     * config/component-guide.php.
+     */
+    public bool $enableScanCache = true;
+
+    /**
      * @var string[] Front-end CSS URLs injected into the preview document.
      */
     public array $previewCss = [];
@@ -60,8 +69,21 @@ class Settings extends Model
     public function init(): void
     {
         parent::init();
+        $this->normalizeAssetLists();
+    }
 
-        // Allow single-string config values for the asset lists.
+    public function beforeValidate(): bool
+    {
+        // Settings saved from the CP form arrive AFTER init(), as raw strings
+        // from textareas — normalize again so the rest of the request (and the
+        // persisted value) always sees string arrays.
+        $this->normalizeAssetLists();
+        return parent::beforeValidate();
+    }
+
+    private function normalizeAssetLists(): void
+    {
+        // Allow single-string config/form values for the asset lists.
         $this->previewCss = $this->normalizeList($this->previewCss);
         $this->previewJs = $this->normalizeList($this->previewJs);
     }
@@ -92,7 +114,7 @@ class Settings extends Model
         return [
             [['componentPath', 'storySuffix', 'previewTemplate'], 'trim'],
             [['storySuffix'], 'required'],
-            [['enableCpSection', 'enableIframePreview'], 'boolean'],
+            [['enableCpSection', 'enableIframePreview', 'enableScanCache'], 'boolean'],
             [['previewCss', 'previewJs', 'previewTemplate'], 'safe'],
             ['storySuffix', 'match', 'pattern' => '/\.php$/', 'message' => 'The story suffix must end in “.php”.'],
             ['componentPath', 'validateComponentPath'],
@@ -132,6 +154,7 @@ class Settings extends Model
             'storySuffix' => 'Story File Suffix',
             'enableCpSection' => 'Enable Control-Panel Section',
             'enableIframePreview' => 'Isolated Iframe Preview',
+            'enableScanCache' => 'Cache Scan Results',
             'previewCss' => 'Preview CSS',
             'previewJs' => 'Preview JavaScript',
             'previewTemplate' => 'Preview Head Template',

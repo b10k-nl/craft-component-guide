@@ -8,6 +8,7 @@ use b10k\componentguide\services\ComponentScanner;
 use b10k\componentguide\services\PreviewRenderer;
 use b10k\componentguide\services\StoryParser;
 use b10k\componentguide\services\TwigSnippetGenerator;
+use b10k\componentguide\services\TwigStoryLoader;
 use Craft;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
@@ -22,6 +23,9 @@ use yii\base\Event;
  * Component Guide — a Storybook-style browser for reusable Twig components.
  *
  * @property-read ComponentRepository $repository
+ * @property-read ComponentScanner $scanner
+ * @property-read StoryParser $storyParser
+ * @property-read TwigStoryLoader $twigStoryLoader
  * @property-read PreviewRenderer $previewRenderer
  * @property-read TwigSnippetGenerator $snippetGenerator
  * @method Settings getSettings()
@@ -38,9 +42,22 @@ class Plugin extends BasePlugin
     {
         return [
             'components' => [
+                // Wired explicitly (closures, not bare class names) so every
+                // constructor dependency is guaranteed to be the plugin's own
+                // shared instance. Relying on container autowiring for the
+                // nullable TwigStoryLoader parameter could silently resolve to
+                // null and disable Twig story support.
                 'storyParser' => StoryParser::class,
-                'scanner' => ComponentScanner::class,
-                'repository' => ComponentRepository::class,
+                'twigStoryLoader' => static fn(): TwigStoryLoader => new TwigStoryLoader(
+                    self::getInstance()->getStoryParser(),
+                ),
+                'scanner' => static fn(): ComponentScanner => new ComponentScanner(
+                    self::getInstance()->getStoryParser(),
+                    self::getInstance()->getTwigStoryLoader(),
+                ),
+                'repository' => static fn(): ComponentRepository => new ComponentRepository(
+                    self::getInstance()->getScanner(),
+                ),
                 'previewRenderer' => PreviewRenderer::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
             ],
@@ -69,6 +86,27 @@ class Plugin extends BasePlugin
         /** @var ComponentRepository $repo */
         $repo = $this->get('repository');
         return $repo;
+    }
+
+    public function getScanner(): ComponentScanner
+    {
+        /** @var ComponentScanner $scanner */
+        $scanner = $this->get('scanner');
+        return $scanner;
+    }
+
+    public function getStoryParser(): StoryParser
+    {
+        /** @var StoryParser $parser */
+        $parser = $this->get('storyParser');
+        return $parser;
+    }
+
+    public function getTwigStoryLoader(): TwigStoryLoader
+    {
+        /** @var TwigStoryLoader $loader */
+        $loader = $this->get('twigStoryLoader');
+        return $loader;
     }
 
     public function getPreviewRenderer(): PreviewRenderer
@@ -151,8 +189,8 @@ class Plugin extends BasePlugin
      */
     private function registerBlockPicker(): void
     {
-        $request = Craft::$app->getRequest();
-        if (!$request->getIsCpRequest() || $request->getIsConsoleRequest()) {
+        // Console requests are never CP requests, so one check suffices.
+        if (!Craft::$app->getRequest()->getIsCpRequest()) {
             return;
         }
 

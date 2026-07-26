@@ -55,6 +55,16 @@
     warning: overrideNote(overrides, 'enableIframePreview'),
 }) }}
 
+{{ forms.lightswitchField({
+    label: "Cache Scan Results"|t('component-guide'),
+    instructions: "Cache the component scan persistently. The cache invalidates automatically when a story or template file changes, so this is safe to keep on — disable only for debugging."|t('component-guide'),
+    id: 'enableScanCache',
+    name: 'enableScanCache',
+    on: settings.enableScanCache,
+    disabled: overrides.enableScanCache is defined,
+    warning: overrideNote(overrides, 'enableScanCache'),
+}) }}
+
 {{ forms.textareaField({
     label: "Preview CSS"|t('component-guide'),
     instructions: "Front-end CSS URLs to load into the preview document — one per line."|t('component-guide'),

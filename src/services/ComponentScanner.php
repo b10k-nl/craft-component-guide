@@ -75,16 +75,12 @@ class ComponentScanner extends Component
 
         $storyFiles = [];
         $this->collectStoryFiles($realComponentDir, $storySuffixes, $storyFiles, $errors);
-        sort($storyFiles);
+        ksort($storyFiles);
 
         $components = [];
         $seenIds = [];
 
-        foreach ($storyFiles as $storyFile) {
-            $matchedSuffix = $this->matchSuffix($storyFile, $storySuffixes);
-            if ($matchedSuffix === null) {
-                continue;
-            }
+        foreach ($storyFiles as $storyFile => $matchedSuffix) {
             $component = $this->buildComponent($storyFile, $realComponentDir, $realTemplatesRoot ?: $templatesRoot, $matchedSuffix);
             if ($component === null) {
                 continue;
@@ -126,8 +122,45 @@ class ComponentScanner extends Component
     }
 
     /**
+     * Cheap change-detection token for the scan inputs: hashes every story
+     * file's path + mtime and whether its paired Twig template exists. Walking
+     * the tree and stat-ing files is orders of magnitude cheaper than a full
+     * scan (which `require`s and parses every story file), so callers can use
+     * this as a cache key part and invalidate automatically on any change.
+     *
+     * @param string|string[] $storySuffix
+     */
+    public function fingerprint(string $templatesRoot, string $componentPath, string|array $storySuffix): string
+    {
+        $storySuffixes = array_values(array_filter((array)$storySuffix));
+        usort($storySuffixes, static fn(string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        $componentDir = $this->normalize(rtrim($this->normalize($templatesRoot), '/') . '/' . trim($componentPath, '/'));
+        $realComponentDir = realpath($componentDir);
+
+        if ($realComponentDir === false || !is_dir($realComponentDir)) {
+            return md5('missing:' . $componentDir . '#' . implode(',', $storySuffixes));
+        }
+
+        $files = [];
+        $ignored = [];
+        $this->collectStoryFiles($this->normalize($realComponentDir), $storySuffixes, $files, $ignored);
+        ksort($files);
+
+        $state = [];
+        foreach ($files as $path => $suffix) {
+            $template = substr($path, 0, -strlen($suffix)) . '.twig';
+            $state[] = $path
+                . '|' . (@filemtime($path) ?: 0)
+                . '|' . (is_file($template) ? (@filemtime($template) ?: 1) : 0);
+        }
+
+        return md5(implode("\n", $state) . '#' . implode(',', $storySuffixes));
+    }
+
+    /**
      * @param string[] $storySuffixes
-     * @param string[] $out
+     * @param array<string, string> $out Story file path => matched suffix.
      */
     private function collectStoryFiles(string $dir, array $storySuffixes, array &$out, array &$errors): void
     {
@@ -155,8 +188,9 @@ class ComponentScanner extends Component
                 continue;
             }
 
-            if ($this->matchSuffix($entry, $storySuffixes) !== null) {
-                $out[] = $path;
+            $matchedSuffix = $this->matchSuffix($entry, $storySuffixes);
+            if ($matchedSuffix !== null) {
+                $out[$path] = $matchedSuffix;
             }
         }
     }
@@ -182,7 +216,7 @@ class ComponentScanner extends Component
         $idPath = str_replace('\\', '/', substr($relativeToComponentDir, 0, -strlen($storySuffix)));
         $segments = explode('/', $idPath);
         $count = count($segments);
-        if ($count >= 2 && $segments[$count - 1] === $segments[$count - 2]) {
+        if ($count >= 2 && strcasecmp($segments[$count - 1], $segments[$count - 2]) === 0) {
             array_pop($segments);
         }
         $id = $this->slugPath(implode('/', $segments));
@@ -231,7 +265,9 @@ class ComponentScanner extends Component
         if (str_starts_with($path, $base . '/')) {
             return substr($path, strlen($base) + 1);
         }
-        return ltrim(str_replace($base, '', $path), '/');
+        // Not under the base (shouldn't happen after the realpath guard) —
+        // return as-is rather than mangling occurrences of the base mid-path.
+        return ltrim($path, '/');
     }
 
     private function slugPath(string $path): string

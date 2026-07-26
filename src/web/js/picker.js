@@ -449,19 +449,24 @@
 
     var init = function () {
         scan(document);
-        // Matrix fields can appear later (slideouts, lazy tabs).
+        // Matrix fields can appear later (slideouts, lazy tabs). CP pages
+        // mutate the DOM constantly (Live Preview, editors), so instead of
+        // querying on every added node we coalesce each mutation burst into a
+        // single document scan on the next frame — enhance() is idempotent
+        // (dataset flag), so re-scanning is cheap.
+        var scanScheduled = false;
         new MutationObserver(function (mutations) {
-            mutations.forEach(function (m) {
-                m.addedNodes.forEach(function (node) {
-                    if (node.nodeType === 1) {
-                        if (node.classList && node.classList.contains('matrix-field')) {
-                            enhance(node);
-                        } else if (node.querySelectorAll) {
-                            scan(node);
-                        }
-                    }
-                });
-            });
+            if (scanScheduled) { return; }
+            for (var i = 0; i < mutations.length; i++) {
+                if (mutations[i].addedNodes.length) {
+                    scanScheduled = true;
+                    requestAnimationFrame(function () {
+                        scanScheduled = false;
+                        scan(document);
+                    });
+                    return;
+                }
+            }
         }).observe(document.body, { childList: true, subtree: true });
     };
 

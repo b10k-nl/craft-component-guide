@@ -15,6 +15,21 @@
 .cg-picker-open:hover { background-color: var(--ui-control-hover-bg-color, #d4dbe2); }
 .cg-picker-open:active { background-color: var(--ui-control-active-bg-color, #c9d1da); }
 
+/* Compact duplicate of the trigger in the Live Preview editor pane header —
+   the field's own button sits below the fold on long Matrix fields. */
+.cg-picker-open--header {
+    margin-inline-start: auto;
+    min-height: 28px; padding: 0 10px; font-size: 13px;
+    flex: none; white-space: nowrap;
+}
+
+/* Fallback bar when the editor pane has no <header> to attach to. */
+.cg-picker-headerbar {
+    display: flex; justify-content: flex-end;
+    padding: 8px 24px 0;
+    position: sticky; top: 0; z-index: 3;
+}
+
 /* Docked right-hand panel — NOT a modal: no backdrop, the entry stays
    interactive, and the panel stays open so many blocks can be added in a row. */
 .cg-picker-panel {
@@ -43,12 +58,19 @@
 
 /* Same var(--s) gap as Craft's .nested-element-cards, so cards sit as tight
    as the Matrix blocks themselves. */
+/* align-items: start matters — the default stretch lets Chromium size the
+   row from the .card <button>'s containment-affected intrinsic height
+   (container-type: inline-size), clipping the card's own content. */
 .cg-picker-grid {
     display: grid; grid-template-columns: 1fr;
     gap: var(--s, 8px); padding: 16px; overflow-y: auto;
+    align-items: start;
 }
 
-.cg-picker-group { display: grid; grid-template-columns: 1fr; gap: var(--s, 8px); }
+.cg-picker-group {
+    display: grid; grid-template-columns: 1fr; gap: var(--s, 8px);
+    align-items: start;
+}
 .cg-picker-group[hidden] { display: none; }
 .cg-picker-group__title {
     appearance: none; border: 0; background: none; padding: 0;

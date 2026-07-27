@@ -180,6 +180,16 @@
             var thumb = iframe.parentElement;
             var w = thumb.clientWidth;
             if (!w) { return; }
+            // Re-inserting an iframe reloads it, and the load event can fire
+            // for the intermediate about:blank document — measuring that would
+            // collapse the thumb to the 80px floor. Keep the last good size
+            // and wait for the real document's load.
+            try {
+                if (iframe.contentDocument
+                    && iframe.contentDocument.location.href === 'about:blank') {
+                    return;
+                }
+            } catch (e) { /* cross-origin — measure below via the fallback */ }
             var s = w / THUMB_VIEWPORT;
             var h = 800;
             try {
@@ -190,6 +200,22 @@
             iframe.style.transform = 'scale(' + s + ')';
             thumb.style.aspectRatio = 'auto';
             thumb.style.height = Math.ceil(h * s) + 'px';
+        };
+
+        // Re-measure every thumbnail whose preview document is ready — used
+        // after re-layout (grouping toggle), where widths may change and, on
+        // browsers without moveBefore(), reloaded iframes need a re-fit.
+        var resizeThumbs = function () {
+            requestAnimationFrame(function () {
+                grid.querySelectorAll('.cg-picker-card__thumb iframe').forEach(function (iframe) {
+                    try {
+                        if (iframe.contentDocument
+                            && iframe.contentDocument.readyState === 'complete') {
+                            sizeThumb(iframe);
+                        }
+                    } catch (e) { /* not readable yet — load listener will fit it */ }
+                });
+            });
         };
 
         var buildCard = function (item, comp) {
@@ -320,14 +346,43 @@
             return { comp: comp, card: buildCard(item, comp) };
         });
 
+        // Re-parent without reloading: appendChild on a connected iframe
+        // resets its document (and the load event can catch it mid-reload,
+        // mis-measuring the thumb), while moveBefore() moves it atomically.
+        var moveInto = function (parent, node) {
+            if (parent.isConnected && node.isConnected && parent.moveBefore) {
+                try {
+                    parent.moveBefore(node, null);
+                    return;
+                } catch (e) { /* fall back to a plain append */ }
+            }
+            parent.appendChild(node);
+        };
+
         var renderGrid = function (grouped) {
-            grid.textContent = '';
+            // Old group wrappers are removed only AFTER their cards have been
+            // moved out, so the cards never leave the document.
+            var stale = Array.prototype.slice.call(
+                grid.querySelectorAll(':scope > .cg-picker-group')
+            );
 
             if (!grouped) {
+                // Ungrouped cards still live inside a single (headingless)
+                // .cg-picker-group wrapper. As DIRECT children of the scroll
+                // container, Chromium sizes their grid rows from the .card
+                // button's containment-affected intrinsic height and the card
+                // bodies overflow onto the following cards; one nesting level
+                // below the scroller (exactly like grouped mode) lays out
+                // correctly.
+                var section = document.createElement('div');
+                section.className = 'cg-picker-group';
+                grid.appendChild(section);
                 entries.forEach(function (entry) {
-                    grid.appendChild(entry.card);
+                    moveInto(section, entry.card);
                 });
+                stale.forEach(function (el) { el.remove(); });
                 applyFilter();
+                resizeThumbs();
                 return;
             }
 
@@ -370,12 +425,16 @@
                     });
                     section.appendChild(heading);
                 }
-                group.entries.forEach(function (entry) {
-                    section.appendChild(entry.card);
-                });
+                // Connect the section before moving cards in — moveBefore()
+                // only preserves iframe state between connected parents.
                 grid.appendChild(section);
+                group.entries.forEach(function (entry) {
+                    moveInto(section, entry.card);
+                });
             });
+            stale.forEach(function (el) { el.remove(); });
             applyFilter();
+            resizeThumbs();
         };
 
         renderGrid(groupCheckbox.checked);
@@ -443,8 +502,47 @@
         });
     };
 
+    // --- Live Preview header shortcut ------------------------------------
+    // The field's own "Blocks gallery" button sits in its bottom .buttons
+    // row, which on long Matrix fields is below the fold. Duplicate the
+    // trigger in the Live Preview editor pane's header so it is always in
+    // reach. It only proxies a click to the field's live button, so panel
+    // logic stays in one place and stale-DOM re-renders are a non-issue.
+    var enhancePreviewHeader = function (container) {
+        if (container.dataset.cgPickerHeader) { return; }
+
+        // Fields are enhanced asynchronously (picker map fetch); until a real
+        // gallery button exists there is nothing to proxy — the mutation
+        // observer will re-run this scan once it appears.
+        if (!container.querySelector('.cg-picker-open:not(.cg-picker-open--header)')) { return; }
+
+        container.dataset.cgPickerHeader = '1';
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cg-picker-open cg-picker-open--header';
+        btn.textContent = Craft.t('component-guide', 'Blocks gallery');
+        btn.addEventListener('click', function () {
+            // Re-resolve on every click — Preview re-renders its editor pane.
+            var live = container.querySelector('.cg-picker-open:not(.cg-picker-open--header)');
+            if (live) { live.click(); }
+        });
+
+        var header = container.querySelector('header');
+        if (header) {
+            header.appendChild(btn);
+        } else {
+            // Fallback for markup drift: our own slim sticky bar at the top.
+            var bar = document.createElement('div');
+            bar.className = 'cg-picker-headerbar';
+            bar.appendChild(btn);
+            container.insertBefore(bar, container.firstChild);
+        }
+    };
+
     var scan = function (root) {
         (root || document).querySelectorAll('.matrix-field').forEach(enhance);
+        document.querySelectorAll('.lp-editor-container').forEach(enhancePreviewHeader);
     };
 
     var init = function () {

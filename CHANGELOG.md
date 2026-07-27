@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org).
 Initial MVP (alpha).
 
 ### Added
+- The "Blocks gallery" trigger is duplicated in the Live Preview editor pane
+  header, so it stays reachable on long Matrix fields without scrolling to the
+  field's bottom "New Block" row.
 - Recursive component discovery from a configurable templates directory.
 - Nested (`button/button.twig` + `button/button.stories.php`) and adjacent-file
   conventions.
@@ -49,6 +52,17 @@ Initial MVP (alpha).
   scan per frame, reducing overhead on busy CP pages.
 
 ### Fixed
+- Ungrouped picker cards are no longer clipped/overlapping. Root cause: as
+  DIRECT children of the panel's scroll container, Chromium sizes grid rows
+  from the `.card` button's containment-affected intrinsic height
+  (`container-type: inline-size`), cutting descriptions and thumbnails off —
+  `align-items: start` alone did not cover it. Cards now always sit one
+  nesting level below the scroller: ungrouped mode renders a single
+  headingless group wrapper, mirroring the (working) grouped layout.
+- Toggling the picker's "Group" checkbox no longer reloads every preview
+  iframe: cards are moved atomically (`moveBefore()`, with an `appendChild`
+  fallback), thumbnail sizing ignores the intermediate `about:blank` load,
+  and all thumbnails are re-measured after the re-layout.
 - Preview CSS/JS settings saved from the CP form are normalized to arrays
   within the same request.
 - The repeated `folder/name` component-ID collapse is now case-insensitive.

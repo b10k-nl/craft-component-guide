@@ -37,6 +37,8 @@ class ComponentsController extends Controller
             'componentCount' => $repository->componentCount(),
             'storyCount' => $repository->storyCount(),
             'scanErrors' => $repository->getErrors(),
+            'groupMeta' => $repository->getGroupMeta(),
+            'undocumentedCount' => $repository->undocumentedCount(),
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
     }

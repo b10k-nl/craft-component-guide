@@ -22,6 +22,7 @@ class ScanError
     public const EMPTY_STORY_FILE = 'empty_story_file';
     public const TEMPLATE_RENDER_ERROR = 'template_render_error';
     public const UNKNOWN_STATUS = 'unknown_status';
+    public const DUPLICATE_MARKER = 'duplicate_marker';
 
     public function __construct(
         public string $type,
@@ -50,6 +51,7 @@ class ScanError
             self::DUPLICATE_STORY_ID => 'Two stories in this component share a name. Rename one of them.',
             self::TEMPLATE_RENDER_ERROR => 'The component template threw while rendering with these args.',
             self::UNKNOWN_STATUS => 'Use one of: ' . implode(', ', \b10k\componentguide\services\StoryParser::STATUSES) . '.',
+            self::DUPLICATE_MARKER => 'Keep a single marker file (GUIDE.md, BLOCKS.md or COMPONENTS.md) per directory.',
             default => '',
         };
     }

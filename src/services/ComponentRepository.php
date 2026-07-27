@@ -30,6 +30,13 @@ class ComponentRepository extends Component
 
     private const CACHE_KEY_PREFIX = 'component-guide:scan:';
 
+    /**
+     * Bump whenever the shape or semantics of the cached scan result change
+     * (new keys, different grouping rules, …), so a plugin update invalidates
+     * stale entries even though no template or story file was touched.
+     */
+    private const CACHE_SCHEMA_VERSION = 3;
+
     /** @var ComponentDefinition[]|null */
     private ?array $components = null;
 
@@ -38,6 +45,9 @@ class ComponentRepository extends Component
 
     /** @var ScanError[] */
     private array $errors = [];
+
+    /** @var array<string, array{label: ?string, description: ?string, marker: string, group?: string}> Marker-file metadata keyed by directory relative to the scan root. */
+    private array $groupMeta = [];
 
     public function __construct(private ComponentScanner $scanner, array $config = [])
     {
@@ -114,6 +124,36 @@ class ComponentRepository extends Component
     }
 
     /**
+     * Marker-file metadata (label/description) keyed by group name as used by
+     * {@see getGrouped()}: the composed, hierarchy-aware group name of the
+     * marker's own folder (e.g. "Components / Cards").
+     *
+     * @return array<string, array{label: ?string, description: ?string, marker: string, group?: string}>
+     */
+    public function getGroupMeta(): array
+    {
+        $this->getAll();
+
+        $byGroup = [];
+        foreach ($this->groupMeta as $dir => $meta) {
+            $byGroup[$meta['group'] ?? $meta['label'] ?? ($dir === '' ? 'Ungrouped' : $dir)] = $meta;
+        }
+
+        return $byGroup;
+    }
+
+    /**
+     * Number of story-less components discovered through marker files.
+     */
+    public function undocumentedCount(): int
+    {
+        return count(array_filter(
+            $this->getAll(),
+            static fn(ComponentDefinition $c) => !$c->isDocumented,
+        ));
+    }
+
+    /**
      * Forget the memoized scan (e.g. after settings change within a request).
      */
     public function flush(): void
@@ -121,6 +161,7 @@ class ComponentRepository extends Component
         $this->components = null;
         $this->byId = [];
         $this->errors = [];
+        $this->groupMeta = [];
     }
 
     private function load(): void
@@ -141,6 +182,7 @@ class ComponentRepository extends Component
         if ($settings->enableScanCache) {
             $fingerprint = $this->scanner->fingerprint($templatesRoot, $settings->componentPath, $suffixes);
             $cacheKey = self::CACHE_KEY_PREFIX . md5(json_encode([
+                self::CACHE_SCHEMA_VERSION,
                 $templatesRoot,
                 $settings->componentPath,
                 $suffixes,
@@ -163,6 +205,8 @@ class ComponentRepository extends Component
 
         $this->components = $result['components'];
         $this->errors = $result['errors'];
+        // Cache entries written before marker support lack the key.
+        $this->groupMeta = $result['groupMeta'] ?? [];
 
         $this->byId = [];
         foreach ($this->components as $component) {

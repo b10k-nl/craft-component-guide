@@ -34,6 +34,8 @@ class ComponentDefinition
         public string $storyFilePath = '',
         public array $stories = [],
         public array $errors = [],
+        /** @var bool False for story-less components discovered via a marker file. */
+        public bool $isDocumented = true,
     ) {
     }
 

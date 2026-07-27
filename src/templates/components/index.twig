@@ -23,6 +23,12 @@
                 <strong>{{ storyCount }}</strong>
                 {{ (storyCount == 1 ? "story" : "stories")|t('component-guide') }}
             </span>
+            {% if undocumentedCount is defined and undocumentedCount > 0 %}
+                <span class="cg-stat">
+                    <strong>{{ undocumentedCount }}</strong>
+                    {{ "without stories"|t('component-guide') }}
+                </span>
+            {% endif %}
         </div>
 
         {% if componentCount > 0 %}
@@ -49,12 +55,28 @@
     {% else %}
         <div id="cg-results">
             {% for group, components in grouped %}
+                {% set meta = groupMeta[group] ?? null %}
                 <section class="cg-group" data-group>
                     <h2 class="cg-group__title">{{ group }}</h2>
+                    {% if meta and meta.description %}
+                        <p class="cg-group__desc light">{{ meta.description }}</p>
+                    {% endif %}
                     <ul class="cg-grid">
                         {% for component in components %}
-                            {% set search = [component.title, component.name, group, component.templatePath, component.status, component.description]|join(' ')|lower %}
+                            {% set search = [component.title, component.name, group, component.templatePath, component.status, component.description, component.isDocumented ? '' : 'undocumented']|join(' ')|lower %}
                             <li class="cg-card" data-card data-search="{{ search }}">
+                                {% if not component.isDocumented %}
+                                    {# Story-less template discovered via a marker file: no detail
+                                       page or preview yet — an inert card with a hint instead. #}
+                                    <div class="cg-card__link cg-card__link--undocumented">
+                                        <span class="cg-card__title">{{ component.title }}</span>
+                                        <span class="cg-card__meta code">{{ component.templatePath }}</span>
+                                        <span class="cg-card__meta light">
+                                            <span class="cg-chip cg-chip--status cg-chip--undocumented">{{ "undocumented"|t('component-guide') }}</span>
+                                            {{ "Add a story file to unlock previews."|t('component-guide') }}
+                                        </span>
+                                    </div>
+                                {% else %}
                                 <a class="cg-card__link" href="{{ cpUrl('component-guide/components/' ~ component.id) }}">
                                     <span class="cg-card__title">
                                         {{ component.title }}
@@ -86,6 +108,7 @@
                                         {% endif %}
                                     </span>
                                 </a>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ul>

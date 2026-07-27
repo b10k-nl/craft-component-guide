@@ -25,8 +25,21 @@ Initial MVP (alpha).
 - Persistent scan cache keyed by a filesystem fingerprint (story-file mtimes),
   so it invalidates automatically when stories or templates change. Toggleable
   via the `enableScanCache` setting.
+- Marker-file discovery: drop a `GUIDE.md`, `BLOCKS.md` or `COMPONENTS.md` into
+  a folder to list every Twig template in its subtree as an "undocumented"
+  component — no story file needed. Group names mirror the folder hierarchy
+  ("Components / Cards"): a marker's H1 replaces its own folder's name in the
+  chain and is inherited by every component in the subtree without an explicit
+  meta group (documented or not); the intro text below the H1 becomes the
+  group description on the index page.
+  Underscore-prefixed files are skipped, duplicate markers in one directory
+  produce a non-fatal warning (GUIDE → BLOCKS → COMPONENTS precedence), and the
+  scan-cache fingerprint tracks markers and covered templates automatically.
 
 ### Changed
+- The persistent scan cache key now includes an internal schema version, so
+  plugin updates that change the cached result's shape or semantics invalidate
+  stale entries automatically.
 - Plugin components are wired explicitly, guaranteeing Twig story support
   (`*.stories.twig`) is always active.
 - Component lookups by ID are indexed instead of linear scans.

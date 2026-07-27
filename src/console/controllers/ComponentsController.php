@@ -57,14 +57,17 @@ class ComponentsController extends Controller
         $repository = Plugin::getInstance()->getRepository();
         $components = $repository->getAll();
 
+        $undocumented = $repository->undocumentedCount();
         $this->stdout(sprintf(
-            "Found %d component(s), %d story(ies).\n\n",
+            "Found %d component(s), %d story(ies)%s.\n\n",
             $repository->componentCount(),
             $repository->storyCount(),
+            $undocumented > 0 ? sprintf(', %d without stories', $undocumented) : '',
         ), Console::FG_GREEN);
 
         foreach ($components as $component) {
-            $flag = $component->hasErrors() ? ' [errors]' : '';
+            $flag = ($component->isDocumented ? '' : ' [no story]')
+                . ($component->hasErrors() ? ' [errors]' : '');
             $this->stdout(sprintf(
                 "  %-28s %s (%d)%s\n",
                 $component->id,

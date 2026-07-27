@@ -235,6 +235,14 @@ controllers/      → тонкі: валідація → repository/renderer →
   «Component Blocks», «Guided Matrix». Нативний Content Block гід теж має
   підтримати як ще один field layout provider для мапінгу «тип → компонент».
 - Пресети viewport і зразки фону в тулбарі прев'ю.
+- Click-to-focus у live preview (ідея Angelo, LinkedIn 07.2026): клік по блоку
+  на фронті → фокус/підсвітка відповідного блока в редакторі (і навпаки).
+  ДОСЛІДЖЕНО: вже існує як безкоштовний однофункційний плагін Preview Mate
+  (nicholashamilton/craft-preview-mate; конвенція `data-preview-block-id` або
+  Twig-хелпер, рендериться лише в live preview). НЕ дублювати: якщо робити —
+  то як збагачення поверх мапінгу «блок → компонент» (підсвітка з назвою/
+  описом/статусом і лінком на гід), або просто рекомендувати Preview Mate
+  як компаньйон у документації.
 - Інжект Vite dev-server / HMR для точного прев'ю Tailwind.
 - Перевизначення `previewCss`/`previewJs` на рівні окремої story.
 - Багатша метадата story (deprecations, «since»-версія, посилання на дизайн).

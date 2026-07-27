@@ -22,6 +22,10 @@ Component Guide scans a configurable templates directory, discovers Twig compone
 - Renders each story in a sandboxed **iframe** with your front-end CSS.
 - Generates a copy-pasteable Twig `{% include … with {…} only %}` snippet.
 - Surfaces per-component errors without breaking the rest of the guide.
+- Lists story-less templates via **marker files** (`GUIDE.md` / `BLOCKS.md` /
+  `COMPONENTS.md`), so the guide doubles as a full component inventory.
+- Persistent scan cache keyed by a filesystem fingerprint — invalidates itself
+  the moment a story, template or marker changes.
 
 ## Installation
 
@@ -127,8 +131,40 @@ templates/_components/
     └── menu.stories.php
 ```
 
-A Twig file is listed as a component only when it has a matching story file.
+A Twig file is listed as a component only when it has a matching story file —
+unless its folder is opted in via a **marker file** (see below).
 Hidden files/dirs, `node_modules`, `vendor` and cache folders are ignored.
+
+## Marker files: components without stories
+
+Writing a story per component is an upgrade, not the ticket in. Drop a marker
+file — `GUIDE.md`, `BLOCKS.md` or `COMPONENTS.md` — into any folder inside the
+scan root, and **every** plain Twig template in that folder and its subfolders
+is listed in the guide, story or not. Story-less templates appear as inert
+“undocumented” cards with a hint to add a story; templates whose filename
+starts with `_` are treated as internal partials and skipped.
+
+The marker is also lightweight documentation:
+
+```md
+# Content Blocks
+
+Reusable page blocks editors can add through the Matrix page builder.
+
+## Anything below the intro is ignored by the guide — document freely.
+```
+
+- The **H1** becomes the group label. Group names mirror the folder hierarchy:
+  a marker's H1 replaces its own folder's name in the chain and plain
+  subfolders are humanized (`Components / Cards`). Components without an
+  explicit `meta.group` inherit the derived name, so documented and
+  undocumented cards share one section.
+- The **intro text** below the H1 (up to the next heading) becomes the group
+  description on the index page.
+- One marker per folder; with duplicates, precedence is
+  `GUIDE.md` → `BLOCKS.md` → `COMPONENTS.md` and the CLI scan warns.
+- Markers live in git next to your templates and read as plain folder docs on
+  GitHub. The scan cache tracks them automatically.
 
 ## Story format
 
@@ -185,6 +221,57 @@ Optional story keys: `args`, `description`, `background`, `viewport`, `tags`.
 Prefer plain arrays and scalar props. Craft element objects returned by trusted
 story files are not blocked, but arrays keep stories portable.
 
+## Recommended architecture: adapters + presentational components
+
+The guide works with any template structure, but this three-layer pattern gets
+the most out of it — and keeps a Matrix page builder maintainable:
+
+```
+templates/_v2/
+├── _blocks.twig             # dispatcher — loops the Matrix field (~10 lines)
+├── _adapters/               # entry-aware glue (NOT listed in the guide)
+│   ├── hero.twig            #   one per block type, named after its handle
+│   ├── promoBanner.twig
+│   └── undefined.twig       #   fallback: dev/preview-only “unmapped block” alert
+└── _blocks/                 # presentational components (listed in the guide)
+    ├── BLOCKS.md            #   marker file — inventory + group description
+    ├── hero.twig            #   pure: accepts scalars/arrays, never an Entry
+    ├── hero.stories.php     #   preview states for the guide
+    └── promoBanner.twig
+```
+
+**Presentational components** accept plain scalars and arrays with `|default`
+fallbacks — never a Craft element. That is exactly what makes them previewable
+in the guide with simple array stories, and reusable outside the Matrix
+context.
+
+**Adapters** are the only layer that touches entries: one small template per
+block type, receiving `{ block }`, doing all field access, `getFieldByHandle`
+guards, image transforms, queries and fallbacks — then including the
+presentational partial. They contain no markup of their own. Keep the folder
+**outside** any marker-covered subtree so the guide never lists glue code as
+components.
+
+**The dispatcher** collapses to a loop with a convention-based include and an
+automatic fallback (Twig picks the first template that exists):
+
+```twig
+{% for block in blocks.all() %}
+    {% include [
+        '_v2/_adapters/' ~ block.type.handle ~ '.twig',
+        '_v2/_adapters/undefined.twig',
+    ] with { block: block } only %}
+{% endfor %}
+```
+
+`undefined.twig` renders a visible warning in dev mode / live preview and
+nothing in production — a new block type shows up as an actionable alert
+instead of silently rendering nothing.
+
+Rules of thumb: a component never touches an Entry; an adapter never contains
+markup; adding a block = entry type + adapter + component (+ story when it
+earns one).
+
 ## Preview asset configuration
 
 Set `previewCss` / `previewJs` (string or array of URLs) to load your compiled
@@ -239,9 +326,9 @@ ddev exec php craft component-guide/components/scan
 
 ## Roadmap
 
-- Optionally list undocumented Twig files
-- Persistent scan cache + invalidation
 - Viewport presets, more preview controls
+- Page-builder awareness: map Matrix entry types to their components
+- Story scaffolding for undocumented components
 - Additional story formats
 
 ## Contributing

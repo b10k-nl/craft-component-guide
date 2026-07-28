@@ -142,7 +142,9 @@ class StoryScaffolder extends Component
             if (preg_match('/^for\s+([a-zA-Z_]\w*)(?:\s*,\s*([a-zA-Z_]\w*))?\s+in\s+([a-zA-Z_]\w*)/', $expr, $mm) === 1) {
                 $locals[$mm[1]] = true;
                 $itemVar = $mm[1];
-                if (($mm[2] ?? '') !== '') {
+                // The trailing capture group keeps offset 2 present (empty when
+                // the "key, value" form isn't used), so no ?? needed.
+                if ($mm[2] !== '') {
                     // "for key, value in …" — the second name is the item.
                     $locals[$mm[2]] = true;
                     $itemVar = $mm[2];

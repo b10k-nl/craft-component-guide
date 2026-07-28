@@ -170,10 +170,10 @@ class ComponentRepository extends Component
         $templatesRoot = Craft::$app->getPath()->getSiteTemplatesPath();
 
         // Stories come in two formats: PHP (the configured suffix) and Twig
-        // (the same suffix with .php swapped for .twig, e.g. `.stories.twig`).
+        // (see Settings::twigStorySuffix()).
         $suffixes = array_unique([
             $settings->storySuffix,
-            preg_replace('/\.php$/', '.twig', $settings->storySuffix),
+            $settings->twigStorySuffix(),
         ]);
 
         $result = null;

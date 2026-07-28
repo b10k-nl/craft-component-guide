@@ -8,6 +8,14 @@ to [Semantic Versioning](https://semver.org).
 Initial MVP (alpha).
 
 ### Added
+- Story scaffolder: an "Add stories" button on undocumented cards (dev mode
+  only) and a `component-guide/components/make <id>` console command generate
+  a skeleton story from the template's variables — loop sources become sample
+  item arrays, `|default()` and `{% set x = x ?? … %}` fallbacks become values,
+  the first sentence of the leading `{# … #}` comment becomes the description,
+  and the rest is guessed from variable names. Writes `.stories.twig` by
+  default (`--format=php` for the PHP format), marks the result `status: wip`,
+  and never overwrites an existing story file.
 - The "Blocks gallery" trigger is duplicated in the Live Preview editor pane
   header, so it stays reachable on long Matrix fields without scrolling to the
   field's bottom "New Block" row.

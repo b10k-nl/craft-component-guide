@@ -18,6 +18,19 @@ use yii\console\ExitCode;
 class ComponentsController extends Controller
 {
     /**
+     * @var string Story format written by `make`: "twig" (default) or "php".
+     */
+    public string $format = 'twig';
+
+    public function options($actionID): array
+    {
+        return array_merge(
+            parent::options($actionID),
+            $actionID === 'make' ? ['format'] : [],
+        );
+    }
+
+    /**
      * Renders one story's full preview document to stdout — useful for
      * verifying preview config (previewCss/previewTemplate) without a browser.
      *
@@ -50,6 +63,42 @@ class ComponentsController extends Controller
 
         $this->stdout($doc . "\n");
         return $result->success ? ExitCode::OK : ExitCode::UNSPECIFIED_ERROR;
+    }
+
+    /**
+     * Generates a skeleton story file for an undocumented component from its
+     * template's variables (marked `status: wip`; never overwrites).
+     *
+     * `php craft component-guide/components/make <componentId> [--format=php]`
+     */
+    public function actionMake(string $componentId): int
+    {
+        $plugin = Plugin::getInstance();
+
+        if (!in_array($this->format, ['twig', 'php'], true)) {
+            $this->stderr("Unknown --format “{$this->format}”; use “twig” or “php”.\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $component = $plugin->getRepository()->getById($componentId);
+        if ($component === null) {
+            $this->stderr("Component not found: {$componentId}\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $settings = $plugin->getSettings();
+        $suffix = $this->format === 'php' ? $settings->storySuffix : $settings->twigStorySuffix();
+
+        try {
+            $path = $plugin->getStoryScaffolder()->scaffold($component, $suffix);
+        } catch (\RuntimeException $e) {
+            $this->stderr($e->getMessage() . "\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout("Story scaffold written: {$path}\n", Console::FG_GREEN);
+        $this->stdout("The args are guesses — review them until the preview looks right.\n");
+        return ExitCode::OK;
     }
 
     public function actionScan(): int

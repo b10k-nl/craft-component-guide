@@ -66,6 +66,17 @@ class Settings extends Model
      */
     public string $previewTemplate = '';
 
+    /**
+     * The Twig story suffix that pairs with {@see $storySuffix}: the same
+     * name with `.php` swapped for `.twig` (e.g. `.stories.twig`). Both
+     * formats are discovered by the scanner; this is also the format the
+     * story scaffolder writes by default.
+     */
+    public function twigStorySuffix(): string
+    {
+        return preg_replace('/\.php$/', '.twig', $this->storySuffix) ?? $this->storySuffix;
+    }
+
     public function init(): void
     {
         parent::init();

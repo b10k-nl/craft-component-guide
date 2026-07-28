@@ -75,6 +75,16 @@
                                             <span class="cg-chip cg-chip--status cg-chip--undocumented">{{ "undocumented"|t('component-guide') }}</span>
                                             {{ "Add a story file to unlock previews."|t('component-guide') }}
                                         </span>
+                                        {% if craft.app.config.general.devMode %}
+                                            {# Scaffolder writes into templates/, hence dev-mode only
+                                               (the controller enforces the same gate). #}
+                                            <form method="post" accept-charset="UTF-8" style="margin-top: 10px;">
+                                                {{ csrfInput() }}
+                                                {{ actionInput('component-guide/components/scaffold') }}
+                                                {{ hiddenInput('componentId', component.id) }}
+                                                <button type="submit" class="btn small">{{ "Add stories"|t('component-guide') }}</button>
+                                            </form>
+                                        {% endif %}
                                     </div>
                                 {% else %}
                                 <a class="cg-card__link" href="{{ cpUrl('component-guide/components/' ~ component.id) }}">

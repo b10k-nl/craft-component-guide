@@ -221,6 +221,32 @@ Optional story keys: `args`, `description`, `background`, `viewport`, `tags`.
 Prefer plain arrays and scalar props. Craft element objects returned by trusted
 story files are not blocked, but arrays keep stories portable.
 
+## Scaffolding stories
+
+Undocumented components (see marker files above) can bootstrap their own
+story. In dev mode each undocumented card gets an **Add stories** button; the
+equivalent on the command line is:
+
+```sh
+php craft component-guide/components/make hero            # writes hero.stories.twig
+php craft component-guide/components/make hero --format=php
+```
+
+The scaffolder reads the template and guesses a `Default` story from it:
+
+- root variables become args; `{% for it in items %}` becomes a three-item
+  sample array carrying the keys the loop actually uses (`it.title` → `title`);
+- `|default('…')` and the `{% set x = x ?? '…' %}` idiom supply real values;
+- everything else is guessed by name — `*Url` → `#`, image-ish `*Url` → an
+  inline SVG placeholder, `*Html` → a paragraph, `is*`/`has*` → `true`;
+- the first sentence of the template's leading `{# … #}` comment becomes the
+  component description.
+
+The result is a **draft**: it is written with `status: wip`, the args are
+guesses, and an existing story file is never overwritten. Review it, fix what
+the heuristics got wrong, and promote the status when the component is
+properly documented.
+
 ## Recommended architecture: adapters + presentational components
 
 The guide works with any template structure, but this three-layer pattern gets
@@ -328,7 +354,6 @@ ddev exec php craft component-guide/components/scan
 
 - Viewport presets, more preview controls
 - Page-builder awareness: map Matrix entry types to their components
-- Story scaffolding for undocumented components
 - Additional story formats
 
 ## Contributing

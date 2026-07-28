@@ -4,6 +4,7 @@ namespace b10k\componentguide\controllers;
 
 use b10k\componentguide\Plugin;
 use craft\web\Controller;
+use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
@@ -71,5 +72,46 @@ class ComponentsController extends Controller
             'snippet' => $snippet,
             'enableIframePreview' => $plugin->getSettings()->enableIframePreview,
         ]);
+    }
+
+    /**
+     * Generates a story scaffold for an undocumented component and redirects
+     * to its (now documented) detail page.
+     *
+     * Writes into the project's templates directory, so it is dev-mode only —
+     * the CP button is likewise rendered only in dev mode.
+     */
+    public function actionScaffold(): Response
+    {
+        $this->requirePostRequest();
+
+        if (!\Craft::$app->getConfig()->getGeneral()->devMode) {
+            throw new ForbiddenHttpException('Story scaffolding is only available in dev mode.');
+        }
+
+        $componentId = (string)$this->request->getRequiredBodyParam('componentId');
+        $plugin = Plugin::getInstance();
+        $component = $plugin->getRepository()->getById($componentId);
+
+        if ($component === null) {
+            throw new NotFoundHttpException('Component not found.');
+        }
+
+        try {
+            // Twig is the scaffold default: same language as the component.
+            $plugin->getStoryScaffolder()->scaffold($component, $plugin->getSettings()->twigStorySuffix());
+        } catch (\RuntimeException $e) {
+            $this->setFailFlash($e->getMessage());
+            return $this->redirect('component-guide');
+        }
+
+        $this->setSuccessFlash(\Craft::t(
+            'component-guide',
+            'Story scaffold created — the args are guesses, review them until the preview looks right.',
+        ));
+
+        // The new story file changes the scan fingerprint, so the fresh scan
+        // already sees this component as documented.
+        return $this->redirect('component-guide/components/' . $component->id);
     }
 }

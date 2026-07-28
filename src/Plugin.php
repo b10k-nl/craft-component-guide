@@ -7,6 +7,7 @@ use b10k\componentguide\services\ComponentRepository;
 use b10k\componentguide\services\ComponentScanner;
 use b10k\componentguide\services\PreviewRenderer;
 use b10k\componentguide\services\StoryParser;
+use b10k\componentguide\services\StoryScaffolder;
 use b10k\componentguide\services\TwigSnippetGenerator;
 use b10k\componentguide\services\TwigStoryLoader;
 use Craft;
@@ -25,6 +26,7 @@ use yii\base\Event;
  * @property-read ComponentRepository $repository
  * @property-read ComponentScanner $scanner
  * @property-read StoryParser $storyParser
+ * @property-read StoryScaffolder $storyScaffolder
  * @property-read TwigStoryLoader $twigStoryLoader
  * @property-read PreviewRenderer $previewRenderer
  * @property-read TwigSnippetGenerator $snippetGenerator
@@ -60,6 +62,7 @@ class Plugin extends BasePlugin
                 ),
                 'previewRenderer' => PreviewRenderer::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
+                'storyScaffolder' => StoryScaffolder::class,
             ],
         ];
     }
@@ -121,6 +124,13 @@ class Plugin extends BasePlugin
         /** @var TwigSnippetGenerator $gen */
         $gen = $this->get('snippetGenerator');
         return $gen;
+    }
+
+    public function getStoryScaffolder(): StoryScaffolder
+    {
+        /** @var StoryScaffolder $scaffolder */
+        $scaffolder = $this->get('storyScaffolder');
+        return $scaffolder;
     }
 
     protected function createSettingsModel(): ?Model

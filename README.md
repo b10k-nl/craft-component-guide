@@ -359,6 +359,11 @@ ddev exec php craft component-guide/components/scan
 - Page-builder awareness: map Matrix entry types to their components
 - Additional story formats
 
+## Beta
+
+Currently in private beta — see [BETA.md](BETA.md) for install instructions and
+what feedback is most useful.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately (see
@@ -366,4 +371,5 @@ that file) rather than via public issues.
 
 ## License
 
-[MIT](LICENSE.md).
+Source-available, not open source: free to evaluate during the beta, a paid
+per-site licence once a stable version ships. See [LICENSE.md](LICENSE.md).

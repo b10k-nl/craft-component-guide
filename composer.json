@@ -2,7 +2,6 @@
     "name": "b10k/craft-component-guide",
     "description": "A lightweight Storybook-style component guide for reusable Twig components in Craft CMS.",
     "type": "craft-plugin",
-    "version": "0.1.0",
     "keywords": [
         "craft",
         "cms",
@@ -14,17 +13,17 @@
         "storybook",
         "twig"
     ],
-    "license": "MIT",
+    "license": "proprietary",
     "authors": [
         {
             "name": "b10k",
-            "homepage": "https://github.com/b10k"
+            "homepage": "https://github.com/b10k-nl"
         }
     ],
     "support": {
-        "docs": "https://github.com/b10k/craft-component-guide/blob/main/README.md",
-        "issues": "https://github.com/b10k/craft-component-guide/issues",
-        "source": "https://github.com/b10k/craft-component-guide"
+        "docs": "https://github.com/b10k-nl/craft-component-guide/blob/main/README.md",
+        "issues": "https://github.com/b10k-nl/craft-component-guide/issues",
+        "source": "https://github.com/b10k-nl/craft-component-guide"
     },
     "require": {
         "php": ">=8.2",
@@ -48,9 +47,9 @@
         "handle": "component-guide",
         "name": "Component Guide",
         "developer": "b10k",
-        "developerUrl": "https://github.com/b10k",
-        "documentationUrl": "https://github.com/b10k/craft-component-guide/blob/main/README.md",
-        "changelogUrl": "https://github.com/b10k/craft-component-guide/blob/main/CHANGELOG.md",
+        "developerUrl": "https://github.com/b10k-nl",
+        "documentationUrl": "https://github.com/b10k-nl/craft-component-guide/blob/main/README.md",
+        "changelogUrl": "https://github.com/b10k-nl/craft-component-guide/blob/main/CHANGELOG.md",
         "class": "b10k\\componentguide\\Plugin"
     },
     "scripts": {

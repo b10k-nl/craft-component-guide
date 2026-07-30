@@ -56,9 +56,10 @@ Initial MVP (alpha).
   scan-cache fingerprint tracks markers and covered templates automatically.
 
 ### Changed
-- The persistent scan cache key now includes an internal schema version, so
-  plugin updates that change the cached result's shape or semantics invalidate
-  stale entries automatically.
+- The persistent scan cache key now includes the mtimes of the scanner and
+  story parsers, so changing that code invalidates stale entries by itself —
+  in development and after a `composer update` — instead of relying on a
+  hand-bumped version constant.
 - Plugin components are wired explicitly, guaranteeing Twig story support
   (`*.stories.twig`) is always active.
 - Component lookups by ID are indexed instead of linear scans.

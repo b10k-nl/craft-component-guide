@@ -31,11 +31,18 @@ class ComponentRepository extends Component
     private const CACHE_KEY_PREFIX = 'component-guide:scan:';
 
     /**
-     * Bump whenever the shape or semantics of the cached scan result change
-     * (new keys, different grouping rules, …), so a plugin update invalidates
-     * stale entries even though no template or story file was touched.
+     * Sources whose code determines the *shape and semantics* of a cached scan
+     * result (which templates are listed, how groups are named, what the
+     * models hold). Their mtimes go into the cache key, so editing the scanner
+     * or a parser invalidates stale entries by itself — during development and
+     * after a `composer update` alike. A hand-maintained version constant kept
+     * getting forgotten; the filesystem already knows.
      */
-    private const CACHE_SCHEMA_VERSION = 4;
+    private const CACHE_SCHEMA_SOURCES = [
+        __DIR__ . '/ComponentScanner.php',
+        __DIR__ . '/StoryParser.php',
+        __DIR__ . '/TwigStoryLoader.php',
+    ];
 
     /** @var ComponentDefinition[]|null */
     private ?array $components = null;
@@ -182,7 +189,7 @@ class ComponentRepository extends Component
         if ($settings->enableScanCache) {
             $fingerprint = $this->scanner->fingerprint($templatesRoot, $settings->componentPath, $suffixes);
             $cacheKey = self::CACHE_KEY_PREFIX . md5(json_encode([
-                self::CACHE_SCHEMA_VERSION,
+                $this->schemaFingerprint(),
                 $templatesRoot,
                 $settings->componentPath,
                 $suffixes,
@@ -212,6 +219,25 @@ class ComponentRepository extends Component
         foreach ($this->components as $component) {
             $this->byId[$component->id] = $component;
         }
+    }
+
+    /**
+     * Cheap token for "the code that produced this result" — see
+     * {@see CACHE_SCHEMA_SOURCES}. Memoized per request; three stat() calls.
+     */
+    private function schemaFingerprint(): string
+    {
+        static $token = null;
+
+        if ($token === null) {
+            $parts = [];
+            foreach (self::CACHE_SCHEMA_SOURCES as $file) {
+                $parts[] = basename($file) . ':' . (@filemtime($file) ?: 0);
+            }
+            $token = md5(implode('|', $parts));
+        }
+
+        return $token;
     }
 
     private function settings(): Settings

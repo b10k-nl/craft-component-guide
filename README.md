@@ -1,5 +1,7 @@
 # Component Guide
 
+[![CI](https://github.com/b10k-nl/craft-component-guide/actions/workflows/ci.yml/badge.svg)](https://github.com/b10k-nl/craft-component-guide/actions/workflows/ci.yml)
+
 A lightweight Storybook-style component guide for reusable Twig components in Craft CMS 5.
 
 Component Guide scans a configurable templates directory, discovers Twig components and their story definitions, and renders isolated previews inside the Craft control panel — so content editors and developers can see what each component looks like and how to use it, without setting up a separate Storybook/Twig environment.

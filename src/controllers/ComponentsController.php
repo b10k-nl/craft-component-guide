@@ -40,6 +40,8 @@ class ComponentsController extends Controller
             'scanErrors' => $repository->getErrors(),
             'groupMeta' => $repository->getGroupMeta(),
             'undocumentedCount' => $repository->undocumentedCount(),
+            // Kept in sync with the scanner so onboarding copy can't drift.
+            'markerFiles' => \b10k\componentguide\services\ComponentScanner::MARKER_FILES,
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
     }

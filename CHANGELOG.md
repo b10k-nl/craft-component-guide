@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org).
 Initial MVP (alpha).
 
 ### Added
+- Onboarding empty state: with nothing discovered yet, the index explains the
+  two ways in (marker file → instant inventory, story file → previews) using
+  the project's actual scan path, and links to the settings screen.
+- A non-blocking notice above the grid when `previewCss` isn't configured, so
+  unstyled previews read as "not set up yet" rather than "broken".
 - Story scaffolder: an "Add stories" button on undocumented cards (dev mode
   only) and a `component-guide/components/make <id>` console command generate
   a skeleton story from the template's variables — loop sources become sample

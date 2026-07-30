@@ -43,16 +43,55 @@
     </div>
 
     {% if componentCount == 0 %}
-        <div class="cg-empty zilch">
-            <p>{{ "No components found."|t('component-guide') }}</p>
+        {% set scanRoot = 'templates/' ~ (settings.componentPath ? settings.componentPath ~ '/' : '') %}
+        <div class="cg-onboarding">
+            <h2 class="cg-onboarding__title">{{ "No components yet — here's how to add them"|t('component-guide') }}</h2>
             <p class="light">
-                {{ "Add a story file (e.g. {suffix}) next to any Twig template inside {path} to show it here."|t('component-guide', {
-                    suffix: settings.storySuffix,
-                    path: 'templates/' ~ settings.componentPath,
-                }) }}
+                {{ "The guide discovers components inside {path} — nothing is registered by hand."|t('component-guide', {
+                    path: '<code>' ~ scanRoot ~ '</code>',
+                })|raw }}
             </p>
+
+            <ol class="cg-onboarding__steps">
+                <li>
+                    <strong>{{ "Fastest: list what you already have."|t('component-guide') }}</strong>
+                    <p class="light">
+                        {{ "Drop a marker file into the folder your components or page-builder blocks live in — every Twig template in it (and its subfolders) shows up straight away, no story files needed."|t('component-guide') }}
+                    </p>
+                    <div class="cg-code">{{ scanRoot }}&lt;your-blocks-folder&gt;/{{ markerFiles|first }}</div>
+                    <p class="light cg-onboarding__hint">
+                        {{ "Any of these names work: {names}. Its first heading becomes the group name, the text below it the group description."|t('component-guide', {
+                            names: markerFiles|join(', '),
+                        }) }}
+                    </p>
+                </li>
+                <li>
+                    <strong>{{ "Then: add a story to unlock previews."|t('component-guide') }}</strong>
+                    <p class="light">
+                        {{ "A story file next to a template defines the props to render it with. Listed components get an “Add stories” button that writes a first draft for you."|t('component-guide') }}
+                    </p>
+                    <div class="cg-code">hero.twig
+ hero{{ settings.twigStorySuffix() }}</div>
+                </li>
+                <li>
+                    <strong>{{ "If your templates live elsewhere"|t('component-guide') }}</strong>
+                    <p class="light">
+                        {{ "Point the guide at the right folder, and add your compiled front-end CSS so previews look like the real site."|t('component-guide') }}
+                    </p>
+                    <a class="btn" href="{{ cpUrl('settings/plugins/component-guide') }}">{{ "Open settings"|t('component-guide') }}</a>
+                </li>
+            </ol>
         </div>
     {% else %}
+        {% if settings.previewCss is empty %}
+            {# Unstyled previews read as “broken plugin” — say why before they conclude that. #}
+            <p class="cg-hint">
+                {{ "Previews render without your site's CSS."|t('component-guide') }}
+                <a href="{{ cpUrl('settings/plugins/component-guide') }}">{{ "Add your compiled stylesheet"|t('component-guide') }}</a>
+                {{ "to see components as they look on the front end."|t('component-guide') }}
+            </p>
+        {% endif %}
+
         <div id="cg-results">
             {% for group, components in grouped %}
                 {% set meta = groupMeta[group] ?? null %}

@@ -205,3 +205,25 @@
 
 .cg-empty { margin-top: 12px; }
 .hidden { display: none; }
+
+/* Onboarding (shown instead of an empty grid) */
+.cg-onboarding {
+    margin-top: 4px; padding: 24px 26px;
+    background: #fff; border: 1px solid #e3e5e8; border-radius: 10px;
+    max-width: 760px;
+}
+.cg-onboarding__title { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+.cg-onboarding__steps { margin: 20px 0 0; padding-left: 22px; }
+.cg-onboarding__steps > li { margin-bottom: 22px; }
+.cg-onboarding__steps > li:last-child { margin-bottom: 0; }
+.cg-onboarding__steps p { margin: 4px 0 8px; }
+.cg-onboarding__hint { font-size: 12.5px; margin-top: 8px; }
+.cg-onboarding .cg-code { white-space: pre-wrap; }
+
+/* Non-blocking notice above the grid (e.g. previewCss not configured) */
+.cg-hint {
+    margin: 0 0 16px; padding: 9px 13px;
+    background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px;
+    font-size: 13px; color: #6b5a2b;
+}
+.cg-hint a { color: inherit; text-decoration: underline; }

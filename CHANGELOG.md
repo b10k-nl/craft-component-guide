@@ -8,6 +8,14 @@ to [Semantic Versioning](https://semver.org).
 Initial MVP (alpha).
 
 ### Added
+- Previews that render nothing now explain why instead of showing a blank
+  frame (markup behind a condition the args don't satisfy, or a template that
+  reads Craft data itself).
+- The story scaffolder builds stand-in hashes for variables accessed by dotted
+  paths, so templates written against a Matrix block (`block.heading`) get a
+  renderable story without refactoring — in Twig a plain hash reads the same
+  as an element. Nested paths nest; trailing method calls are declared but
+  can't be faked, and the scaffold says so in a note.
 - Marker-file discovery skips `index.twig` and `undefined.twig` — the entry
   point and fallback of the recommended dispatcher pattern are not components.
   (An explicit story file still documents them if you want it to.)
@@ -69,6 +77,10 @@ Initial MVP (alpha).
   scan per frame, reducing overhead on busy CP pages.
 
 ### Fixed
+- `block` is no longer treated as a Twig keyword by the scaffolder: in Craft
+  page-builder templates it is almost always the Matrix block variable.
+  `{% block x %}` and `block('x')` are still recognised as language
+  constructs.
 - Ungrouped picker cards are no longer clipped/overlapping. Root cause: as
   DIRECT children of the panel's scroll container, Chromium sizes grid rows
   from the `.card` button's containment-affected intrinsic height

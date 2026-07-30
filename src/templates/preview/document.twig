@@ -14,13 +14,29 @@
         body { padding: 16px; box-sizing: border-box; {% if story.background %}background: {{ story.background }};{% endif %} }
         .cg-render-error { font-family: system-ui, sans-serif; color: #9a1f11; background: #fcebea; border: 1px solid #f3c1bd; border-radius: 6px; padding: 16px; }
         .cg-render-error pre { white-space: pre-wrap; overflow-x: auto; font-size: 12px; color: #444; }
+        .cg-render-empty { font-family: system-ui, sans-serif; color: #6b5a2b; background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px; padding: 16px; line-height: 1.5; }
+        .cg-render-empty code { background: rgba(0,0,0,.06); border-radius: 3px; padding: 1px 4px; }
     </style>
     {{ (previewHead ?? '')|raw }}
 </head>
 <body>
 {% endapply %}
 {% if result.success %}
-    {{ result.html|raw }}
+    {% if result.html|trim is empty %}
+        {# A blank iframe reads as “broken” — name the likely cause instead.
+           Usually the whole template sits behind an {% if %} on values the
+           story doesn't supply, or it reads Craft data (block/entry) itself. #}
+        <div class="cg-render-empty">
+            <strong>{{ "This story rendered nothing."|t('component-guide') }}</strong>
+            <p>{{ "The template produced no output with these args — usually because its markup sits behind a condition on values the story doesn't provide, or because the template reads Craft data itself (e.g. {block} or {entry}), which a story can't supply."|t('component-guide', {
+                block: '<code>block</code>',
+                entry: '<code>entry</code>',
+            })|raw }}</p>
+            <p>{{ "Check the story's args against the template, or move the markup into a presentational partial that takes plain values."|t('component-guide') }}</p>
+        </div>
+    {% else %}
+        {{ result.html|raw }}
+    {% endif %}
 {% else %}
     <div class="cg-render-error">
         <strong>{{ "Render error"|t('component-guide') }}</strong>

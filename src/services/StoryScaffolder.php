@@ -26,12 +26,26 @@ class StoryScaffolder extends Component
     private const KEYWORDS = [
         'if', 'else', 'elseif', 'endif', 'for', 'endfor', 'in', 'not', 'and',
         'or', 'set', 'endset', 'include', 'extends', 'embed', 'endembed',
-        'with', 'only', 'ignore', 'missing', 'block', 'endblock', 'is',
+        'with', 'only', 'ignore', 'missing', 'is',
         'defined', 'empty', 'null', 'none', 'true', 'false', 'iterable',
         'even', 'odd', 'same', 'as', 'starts', 'ends', 'matches', 'apply',
         'endapply', 'macro', 'endmacro', 'import', 'from', 'do', 'by',
         'recursive', 'divisible', 'constant',
     ];
+
+    /**
+     * Tags whose expression declares names instead of using props — skipped
+     * wholesale. This is also how `{% block content %}` stays out of the args
+     * while `{{ block.heading }}` stays in: in Craft page-builder templates
+     * `block` is almost always the Matrix block itself, not Twig's tag.
+     */
+    private const DECLARATION_TAGS = [
+        'block', 'endblock', 'macro', 'endmacro', 'import', 'from', 'use',
+        'extends',
+    ];
+
+    /** Appended to a scaffold whose template needs data no story can supply. */
+    private const RUNTIME_DATA_NOTE = 'Heads up: this template calls methods on its variables (or reads Craft globals such as entry/craft), which a story cannot provide — expect a partial or empty preview. Consider moving the markup into a presentational partial that takes plain values; see "Recommended architecture" in the plugin README.';
 
     /** Craft/Twig globals that are available without being passed as args. */
     private const GLOBALS = [
@@ -69,10 +83,11 @@ class StoryScaffolder extends Component
 
         $args = $this->analyze($source);
         $description = $this->describe($source);
+        $warning = $this->needsRuntimeData($source) ? self::RUNTIME_DATA_NOTE : null;
 
         $contents = str_ends_with($storySuffix, '.twig')
-            ? $this->renderTwig($component->title, $description, $args)
-            : $this->render($component->title, $description, $args);
+            ? $this->renderTwig($component->title, $description, $args, $warning)
+            : $this->render($component->title, $description, $args, $warning);
 
         if (@file_put_contents($storyPath, $contents) === false) {
             throw new \RuntimeException('Could not write the story file — check filesystem permissions.');
@@ -108,6 +123,7 @@ class StoryScaffolder extends Component
         $locals = ['loop' => true];
         $itemToArray = [];   // loop item variable => its source array variable
         $arrayItemKeys = []; // array variable => [item key => true]
+        $objectPaths = [];   // variable => list of dotted paths used on it
         $order = [];         // root variable => true, in first-appearance order
         $defaults = [];      // root variable => raw Twig |default() literal
 
@@ -157,6 +173,13 @@ class StoryScaffolder extends Component
 
         // Pass 2: usage — root variables, loop-item keys, default() literals.
         foreach ($expressions as $expr) {
+            // `{% block x %}` and friends declare names, not props.
+            if (preg_match('/^([a-zA-Z_]\w*)(\s|$)/', $expr, $tag) === 1
+                && in_array(strtolower($tag[1]), self::DECLARATION_TAGS, true)
+            ) {
+                continue;
+            }
+
             // Quoted text is data, not code: blank it out (keeping offsets) so
             // CSS classes in a ternary — 'mt-4 lg:mt-10' — don't look like
             // variables. The |default() scan below still sees the original.
@@ -186,7 +209,8 @@ class StoryScaffolder extends Component
                 }
                 // Bare identifiers followed by "(" are function calls.
                 $after = ltrim(substr($code, $offset + strlen($whole)));
-                if ($path === '' && $after !== '' && $after[0] === '(') {
+                $isCall = $after !== '' && $after[0] === '(';
+                if ($path === '' && $isCall) {
                     continue;
                 }
                 if (in_array(strtolower($root), self::KEYWORDS, true)
@@ -208,6 +232,21 @@ class StoryScaffolder extends Component
                 }
 
                 $order[$root] = true;
+
+                // Dotted access means the story should hand over a hash with
+                // these keys — in Twig `block.heading` reads the same off a
+                // plain hash as off an Entry, so a story can stand in for one.
+                if ($path !== '') {
+                    $segments = explode('.', ltrim($path, '.'));
+                    if ($isCall) {
+                        // `layout.urls.all()`: the trailing method can't be
+                        // faked, but the prefix is still worth declaring.
+                        array_pop($segments);
+                    }
+                    if ($segments !== []) {
+                        $objectPaths[$root][] = $segments;
+                    }
+                }
             }
 
             // |default(…) literals on plain roots become the guessed value.
@@ -231,6 +270,10 @@ class StoryScaffolder extends Component
             }
             if (isset($arrayItemKeys[$name])) {
                 $args[$name] = $this->sampleItems(array_keys($arrayItemKeys[$name]));
+                continue;
+            }
+            if (isset($objectPaths[$name])) {
+                $args[$name] = $this->sampleObject($objectPaths[$name]);
                 continue;
             }
             $args[$name] = array_key_exists($name, $defaults)
@@ -268,12 +311,28 @@ class StoryScaffolder extends Component
     }
 
     /**
+     * Whether the template needs data a story fundamentally cannot supply:
+     * method calls on its variables, or Craft's own globals.
+     *
+     * Dotted access alone (`block.heading`) is fine — a plain hash stands in
+     * for an element there — so it is deliberately not a reason to warn.
+     */
+    public function needsRuntimeData(string $source): bool
+    {
+        $code = preg_replace('/\{#.*?#\}/s', '', $source) ?? $source;
+        $code = preg_replace('/\'[^\']*\'|"[^"]*"/', '', $code) ?? $code;
+
+        return preg_match('/(?<![\w.])(entry|craft|currentUser)\s*\./', $code) === 1
+            || preg_match('/\.[a-zA-Z_]\w*\s*\(/', $code) === 1;
+    }
+
+    /**
      * Renders the PHP story-file source (rich format, one "Default" story,
      * status "wip" so the guide flags it as a draft).
      *
      * @param array<string, mixed> $args
      */
-    public function render(string $title, ?string $description, array $args): string
+    public function render(string $title, ?string $description, array $args, ?string $warning = null): string
     {
         return sprintf(
             <<<'PHP'
@@ -282,7 +341,7 @@ class StoryScaffolder extends Component
             /**
              * Story scaffold generated by Component Guide from the template's variables.
              * The args below are guesses — review them until the preview looks right,
-             * then promote the status when the component is documented for real.
+             * then promote the status when the component is documented for real.%s
              */
 
             return [
@@ -295,6 +354,7 @@ class StoryScaffolder extends Component
             ];
 
             PHP,
+            $warning !== null ? "\n *\n * " . wordwrap($warning, 74, "\n * ") : '',
             $this->export($this->meta($title, $description), 1),
             $this->export($args, 3),
         );
@@ -306,13 +366,13 @@ class StoryScaffolder extends Component
      *
      * @param array<string, mixed> $args
      */
-    public function renderTwig(string $title, ?string $description, array $args): string
+    public function renderTwig(string $title, ?string $description, array $args, ?string $warning = null): string
     {
         return sprintf(
             <<<'TWIG'
             {# Story scaffold generated by Component Guide from the template's variables.
                The args below are guesses — review them until the preview looks right,
-               then promote the status when the component is documented for real. #}
+               then promote the status when the component is documented for real.%s #}
 
             {%% set meta = %s %%}
 
@@ -323,6 +383,7 @@ class StoryScaffolder extends Component
             } %%}
 
             TWIG,
+            $warning !== null ? "\n\n   " . wordwrap($warning, 74, "\n   ") : '',
             $this->exportTwig($this->meta($title, $description), 0),
             $this->exportTwig($args, 2),
         );
@@ -371,6 +432,48 @@ class StoryScaffolder extends Component
         }
 
         return $items;
+    }
+
+    /**
+     * Builds a stand-in hash for a variable accessed by dotted paths, so
+     * templates written against an element (`block.heading`) still render.
+     *
+     * @param array<int, string[]> $chains Path segments, outermost first.
+     * @return array<string, mixed>
+     */
+    private function sampleObject(array $chains): array
+    {
+        $out = [];
+        foreach ($chains as $segments) {
+            $out = $this->setPath($out, $segments);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $target
+     * @param string[] $segments
+     * @return array<string, mixed>
+     */
+    private function setPath(array $target, array $segments): array
+    {
+        $key = array_shift($segments);
+        if ($key === null) {
+            return $target;
+        }
+
+        if ($segments === []) {
+            if (!array_key_exists($key, $target)) {
+                $target[$key] = $this->guessValue($key);
+            }
+            return $target;
+        }
+
+        $child = (isset($target[$key]) && is_array($target[$key])) ? $target[$key] : [];
+        $target[$key] = $this->setPath($child, $segments);
+
+        return $target;
     }
 
     private function guessValue(string $name): mixed

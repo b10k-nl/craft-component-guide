@@ -135,6 +135,60 @@ class StoryScaffolderTest extends TestCase
         $this->assertSame(['heading', 'bodyHtml'], array_keys($args));
     }
 
+    public function testDottedAccessBecomesAStandInHash(): void
+    {
+        // The “anti-adapter”: templates written against a Matrix block read the
+        // same values off a plain hash, so a story can stand in for the entry.
+        $args = $this->scaffolder->analyze(<<<'TWIG'
+            {% set eyebrow = block.eyebrow ?? null %}
+            {% set heading = block.heading ?? null %}
+            {% if eyebrow or heading %}
+                <span>{{ eyebrow }}</span>
+                <h2>{{ heading }}</h2>
+                <img src="{{ block.image.url }}" alt="{{ block.image.alt }}">
+            {% endif %}
+            TWIG);
+
+        $this->assertSame(['block'], array_keys($args));
+        $this->assertSame(['eyebrow', 'heading', 'image'], array_keys($args['block']));
+        // Nested paths nest.
+        $this->assertSame(['url', 'alt'], array_keys($args['block']['image']));
+        $this->assertStringStartsWith('data:image/svg+xml', $args['block']['image']['url']);
+        // Locals derived from the block stay out of the args.
+        $this->assertArrayNotHasKey('eyebrow', $args);
+    }
+
+    public function testBlockTagIsNotMistakenForTheBlockVariable(): void
+    {
+        $args = $this->scaffolder->analyze(<<<'TWIG'
+            {% extends '_layout.twig' %}
+            {% block content %}
+                <h2>{{ block.heading }}</h2>
+            {% endblock %}
+            TWIG);
+
+        // `{% block content %}` declares a name …
+        $this->assertArrayNotHasKey('content', $args);
+        // … while `block.heading` is a real prop.
+        $this->assertSame(['heading'], array_keys($args['block']));
+    }
+
+    public function testMethodCallsAreDeclaredButFlagged(): void
+    {
+        $source = <<<'TWIG'
+            {% set urls = layout.urls.all() ?? [] %}
+            {% for url in urls %}<a href="{{ url.href }}">{{ url.label }}</a>{% endfor %}
+            TWIG;
+
+        $args = $this->scaffolder->analyze($source);
+
+        // The method itself can't be faked, but the prefix is declared …
+        $this->assertSame(['urls'], array_keys($args['layout']));
+        // … and the scaffold warns that the preview will be incomplete.
+        $this->assertTrue($this->scaffolder->needsRuntimeData($source));
+        $this->assertFalse($this->scaffolder->needsRuntimeData('<h2>{{ block.heading }}</h2>'));
+    }
+
     public function testRenderedScaffoldIsAValidRichStoryFile(): void
     {
         $dir = $this->makeTmpDir();

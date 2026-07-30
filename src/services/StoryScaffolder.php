@@ -454,9 +454,8 @@ class StoryScaffolder extends Component
     /**
      * @param array<string, mixed> $target
      * @param string[] $segments
-     * @return array<string, mixed>
      */
-    private function setPath(array $target, array $segments): array
+    private function setPath(array $target, array $segments, string $context = ''): array
     {
         $key = array_shift($segments);
         if ($key === null) {
@@ -465,22 +464,29 @@ class StoryScaffolder extends Component
 
         if ($segments === []) {
             if (!array_key_exists($key, $target)) {
-                $target[$key] = $this->guessValue($key);
+                // The leaf alone can be ambiguous (`block.image.url` ends in a
+                // plain "url") — let the path lend it context.
+                $target[$key] = $this->guessValue($key, $context);
             }
             return $target;
         }
 
         $child = (isset($target[$key]) && is_array($target[$key])) ? $target[$key] : [];
-        $target[$key] = $this->setPath($child, $segments);
+        $target[$key] = $this->setPath($child, $segments, trim($context . ' ' . $key));
 
         return $target;
     }
 
-    private function guessValue(string $name): mixed
+    /**
+     * @param string $context Ancestor path segments ("block image") that lend
+     *        meaning to ambiguous leaf names like "url" or "alt".
+     */
+    private function guessValue(string $name, string $context = ''): mixed
     {
         $n = strtolower($name);
+        $scope = strtolower(trim($context . ' ' . $name));
 
-        if (str_ends_with($n, 'url') && preg_match('/(image|img|photo|picture|logo|icon|avatar|thumb|media)/', $n) === 1) {
+        if (str_ends_with($n, 'url') && preg_match('/(image|img|photo|picture|logo|icon|avatar|thumb|media)/', $scope) === 1) {
             return 'data:image/svg+xml,' . rawurlencode(
                 '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260">'
                 . '<rect width="100%" height="100%" fill="#e2e8f0"/>'

@@ -150,9 +150,10 @@ class StoryScaffolderTest extends TestCase
             TWIG);
 
         $this->assertSame(['block'], array_keys($args));
-        $this->assertSame(['eyebrow', 'heading', 'image'], array_keys($args['block']));
+        // Key order depends on expression traversal — assert the set, not it.
+        $this->assertEqualsCanonicalizing(['eyebrow', 'heading', 'image'], array_keys($args['block']));
         // Nested paths nest.
-        $this->assertSame(['url', 'alt'], array_keys($args['block']['image']));
+        $this->assertEqualsCanonicalizing(['url', 'alt'], array_keys($args['block']['image']));
         $this->assertStringStartsWith('data:image/svg+xml', $args['block']['image']['url']);
         // Locals derived from the block stay out of the args.
         $this->assertArrayNotHasKey('eyebrow', $args);

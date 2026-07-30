@@ -35,7 +35,7 @@ class ComponentRepository extends Component
      * (new keys, different grouping rules, …), so a plugin update invalidates
      * stale entries even though no template or story file was touched.
      */
-    private const CACHE_SCHEMA_VERSION = 3;
+    private const CACHE_SCHEMA_VERSION = 4;
 
     /** @var ComponentDefinition[]|null */
     private ?array $components = null;

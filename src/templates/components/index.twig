@@ -70,8 +70,10 @@
                     <p class="light">
                         {{ "A story file next to a template defines the props to render it with. Listed components get an “Add stories” button that writes a first draft for you."|t('component-guide') }}
                     </p>
+                    {# Flush-left on purpose: .cg-code is pre-wrap, so template
+                       indentation would show up in the output. #}
                     <div class="cg-code">hero.twig
- hero{{ settings.twigStorySuffix() }}</div>
+hero{{ settings.twigStorySuffix() }}</div>
                 </li>
                 <li>
                     <strong>{{ "If your templates live elsewhere"|t('component-guide') }}</strong>

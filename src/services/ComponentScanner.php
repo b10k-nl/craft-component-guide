@@ -28,6 +28,15 @@ class ComponentScanner extends Component
      */
     public const MARKER_FILES = ['GUIDE.md', 'BLOCKS.md', 'COMPONENTS.md'];
 
+    /**
+     * Filenames that are never components, even inside a marked folder:
+     * `index.twig` is a Twig/Craft entry point (typically the block
+     * dispatcher), and `undefined.twig` is the fallback partial from the
+     * dispatcher pattern the README recommends. Both would otherwise show up
+     * as “components” in every project using that pattern.
+     */
+    private const NON_COMPONENT_FILES = ['index.twig', 'undefined.twig'];
+
     public function __construct(
         private StoryParser $storyParser,
         private ?TwigStoryLoader $twigStoryLoader = null,
@@ -171,7 +180,8 @@ class ComponentScanner extends Component
 
         // Undocumented discovery: inside marked subtrees, every plain Twig
         // template without a story becomes a story-less card. Underscore-
-        // prefixed files are treated as internal partials and skipped.
+        // prefixed files (internal partials), entry points and fallbacks
+        // (see NON_COMPONENT_FILES) are skipped.
         if ($markerDirs !== []) {
             $pairedTemplates = [];
             foreach ($storyFiles as $storyFile => $matchedSuffix) {
@@ -183,6 +193,7 @@ class ComponentScanner extends Component
                 $baseName = basename($twigFile);
                 if (isset($pairedTemplates[$twigFile])
                     || str_starts_with($baseName, '_')
+                    || in_array(strtolower($baseName), self::NON_COMPONENT_FILES, true)
                     || $this->matchSuffix($baseName, $storySuffixes) !== null
                     || !$this->isCovered(dirname($twigFile), $markerDirs)
                 ) {

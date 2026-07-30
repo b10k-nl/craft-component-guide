@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org).
 Initial MVP (alpha).
 
 ### Added
+- Marker-file discovery skips `index.twig` and `undefined.twig` — the entry
+  point and fallback of the recommended dispatcher pattern are not components.
+  (An explicit story file still documents them if you want it to.)
 - Onboarding empty state: with nothing discovered yet, the index explains the
   two ways in (marker file → instant inventory, story file → previews) using
   the project's actual scan path, and links to the settings screen.

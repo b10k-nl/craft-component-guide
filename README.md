@@ -163,6 +163,9 @@ Reusable page blocks editors can add through the Matrix page builder.
   description on the index page.
 - One marker per folder; with duplicates, precedence is
   `GUIDE.md` → `BLOCKS.md` → `COMPONENTS.md` and the CLI scan warns.
+- Not listed as components: files starting with `_` (internal partials) and
+  `index.twig` / `undefined.twig` (the dispatcher pattern's entry point and
+  fallback). A story file next to any of them still documents it explicitly.
 - Markers live in git next to your templates and read as plain folder docs on
   GitHub. The scan cache tracks them automatically.
 

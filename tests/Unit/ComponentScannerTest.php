@@ -294,6 +294,25 @@ class ComponentScannerTest extends TestCase
         $this->assertSame('Overlay dialogs.', $result['groupMeta']['popups']['description']);
     }
 
+    public function testDispatcherAndFallbackTemplatesAreNotComponents(): void
+    {
+        // The dispatcher pattern from the README puts index.twig (entry point)
+        // and undefined.twig (fallback) next to the real blocks; neither is a
+        // component.
+        $root = $this->makeTemplatesRoot([
+            '_pagebuilder/GUIDE.md' => "# Blocks\n",
+            '_pagebuilder/index.twig' => '<div></div>',
+            '_pagebuilder/undefined.twig' => '<div></div>',
+            '_pagebuilder/feature-bar.twig' => '<div></div>',
+        ]);
+
+        $result = $this->scanner->scan($root, '', '.stories.php');
+
+        $this->assertSame(['pagebuilder-feature-bar'], $this->ids($result['components']));
+        // Kebab-case filenames get humanized titles.
+        $this->assertSame('Feature Bar', $result['components'][0]->title);
+    }
+
     /**
      * Builds a throwaway templates tree in the system temp dir.
      *

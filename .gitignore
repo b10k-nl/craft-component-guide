@@ -3,3 +3,6 @@
 .phpunit.cache/
 .phpunit.result.cache
 .DS_Store
+
+# Private planning notes — the public roadmap lives in docs/PLAN.md
+docs/PLAN.local.md

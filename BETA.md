@@ -41,6 +41,8 @@ explicitly press “Add stories”.
 1. **Open “Component Guide” in the CP sidebar.** With nothing configured you
    get an onboarding panel. Is it clear what to do next? That's the single
    thing I most want feedback on.
+
+   ![The onboarding panel shown before anything is configured](docs/images/onboarding.png)
 2. **Make it list your components.** Drop a `GUIDE.md` file into the folder
    where your components or page-builder blocks live — every Twig template in
    it (and its subfolders) shows up immediately, no story files needed:

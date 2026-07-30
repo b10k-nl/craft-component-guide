@@ -6,7 +6,13 @@ A lightweight Storybook-style component guide for reusable Twig components in Cr
 
 Component Guide scans a configurable templates directory, discovers Twig components and their story definitions, and renders isolated previews inside the Craft control panel — so content editors and developers can see what each component looks like and how to use it, without setting up a separate Storybook/Twig environment.
 
-> **Status:** `0.1.0` — early MVP (alpha). The discovery/preview workflow is stable; APIs may still change before `1.0`.
+![The component index: groups with descriptions, live preview cards, and story-less components listed as “undocumented”](docs/images/index.png)
+
+![A component page: stories, viewport switcher and an isolated preview rendered with the site's own CSS](docs/images/component.png)
+
+![The blocks gallery inside Craft's Live Preview: real previews and descriptions where editors add blocks](docs/images/picker.png)
+
+> **Status:** `0.1.0-beta` — public beta. The discovery/preview workflow is stable; APIs may still change before `1.0`. See [BETA.md](BETA.md).
 
 ---
 

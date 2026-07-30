@@ -1,310 +1,54 @@
-# Component Guide — План і дорожня карта
+# Component Guide — plan
 
-Гід компонентів у стилі Storybook для багаторазових Twig-компонентів у Craft CMS 5.
-Цей документ — живий план: візія, поточний стан, як плагін розробляється зараз і
-шлях до комерційного релізу в Craft Plugin Store.
+> The living, detailed planning notes are private; this document is the public
+> summary: what the plugin believes in, where it stands, and where it is
+> heading. For day-to-day changes see [CHANGELOG.md](../CHANGELOG.md).
 
-- **Пакет:** `b10k/craft-component-guide`
-- **Handle:** `component-guide`
-- **Namespace:** `b10k\componentguide`
-- **Репозиторій (бекап):** `github.com/b10k-nl/craft-component-guide` (наразі приватний)
-- **Статус:** `0.1.0` — MVP / alpha
+## What this plugin wants to be
 
----
+A Storybook-style component guide that lives **inside** the Craft control
+panel — no separate Node toolchain, no second dev environment. It should make
+the components a project already has *visible*: to developers (what exists,
+how to call it) and to editors (what a block looks like before adding it).
 
-## 1. Візія
+## Principles
 
-Контент-менеджери й розробники на великих Craft-сайтах губляться в тому, які
-багаторазові компоненти/блоки існують і як вони виглядають. Component Guide дає
-відповідь прямо в панелі керування — легка, self-hosted альтернатива підняттю
-окремого середовища Storybook/Twig.
+1. **Convention over configuration.** Story files next to templates, marker
+   files instead of settings screens, folder structure as the source of truth.
+   Everything lives in git alongside the templates it describes.
+2. **A story is an upgrade, not the ticket in.** The guide must be useful on
+   day one, before anyone writes a single story — marker files list what
+   exists; stories add previews on top.
+3. **Presentational-first.** Components that take plain values preview
+   perfectly and reuse anywhere. The guide nudges toward that architecture
+   (see “Recommended architecture” in the README) but works with what you
+   have — including templates written against Matrix blocks.
+4. **Zero lock-in.** Nothing in your content or templates depends on the
+   plugin. Remove it and your site is exactly as it was.
 
-**Керівні принципи**
+## Where it stands
 
-- **Storybook-модель, без реєстрації.** Скануємо теку шаблонів і показуємо кожен
-  Twig-шаблон, поруч з яким є `*.stories.php`. Розробник додає компонент/блок до
-  гіда просто поклавши story-файл поряд. Більше нічого налаштовувати не треба.
-- **Пластичність / мінімум тертя.** Жодних жорстко зашитих папок, жодного
-  обовʼязкового привʼязування полів. Один необовʼязковий «корінь сканування»
-  звужує область; порожній = весь `templates/`.
-- **Presentational-first.** Заохочуємо компоненти, що приймають прості
-  масиви/скаляри, щоб прев'ю не потребувало реальних Craft-елементів.
-- **Безпека.** Скануємо лише всередині заданого кореня; рендеримо лише знайдені
-  ID; захист правами доступу; sandbox-iframe для прев'ю; без абсолютних шляхів /
-  стек-трейсів на проді.
+The current beta covers: recursive component discovery (PHP and Twig story
+formats), marker-file inventory with hierarchy-aware groups, isolated previews
+with the site's own CSS, a block gallery inside Live Preview, a story
+scaffolder that drafts a first story from the template's variables, a
+persistent self-invalidating scan cache, and CLI tooling. See
+[BETA.md](../BETA.md) for how to try it.
 
----
+## Direction
 
-## 2. Поточний стан (0.1.0 MVP)
+Roughly in order:
 
-**Зроблено**
+- **Dogfooding & beta feedback.** Real projects decide what's next; the list
+  below is a bet, not a promise.
+- **Page-builder awareness.** Map Matrix entry types to their components so
+  the guide reflects what editors can actually add.
+- **Deeper story automation.** Make the path from “undocumented” to “fully
+  documented with realistic args” shorter and smarter.
+- **Preview ergonomics.** Viewport presets, background samples, and
+  interactive controls for story args.
+- **Editor experience.** Tighter links between the guide, the block picker
+  and Live Preview.
 
-- [x] Рекурсивний пошук `*.stories.php` у корені сканування (за замовчуванням — усе дерево).
-- [x] Вкладена (`button/button.twig`) та сусідня (`button.twig`) конвенції; згортання `folder/name`.
-- [x] Простий і розширений формати story, зведені до однієї моделі.
-- [x] Розділ CP: згрупований, з пошуком індекс + сторінки деталей.
-- [x] Sandbox-iframe прев'ю; налаштовувані `previewCss` / `previewJs`.
-- [x] Генератор copy-paste Twig-сніпета `{% include … with {…} only %}`.
-- [x] Некритична обробка помилок покомпонентно.
-- [x] Нативний екран налаштувань + перевизначення через `config/component-guide.php`.
-- [x] Право `component-guide:access` на кожній CP/preview-дії.
-- [x] CLI-діагностика `component-guide/components/scan` і `…/render`.
-- [x] Юніт-тести (scanner, parser, snippet generator) — 24 проходять; PHPStan рівень 5 чистий.
-- [x] Персистентний кеш сканування з автоінвалідацією за fingerprint-ом
-      (mtime story-файлів + наявність шаблонів); вимикається через `enableScanCache`.
-- [x] Маркер-файли (`GUIDE.md` / `BLOCKS.md` / `COMPONENTS.md`): тека з маркером
-      показує всі Twig-шаблони свого піддерева навіть без story — бейдж
-      «undocumented», файли з префіксом `_` ігноруються. Групи віддзеркалюють
-      ієрархію тек («Components / Cards»): H1 маркера замінює ім'я своєї теки,
-      звичайні підтеки гуманізуються; компоненти без явної meta-групи
-      (документовані й ні) отримують групу звідти, тож секції не розщеплюються;
-      текст після H1 до наступного заголовка → опис секції в індексі.
-      Fingerprint кешу враховує маркери й покриті шаблони, а ключ кешу —
-      версію схеми (апдейт плагіна інвалідує старі записи сам).
-
-**Відомі обмеження / шорсткості**
-
-- Точність прев'ю залежить від `previewCss`; поки немає інжекту Vite/HMR
-  (Tailwind-проєкти показуються без стилів, доки не вказати зібраний CSS).
-- Блоки, яким потрібні реальні Craft-дані (напр. `featuredProducts`), падають,
-  доки story не передасть аргументи простими масивами.
-- Рендер автентифікованих CP-сторінок в автотестах перевірено лише до рівня
-  роутингу/прав — повний візуальний прохід ручний.
-- Підтримка лише Craft 5 (`craftcms/cms: ^5.0`) — свідоме рішення: Craft 4
-  досяг EOL 30.04.2026, а Matrix у Craft 4 (MatrixBlock) архітектурно інший,
-  тож ідея Component Blocks (§7) на нього не переноситься. При виборі
-  внутрішніх API уникати deprecated, щоб майбутній стрибок на Craft 6 був дешевим.
-- Картки undocumented-компонентів поки без сторінки деталей і прев'ю —
-  некликабельні, з підказкою додати story.
-
----
-
-## 3. Архітектура (стисло)
-
-```
-ComponentScanner  → обходить корінь сканування у пошуках story-файлів (без Craft, юніт-тести)
-StoryParser       → нормалізує простий + розширений формати story
-ComponentRepository → доступ із memoization, групування, підрахунки, пошук
-PreviewRenderer   → рендерить шаблон у SITE-режимі, лише з args, ізольовано
-TwigSnippetGenerator → PHP-аргументи → читабельний Twig include-сніпет
-controllers/      → тонкі: валідація → repository/renderer → CP-шаблони
-```
-
-Бізнес-логіка відокремлена від Craft, тож ядро тестується без підняття CP.
-
----
-
-## 4. Як розробляється й використовується зараз (лише локально)
-
-Плагін лежить **поза** будь-яким хост-проєктом, щоб його можна було «поганяти» на
-кількох локальних DDEV-сайтах, тримаючи джерело під контролем версій в одному місці.
-
-- **Джерело істини:** `~/Work/b10k/craft-component-guide` (цей репозиторій).
-- **Бекап:** пуш у GitHub (`b10k-nl/craft-component-guide`, приватний).
-- **Підключається до хост-проєктів** через Composer **path repository** +
-  DDEV bind-mount (DDEV монтує лише теку проєкту, тож зовнішній плагін монтуємо
-  за тим самим абсолютним шляхом, щоб symlink-и резолвились і на хості, і в контейнері).
-- **Не деплоїться:** `composer.json`/`composer.lock` хоста під `skip-worktree`, а
-  плагін встановлено **лише в локальну БД** (його запис у `project.yaml` відкочено),
-  тож він ніколи не потрапляє на стейджинг/прод.
-
-**Налаштування на один хост-проєкт** (рецепт у README / репо):
-1. `.ddev/docker-compose.*.yaml` mount для `~/Work/b10k` (git-ignored).
-2. `composer config repositories.b10k path …` + `composer require …:@dev`.
-3. `git update-index --skip-worktree composer.json composer.lock`.
-4. `ddev restart` → `php craft plugin/install component-guide`.
-
-**Нюанс:** `project-config/apply` (composer-хуки) деінсталює DB-only плагін;
-після цього перезапустіть `php craft plugin/install component-guide`.
-
----
-
-## 5. Дорожня карта
-
-### Фаза 1 — Dogfood і шліфування (зараз)
-- [ ] Запустити на montavilla + щонайменше ще одному локальному DDEV-проєкті.
-- [ ] Залучити 1–2 зовнішніх бета-тестувальників (перший кандидат — контакт із
-      LinkedIn, липень 2026) на Craft 5 проєктах із Matrix page-builder-ом.
-- [ ] Написати story для реальних компонентів/блоків; знайти точки тертя.
-      Зокрема перевірити гіпотезу з §5.1: наскільки реальний бар'єр «треба
-      писати story-файли» і які з «ледачих» інструментів потрібні насправді.
-- [ ] Покращити точність прев'ю: задокументувати/автоматизувати вказування
-      `previewCss` на зібраний CSS; дослідити опційний інжект Vite dev-server для HMR-проєктів.
-- [ ] Підтягнути UX групування/лейблів за реальним використанням.
-- [ ] Опційно: команда `ddev cg` для швидкого перевстановлення після запуску composer.
-
-### 5.1. Зниження бар'єру входу — «інструменти для ледачих»
-
-**Проблема.** Зараз розробники не пишуть нічого; вимога створити `.stories.php`
-на кожен компонент — бар'єр, через який команди можуть взагалі не почати
-користуватись гідом. Стратегія: story має бути **апгрейдом, а не вхідним
-квитком**. Чотири ідеї, в порядку пріоритету:
-
-1. **Маркер-файли — «показувати недокументовані»** *(реалізовано).* Конвенція
-   замість Settings: розробник кладе `BLOCKS.md`, `COMPONENTS.md` або `GUIDE.md`
-   у теку — і всі Twig-файли її піддерева з'являються в гіді навіть без story
-   (бейдж «undocumented»; файли з префіксом `_` ігноруються; пріоритет при
-   дублях GUIDE → BLOCKS → COMPONENTS, дубль — warning у CLI-скані). Групи
-   віддзеркалюють ієрархію тек: H1 маркера замінює ім'я своєї теки в ланцюжку
-   («Components / Cards»), його успадковують усі компоненти піддерева без
-   явної meta-групи; текст після H1 — опис секції; маркер живе в git
-   поряд із шаблонами й читається на GitHub як документація теки. Нуль
-   зусиль — і гід уже цінний як інвентаризація компонентів.
-   Задокументовано в README («Marker files»), разом із рекомендованим
-   патерном «adapters + presentational components» (диспетчер → адаптер з
-   `{ block }` → чистий компонент + fallback `undefined.twig`); еталонна
-   реалізація патерну — montavilla (templates/_v2), на ній же тестуватимемо
-   usage harvesting.
-2. **Usage harvesting — авто-stories з реального використання.** Сканувати
-   `templates/` на виклики `{% include/embed %}` компонента й перетворювати
-   їх на авто-stories («Як на homepage.twig»). Статичні аргументи витягуються
-   як є; динамічні (`entry.title`) — плейсхолдером. Розробники вже «написали»
-   ці stories — просто не знають про це. Унікальна фіча: в JS-Storybook таке
-   неможливе, у Twig — цілком реально (регекс для простих випадків,
-   Twig-лексер для надійності).
-3. **Генератор-скафолдер** *(реалізовано — v1 на евристиках).* Кнопка
-   «Add stories» на undocumented-картці (лише devMode) і CLI
-   `php craft component-guide/components/make <id>`: аналіз шаблону регексами —
-   кореневі змінні, `{% for %}`-джерела з ключами елементів, `|default(...)` —
-   і готовий rich-скелет зі `status: wip` та вгаданими за іменами значеннями
-   (image-змінні → інлайновий SVG-плейсхолдер). У поєднанні з №2 скелет
-   згодом заповнюватиметься реальними аргументами з usage-скану — шлях
-   «один клік до зафіксованої story».
-4. **Анотації в шаблоні** *(доповнення, не заміна).* Story у Twig-коментарі
-   зверху компонента: `{# @story Primary { label: 'Save' } #}` — той самий
-   парсинговий пайплайн, нуль нових файлів. Мінус: засмічує шаблон,
-   незручно для складних args.
-
-**Послідовність:** №1 → №2 → №3. №2/№3 — нетривіальний обсяг (парсинг Twig,
-крайові випадки) — не тягнути в 0.1.0; спершу dogfooding має підтвердити, що
-бар'єр реальний і №1 недостатньо. Монетизація: №1 — кандидат у Pro (вже в
-таблиці §6), №2 (usage harvesting) — потенційна флагманська Pro-фіча,
-бо аналогів у Storybook-світі немає.
-
-### Фаза 2 — Поліш до релізної якості
-- [ ] Прохід по документації (використання, «кулінарна книга» story, траблшутинг).
-- [ ] Скриншоти / коротке демо для лістингу в сторі.
-- [ ] Розширити тести; тримати PHPStan зеленим (розглянути `craftcms/phpstan`).
-- [ ] Скелет edition-ів (`Lite` / `Pro`), навіть якщо спершу вийде одна редакція.
-- [ ] Доступність (a11y) + поліш світлої/темної теми CP.
-- [ ] Визначити поділ фіч (див. §6).
-
-### Фаза 3 — Комерціалізація (Craft Plugin Store)
-- [ ] Зробити GitHub-репозиторій **публічним**.
-- [ ] Опублікувати на **Packagist**.
-- [ ] Зареєструвати акаунт розробника на `console.craftcms.com`; підключити Stripe.
-- [ ] Змінити `LICENSE.md` з MIT на **комерційну** ліцензію.
-- [ ] Позначити плагін **Commercial** у Console; задати editions + ціни.
-- [ ] Подати на рев'ю в Plugin Store.
-
----
-
-## 6. Монетизація (чернетка)
-
-**Канал:** Craft Plugin Store. Код лишається публічним; Craft примусово застосовує
-ліцензування через ключі. Craft бере 20%, розробнику — 80%. Разова покупка +
-опційне щорічне поновлення за апдейти. Безкоштовний тріал у dev; ключ обовʼязковий
-на публічних доменах.
-
-**Можливий поділ на редакції (перевірити під час dogfooding):**
-
-| Можливість | Lite (безкоштовно?) | Pro (платно) |
-|---|---|---|
-| Пошук story + CP індекс/деталі | ✓ | ✓ |
-| Iframe-прев'ю + Twig-сніпет | ✓ | ✓ |
-| Персистентний кеш | | ✓ |
-| Пресети preview-ассетів / інжект Vite HMR | | ✓ |
-| Пресети viewport / адаптивне прев'ю | | ✓ |
-| Інтеграція з page-builder полем (типи блоків Matrix/Super Table) | | ✓ |
-| Показ недокументованих Twig через маркер-файли | | ✓ |
-
-**Ціна (орієнтовний старт):** разово в діапазоні ~$29–$79 + ~50%/рік поновлення.
-Фіналізувати після аналізу схожих плагінів.
-
----
-
-## 7. Беклог фіч / ідеї
-
-- Опція показувати недокументовані Twig-файли → перенесено в §5.1 (п. 1).
-- Usage harvesting, скафолдер story, анотації в шаблоні → див. §5.1 (п. 2–4).
-- Обізнаність про page-builder: мапити типи блоків Matrix/Super Table поля на їх
-  шаблони, щоб гід віддзеркалював те, що редактори реально можуть додати.
-  Спектр рішень (обговорено 07.2026, ідемо 1 → 2):
-  1) мапінг «entry type → компонент» у налаштуваннях плагіна або за конвенцією
-     handle — нуль змін у полях, працює на будь-якому існуючому сайті;
-  2) тонкий сабклас `craft\fields\Matrix` з одним додатковим сетінгом на тип
-     блока (шлях до компонента) — сховище даних ідентичне Matrix, конвертація
-     туди-назад через project config, lock-in фактично відсутній; кандидат на
-     Pro-цукор;
-  3) повністю власний field type — свідомо НІ (місяці роботи, вічна гонитва за
-     Matrix по фічах, реальний lock-in).
-  Назва: не «Content Blocks» — у Craft 5.8 з'явилося нативне поле "Content
-  Block" (одиночний блок згрупованих полів, не page-builder); кандидати —
-  «Component Blocks», «Guided Matrix». Нативний Content Block гід теж має
-  підтримати як ще один field layout provider для мапінгу «тип → компонент».
-- Пресети viewport і зразки фону в тулбарі прев'ю.
-- **Story Controls** (обговорено 07.2026, у черзі): панель інпутів,
-  згенерована з `args` поточної story — змінюєш значення, прев'ю
-  перерендерюється миттєво. v1: інпут за типом значення (рядок → text,
-  bool → lightswitch, число → number), вкладені структури (`items`) —
-  JSON-текстарія з валідацією; POST-ендпоінт прев'ю приймає args як
-  **дані** (жодного eval — значення ніколи не інтерпретуються як Twig).
-  Кнопка «Copy args» віддає готовий шматок у Twig- або PHP-синтаксисі —
-  серіалізатори вже є (`StoryScaffolder::exportTwig()` / `export()`).
-  **Запис у файл — свідомо НІ** (принаймні у v1): round-trip «parse → UI →
-  serialize» губить коментарі, форматування й вирази, конфліктує з git
-  і конкурує з редактором розробника; фіксацію робить людина через
-  copy/paste, тож diff лишається авторським.
-  Замикає цикл §5.1: scaffold (чернетка) → controls (візуально виправити
-  здогадки) → copy (зафіксувати). Черга: після usage harvesting і
-  Component Blocks, але пріоритетніше за click-to-focus (нижче).
-- Click-to-focus у live preview (ідея Angelo, LinkedIn 07.2026): клік по блоку
-  на фронті → фокус/підсвітка відповідного блока в редакторі (і навпаки).
-  ДОСЛІДЖЕНО: існує як безкоштовний однофункційний плагін Preview Mate
-  (nicholashamilton/craft-preview-mate), але він вимагає ручної розмітки
-  (`data-preview-block-id` / Twig-хелпер у кожному циклі блоків + власний CSS)
-  і працює лише preview → editor. Дизайн нашої версії (обговорено 07.2026) —
-  три рівні автоматизації, двосторонній зв'язок:
-  1) евристика «за порядком» без розмітки (default): CP знає кількість/типи/
-     порядок блоків entry; JS у прев'ю знаходить контейнер із відповідною
-     кількістю секцій-сусідів і мапить за індексом; підсвітка/CSS інжектяться
-     плагіном лише в preview-режимі (postMessage між iframe і CP);
-  2) Twig-хелпер-атрибут як точковий override там, де евристика бреше
-     (блоки без єдиного кореневого елемента тощо);
-  3) автоанотація на базі інфраструктури usage harvesting (§5.1 п.2): той самий
-     парсер шаблонів знаходить цикли по Matrix-полю й пропонує diff із
-     враперами (`…/preview/annotate`) — розробник лише підтверджує.
-  Статус: СВІДОМО ВІДКЛАДЕНО — реалізувати після Component Blocks і usage
-  harvesting, бо рівні 1 і 3 спираються на їхню інфраструктуру (мапінг
-  «блок → компонент», Twig-парсер); не починати у Фазі 1. До того часу —
-  рекомендувати Preview Mate як компаньйон у документації. Потенційно
-  сильна Pro-фіча: підсвітка з назвою/описом/статусом компонента й лінком
-  на гід — те, чого однофункційний плагін дати не може.
-- Інжект Vite dev-server / HMR для точного прев'ю Tailwind.
-- Перевизначення `previewCss`/`previewJs` на рівні окремої story.
-- Багатша метадата story (deprecations, «since»-версія, посилання на дизайн).
-- Експорт/шеринг статичного індексу компонентів.
-
-(Це свідомо поза межами MVP; архітектура лишає для них місце.)
-
----
-
-## 8. Відкриті рішення
-
-- Межа безкоштовне-проти-платне (що лишається у безкоштовній редакції Lite, якщо взагалі).
-  Зокрема: персистентний кеш і показ недокументованих через маркер-файли вже
-  реалізовано в ядрі (кеш — бо без нього Lite занадто повільний на великих
-  проєктах; маркери — бо це головний інструмент зниження бар'єру входу, §5.1) —
-  відповідні рядки таблиці §6 переглянути під час фіналізації едишенів.
-- Фінальна ціна + модель поновлення.
-- Текст ліцензії (який шаблон комерційної ліцензії).
-- Чи інтеграція з page-builder полем — флагманська Pro-фіча, чи окремий компаньйон.
-- Стратегія preview-CSS для Vite/Tailwind-проєктів (документація vs вбудований інжект).
-
----
-
-## 9. Changelog і версіонування
-
-Семантичне версіонування; старт із `0.1.0` (alpha). Не позначати stable, доки
-робочий процес пошуку/прев'ю не буде обкатано на реальних проєктах і задокументовано.
-Див. `CHANGELOG.md`.
+Feedback and ideas are welcome — see [BETA.md](../BETA.md) for where to send
+them.

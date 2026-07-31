@@ -1,10 +1,9 @@
 {% import "_includes/forms" as forms %}
 
-{% macro overrideNote(overrides, key) %}
-    {% if overrides[key] is defined %}
-        {{ "This value is being overridden by config/component-guide.php."|t('component-guide') }}
-    {% endif %}
-{% endmacro %}
+{# Whitespace-free on purpose: Craft's form macros treat any non-empty string
+   as a warning, so stray newlines here would render a phantom ⚠ icon under
+   fields that are NOT overridden. #}
+{% macro overrideNote(overrides, key) %}{% if overrides[key] is defined %}{{ "This value is being overridden by config/component-guide.php."|t('component-guide') }}{% endif %}{% endmacro %}
 {% from _self import overrideNote %}
 
 {{ forms.autosuggestField({

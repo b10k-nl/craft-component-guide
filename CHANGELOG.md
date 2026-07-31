@@ -80,6 +80,9 @@ Initial MVP (alpha).
 - Settings fields that are NOT overridden by `config/component-guide.php` no
   longer show a phantom empty warning icon (the override-note macro emitted
   stray whitespace, which Craft's form macros treat as a warning).
+- The “previews render without your site's CSS” hint no longer shows when a
+  `previewTemplate` is configured — Vite/manifest asset tags injected there
+  count as styling.
 - `block` is no longer treated as a Twig keyword by the scaffolder: in Craft
   page-builder templates it is almost always the Matrix block variable.
   `{% block x %}` and `block('x')` are still recognised as language

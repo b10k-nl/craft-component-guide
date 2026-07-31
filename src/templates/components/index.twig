@@ -85,8 +85,9 @@ hero{{ settings.twigStorySuffix() }}</div>
             </ol>
         </div>
     {% else %}
-        {% if settings.previewCss is empty %}
-            {# Unstyled previews read as “broken plugin” — say why before they conclude that. #}
+        {% if settings.previewCss is empty and settings.previewTemplate is empty %}
+            {# Unstyled previews read as “broken plugin” — say why before they conclude that.
+               A configured previewTemplate counts as styling too (e.g. Vite asset tags). #}
             <p class="cg-hint">
                 {{ "Previews render without your site's CSS."|t('component-guide') }}
                 <a href="{{ cpUrl('settings/plugins/component-guide') }}">{{ "Add your compiled stylesheet"|t('component-guide') }}</a>

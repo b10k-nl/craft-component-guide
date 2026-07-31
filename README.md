@@ -37,58 +37,17 @@ Component Guide scans a configurable templates directory, discovers Twig compone
 
 ## Installation
 
-### From Packagist *(package name provisional — not yet registered)*
+During the beta the plugin installs straight from GitHub (it is not on
+Packagist or the Plugin Store yet):
 
 ```bash
-composer require b10k/craft-component-guide
+composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
+composer require b10k/craft-component-guide:0.1.0-beta.2
 php craft plugin/install component-guide
 ```
 
-DDEV:
-
-```bash
-ddev composer require b10k/craft-component-guide
-ddev exec php craft plugin/install component-guide
-```
-
-### Local development via a Composer path repository
-
-This is how the plugin is wired into this project (kept local, not committed).
-
-1. Place the plugin at `plugin-dev/b10k/craft-component-guide/`.
-2. Add a path repository and the requirement to the **root** `composer.json`:
-
-   ```json
-   {
-     "repositories": [
-       { "type": "path", "url": "./plugin-dev/b10k/craft-component-guide" }
-     ],
-     "require": {
-       "b10k/craft-component-guide": "@dev"
-     }
-   }
-   ```
-
-3. Install and enable:
-
-   ```bash
-   ddev composer require b10k/craft-component-guide:@dev
-   ddev exec php craft plugin/install component-guide
-   ```
-
-> **Keeping it local:** the plugin source is git-ignored. Because a Craft plugin
-> must appear in the root `composer.json`/`composer.lock`, run
-> `git update-index --skip-worktree composer.json composer.lock` so those edits
-> are never committed — otherwise `composer install` on staging/production would
-> fail on the missing path.
->
-> Installing also writes the plugin into `config/project/project.yaml`. To keep
-> that shared file clean, revert it (`git checkout -- config/project/project.yaml`)
-> and let the plugin live in your **local database** only. Caveat: because the
-> project-config file no longer lists the plugin, running `project-config/apply`
-> (which the Composer `post-install`/`post-update` hooks do) can uninstall it
-> locally — just re-run `ddev exec php craft plugin/install component-guide` when
-> that happens.
+On DDEV, prefix each command with `ddev`. See [BETA.md](BETA.md) for a
+“first five minutes” walkthrough and what feedback helps most.
 
 ## Configuration
 
@@ -108,6 +67,7 @@ return [
     'enableIframePreview' => true,
     'previewCss' => ['/dist/css/app.css'], // string or array
     'previewJs' => ['/dist/js/app.js'],
+    'previewTemplate' => '',               // site template rendered into the preview <head>
 ];
 ```
 
@@ -118,6 +78,7 @@ return [
 | `enableCpSection` | `true` | Show/hide the CP nav item. |
 | `enableIframePreview` | `true` | Isolated iframe vs. an "open preview" link. |
 | `previewCss` / `previewJs` | `[]` | Front-end assets injected into the preview. |
+| `previewTemplate` | `''` | A site template rendered into the preview document's `<head>` — the right place for Vite/manifest asset tags (see below). |
 
 **The model is Storybook-style:** the scanner walks the scan root recursively and
 shows *every* Twig template that has an adjacent story file — anywhere in the
@@ -315,6 +276,23 @@ Set `previewCss` / `previewJs` (string or array of URLs) to load your compiled
 front-end assets into the preview document. With none configured you get a clean,
 unstyled document. CSS support matters most; JS is optional.
 
+**Using Vite (or any manifest-based build)?** Static URLs go stale between dev
+and production — point `previewTemplate` at a small site template instead, and
+put your asset tags there. It is rendered into the preview document's `<head>`
+in site mode, so helpers like `craft.vite` resolve the dev server vs. the
+built manifest exactly like on the front end — previews get real styling *and*
+working component JS (carousels included) in both environments:
+
+```twig
+{# templates/_component-guide-preview.twig #}
+{{ craft.vite.script('src/js/app.ts') }}
+```
+
+```php
+// config/component-guide.php
+'previewTemplate' => '_component-guide-preview',
+```
+
 ## Security & trust model
 
 - Story files are **PHP** and therefore trusted project code — treat them like
@@ -369,7 +347,7 @@ ddev exec php craft component-guide/components/scan
 
 ## Beta
 
-Currently in private beta — see [BETA.md](BETA.md) for install instructions and
+In public beta — see [BETA.md](BETA.md) for install instructions and
 what feedback is most useful.
 
 ## Contributing

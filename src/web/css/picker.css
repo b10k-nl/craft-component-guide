@@ -32,14 +32,23 @@
 
 /* Docked right-hand panel — NOT a modal: no backdrop, the entry stays
    interactive, and the panel stays open so many blocks can be added in a row. */
+/* z-index 100 = Craft's overlay layer (.modal/.slideout/.hud AND the Live
+   Preview containers are all 100). Being appended to <body> on open stacks
+   the panel above the LP containers; anything higher (the old 1000) buried
+   modal/slideout footer buttons (Save/Create entry) under the panel. */
 .cg-picker-panel {
-    position: fixed; top: 0; right: 0; bottom: 0; z-index: 1000;
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 100;
     width: min(420px, 90vw);
     background: #fff; box-shadow: -12px 0 40px rgba(31, 41, 51, .25);
     border-left: 1px solid #e4e8ec;
     display: flex; flex-direction: column;
     animation: cg-picker-slide-in .18s ease-out;
 }
+/* While any Craft overlay (modal / slideout / HUD) is open — flagged on
+   <body> by picker.js via Garnish events — step below the overlay layer so
+   the overlay and its shade win; the panel re-emerges on close. */
+body.cg-overlay-open .cg-picker-panel { z-index: 99; }
+
 @keyframes cg-picker-slide-in {
     from { transform: translateX(24px); opacity: 0; }
     to { transform: none; opacity: 1; }

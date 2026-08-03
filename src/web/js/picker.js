@@ -170,7 +170,13 @@
         search.addEventListener('input', applyFilter);
 
         var onKey = function (e) {
-            if (e.key === 'Escape') { closePanel(); }
+            // While a Craft overlay is open the panel sits behind it (see
+            // trackOverlays) — Escape belongs to the overlay then, and
+            // Garnish will close it; closing the hidden panel too would be
+            // surprising.
+            if (e.key === 'Escape' && !document.body.classList.contains('cg-overlay-open')) {
+                closePanel();
+            }
         };
 
         // Fit the thumbnail to the component's real rendered height — a short
@@ -540,12 +546,44 @@
         }
     };
 
+    // --- Overlay stacking -------------------------------------------------
+    // Craft's modals, slideouts and HUDs all sit at z-index 100 — the same
+    // layer the panel needs to beat the Live Preview containers (also 100).
+    // A static z-index can't stack between them, so track open overlays via
+    // Garnish's class-level events and flag <body>; picker.css drops the
+    // panel below the overlay layer while the flag is on.
+    var trackOverlays = function () {
+        if (!window.Garnish || typeof Garnish.on !== 'function') { return; }
+
+        var open = [];
+        var flag = function () {
+            document.body.classList.toggle('cg-overlay-open', open.length > 0);
+        };
+        var track = function (cls, showEvent, hideEvent) {
+            if (!cls) { return; }
+            Garnish.on(cls, showEvent, function (ev) {
+                if (open.indexOf(ev.target) === -1) { open.push(ev.target); }
+                flag();
+            });
+            Garnish.on(cls, hideEvent, function (ev) {
+                var i = open.indexOf(ev.target);
+                if (i !== -1) { open.splice(i, 1); }
+                flag();
+            });
+        };
+
+        track(Garnish.Modal, 'show', 'hide');
+        track(Garnish.HUD, 'show', 'hide');
+        track(window.Craft && Craft.Slideout, 'open', 'close');
+    };
+
     var scan = function (root) {
         (root || document).querySelectorAll('.matrix-field').forEach(enhance);
         document.querySelectorAll('.lp-editor-container').forEach(enhancePreviewHeader);
     };
 
     var init = function () {
+        trackOverlays();
         scan(document);
         // Matrix fields can appear later (slideouts, lazy tabs). CP pages
         // mutate the DOM constantly (Live Preview, editors), so instead of

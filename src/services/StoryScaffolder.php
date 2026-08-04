@@ -17,7 +17,7 @@ use yii\base\Component;
  * by the suffix it is handed.
  *
  * Deliberately heuristic (regex, not a Twig lexer): the output is a starting
- * point a developer reviews — marked `status: wip` — not a guaranteed-perfect
+ * point a developer reviews — marked `status: draft` — not a guaranteed-perfect
  * story. Never overwrites an existing story file.
  */
 class StoryScaffolder extends Component
@@ -328,7 +328,7 @@ class StoryScaffolder extends Component
 
     /**
      * Renders the PHP story-file source (rich format, one "Default" story,
-     * status "wip" so the guide flags it as a draft).
+     * status "draft" so the guide flags it as unreviewed).
      *
      * @param array<string, mixed> $args
      */
@@ -399,7 +399,7 @@ class StoryScaffolder extends Component
             $meta['description'] = $description;
         }
         // Always a draft: the args are guesses until a human confirms them.
-        $meta['status'] = 'wip';
+        $meta['status'] = 'draft';
 
         return $meta;
     }

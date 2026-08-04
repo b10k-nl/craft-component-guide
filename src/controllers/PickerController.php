@@ -35,6 +35,25 @@ class PickerController extends Controller
         foreach (Plugin::getInstance()->getRepository()->getAll() as $component) {
             $firstStory = $component->stories[0] ?? null;
 
+            // Scalar args of the first story become the picker's prefill: a
+            // block added from the gallery starts with the same content its
+            // card previews. Rich/nested values can't be mapped onto fields
+            // reliably and are skipped, as are data-URI image placeholders.
+            $prefill = [];
+            if ($firstStory !== null) {
+                foreach ($firstStory->args as $key => $value) {
+                    if (is_bool($value) || is_int($value) || is_float($value)) {
+                        $prefill[$key] = $value;
+                    } elseif (is_string($value)
+                        && $value !== ''
+                        && mb_strlen($value) <= 500
+                        && !str_starts_with($value, 'data:')
+                    ) {
+                        $prefill[$key] = $value;
+                    }
+                }
+            }
+
             $components[] = [
                 // `name` is the template base name — the entry-type handle candidate.
                 'name' => $component->name,
@@ -42,6 +61,7 @@ class PickerController extends Controller
                 'description' => $component->description,
                 'status' => $component->status,
                 'group' => $component->effectiveGroup(),
+                'prefill' => $prefill ?: null,
                 'previewUrl' => $firstStory !== null
                     ? UrlHelper::cpUrl("component-guide/preview/{$component->id}/{$firstStory->id}")
                     : null,

@@ -15,6 +15,15 @@
 .cg-picker-open:hover { background-color: var(--ui-control-hover-bg-color, #d4dbe2); }
 .cg-picker-open:active { background-color: var(--ui-control-active-bg-color, #c9d1da); }
 
+/* Non-stable / unmatched entry types: visible but not addable from here. */
+.cg-picker-card--disabled { opacity: .55; cursor: not-allowed; }
+.cg-picker-card--disabled .cg-picker-card__thumb { filter: grayscale(1); }
+.cg-picker-card__reason {
+    padding: 4px 12px 10px;
+    font-size: 11.5px; text-align: left;
+    color: var(--light-text-color, #596673);
+}
+
 /* Compact duplicate of the trigger in the Live Preview editor pane header —
    the field's own button sits below the fold on long Matrix fields. */
 .cg-picker-open--header {

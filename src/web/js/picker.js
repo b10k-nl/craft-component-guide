@@ -100,6 +100,56 @@
         return items;
     };
 
+    // --- Prefill ------------------------------------------------------------
+    // A block added from the gallery starts empty — invisible on the page and
+    // easy to read as “broken”. Copy the first story's scalar args into the
+    // new block's matching inputs (by field handle) so it renders with the
+    // same content its gallery card previews. Rich/nested fields are left
+    // alone: this is a head start, not a content import.
+    var fillBlock = function (blockEl, prefill) {
+        Object.keys(prefill).forEach(function (key) {
+            var value = prefill[key];
+            // Story args are presentational names; the common convention maps
+            // e.g. bodyHtml → a bodyText field, so try that alias too.
+            var names = [key];
+            if (/Html$/.test(key)) { names.push(key.replace(/Html$/, 'Text')); }
+
+            for (var i = 0; i < names.length; i++) {
+                var input = blockEl.querySelector(
+                    'input[type="text"][name$="[' + names[i] + ']"], '
+                    + 'textarea[name$="[' + names[i] + ']"]'
+                );
+                if (!input || input.value !== '') { continue; }
+                input.value = typeof value === 'boolean' ? (value ? '1' : '') : String(value);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                break;
+            }
+        });
+    };
+
+    // Matrix inserts the new block asynchronously; poll the field for an
+    // element of the added type that wasn't there before the click.
+    var watchForNewBlock = function (field, type, prefill) {
+        var deadline = Date.now() + 4000;
+        var existing = new Set(
+            Array.prototype.slice.call(field.querySelectorAll('[data-type="' + type + '"]'))
+        );
+        var tick = function () {
+            var candidates = field.querySelectorAll('[data-type="' + type + '"]');
+            for (var i = candidates.length - 1; i >= 0; i--) {
+                var el = candidates[i];
+                // Menu buttons carry data-type too — a real block has inputs.
+                if (!existing.has(el) && el.tagName !== 'BUTTON' && el.querySelector('input, textarea')) {
+                    fillBlock(el, prefill);
+                    return;
+                }
+            }
+            if (Date.now() < deadline) { requestAnimationFrame(tick); }
+        };
+        requestAnimationFrame(tick);
+    };
+
     // --- Gallery panel ------------------------------------------------------
     // A docked right-hand panel (not a modal): it stays open so an editor can
     // compose a whole page — every card click appends one more block to the
@@ -237,6 +287,21 @@
                 comp && comp.description ? comp.description : '',
             ].join(' ').toLowerCase();
 
+            // Blocks with an EXPLICIT non-stable status (draft, deprecated, …)
+            // are not addable from the gallery — that status is a developer's
+            // deliberate signal. No story / no matching component is NOT a
+            // signal: those blocks stay addable (empty), so the gallery never
+            // blocks a content manager's normal work. The native “New Block”
+            // menu is untouched either way.
+            var addable = !comp || !comp.status || comp.status === 'stable';
+            var blockReason = null;
+            if (!addable) {
+                blockReason = Craft.t('component-guide', 'Marked “{status}” — not ready for editors yet.', { status: comp.status });
+                card.disabled = true;
+                card.classList.add('cg-picker-card--disabled');
+                card.title = blockReason;
+            }
+
             // Native card titlebar, same markup as Cp::elementCardHtml().
             var head = document.createElement('div');
             head.className = 'card-titlebar';
@@ -308,6 +373,13 @@
                 card.appendChild(main);
             }
 
+            if (blockReason) {
+                var reason = document.createElement('div');
+                reason.className = 'cg-picker-card__reason';
+                reason.textContent = blockReason;
+                card.appendChild(reason);
+            }
+
             card.addEventListener('click', function () {
                 // Entering Live Preview re-renders the editor, so every DOM
                 // reference from panel-build time may be stale. Re-resolve the
@@ -336,6 +408,9 @@
                 }
 
                 if (added) {
+                    if (comp && comp.prefill) {
+                        watchForNewBlock(liveField, item.type, comp.prefill);
+                    }
                     card.classList.remove('is-added');
                     void card.offsetWidth; // restart the animation
                     card.classList.add('is-added');

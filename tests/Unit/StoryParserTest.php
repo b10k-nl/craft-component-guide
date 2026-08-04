@@ -97,13 +97,24 @@ class StoryParserTest extends TestCase
 
     public function testStatusNormalizesCaseAndAliases(): void
     {
+        // Canonical status, case-insensitive.
         $result = $this->parser->parseData([
             'meta' => ['status' => 'Draft'],
             'stories' => ['Primary' => ['args' => []]],
         ], 'x.stories.php');
 
         $this->assertSame([], $result['errors']);
-        $this->assertSame('wip', $result['meta']['status']);
+        $this->assertSame('draft', $result['meta']['status']);
+
+        // Legacy spelling keeps working: story files written before the
+        // rename must not start erroring.
+        $legacy = $this->parser->parseData([
+            'meta' => ['status' => 'WIP'],
+            'stories' => ['Primary' => ['args' => []]],
+        ], 'x.stories.php');
+
+        $this->assertSame([], $legacy['errors']);
+        $this->assertSame('draft', $legacy['meta']['status']);
     }
 
     public function testUnknownStatusIsDroppedWithError(): void

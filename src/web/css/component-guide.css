@@ -70,12 +70,12 @@
     line-height: 1.6;
 }
 /* Status lifecycle colors. The parser normalizes statuses to this canonical
-   vocabulary (stable | beta | wip | deprecated) and rejects typos with a scan
-   warning, so these four classes are exhaustive. */
+   vocabulary (stable | beta | draft | deprecated) and rejects typos with a
+   scan warning, so these four classes are exhaustive. */
 .cg-chip--status { background: #e4e8ec; color: #4a5560; }
 .cg-chip--stable { background: #d8f0e0; color: #1c6b3c; }
 .cg-chip--beta { background: #dbe9fb; color: #1a5dab; }
-.cg-chip--wip { background: #fbeeca; color: #8a5f0b; }
+.cg-chip--draft { background: #fbeeca; color: #8a5f0b; }
 .cg-chip--deprecated { background: #fcdcd8; color: #9a1f11; }
 .cg-badge {
     display: inline-flex;

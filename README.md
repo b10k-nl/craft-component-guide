@@ -214,7 +214,7 @@ The scaffolder reads the template and guesses a `Default` story from it:
 - the first sentence of the template's leading `{# … #}` comment becomes the
   component description.
 
-The result is a **draft**: it is written with `status: wip`, the args are
+The result is a **draft**: it is written with `status: draft`, the args are
 guesses, and an existing story file is never overwritten. Review it, fix what
 the heuristics got wrong, and promote the status when the component is
 properly documented.

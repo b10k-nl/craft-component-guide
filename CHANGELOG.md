@@ -8,6 +8,14 @@ to [Semantic Versioning](https://semver.org).
 Initial MVP (alpha).
 
 ### Added
+- The blocks gallery blocks only what a developer explicitly marked: entry
+  types whose component carries a non-stable status (`draft`, `deprecated`, …)
+  render as disabled cards with a one-line reason. Story-less and unmatched
+  types stay addable (empty) so the gallery never blocks normal content work;
+  the native "New Block" menu is untouched.
+- Blocks added from the gallery are prefilled with the first story's scalar
+  args (matched to field handles, `bodyHtml` → `bodyText` alias included), so
+  a new block is immediately visible on the page instead of rendering empty.
 - Previews that render nothing now explain why instead of showing a blank
   frame (markup behind a condition the args don't satisfy, or a template that
   reads Craft data itself).
@@ -64,6 +72,10 @@ Initial MVP (alpha).
   scan-cache fingerprint tracks markers and covered templates automatically.
 
 ### Changed
+- The `wip` status is now called `draft` (canonical vocabulary:
+  `stable | beta | draft | deprecated`). Existing story files keep working —
+  `wip` and `in progress` normalize to `draft` as aliases; the scaffolder now
+  writes `status: 'draft'`.
 - The persistent scan cache key now includes the mtimes of the scanner and
   story parsers, so changing that code invalidates stale entries by itself —
   in development and after a `composer update` — instead of relying on a

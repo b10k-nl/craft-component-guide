@@ -205,7 +205,7 @@ class StoryScaffolderTest extends TestCase
         $result = (new StoryParser())->parse($path, 'card.stories.php');
         $this->assertSame([], $result['errors']);
         $this->assertSame('Card', $result['meta']['title']);
-        $this->assertSame('wip', $result['meta']['status']);
+        $this->assertSame('draft', $result['meta']['status']);
         $this->assertCount(1, $result['stories']);
         $this->assertSame('Lorem ipsum', $result['stories'][0]->args['heading']);
     }

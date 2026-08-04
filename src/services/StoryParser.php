@@ -23,13 +23,13 @@ class StoryParser extends Component
     private const STORY_KEYS = ['args', 'description', 'background', 'viewport', 'tags'];
 
     /** Canonical component lifecycle statuses (what the UI color-codes). */
-    public const STATUSES = ['stable', 'beta', 'wip', 'deprecated'];
+    public const STATUSES = ['stable', 'beta', 'draft', 'deprecated'];
 
     /** Accepted spellings that normalize to a canonical status. */
     private const STATUS_ALIASES = [
         'ready' => 'stable',
-        'draft' => 'wip',
-        'in progress' => 'wip',
+        'wip' => 'draft',
+        'in progress' => 'draft',
         'experimental' => 'beta',
         'legacy' => 'deprecated',
         'obsolete' => 'deprecated',

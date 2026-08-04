@@ -3,9 +3,11 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## 0.1.0 - Unreleased
+## Unreleased
 
-Initial MVP (alpha).
+Nothing yet since 0.1.0-beta.3.
+
+## 0.1.0-beta.3 - 2026-08-04
 
 ### Added
 - The blocks gallery blocks only what a developer explicitly marked: entry
@@ -16,6 +18,27 @@ Initial MVP (alpha).
 - Blocks added from the gallery are prefilled with the first story's scalar
   args (matched to field handles, `bodyHtml` → `bodyText` alias included), so
   a new block is immediately visible on the page instead of rendering empty.
+
+### Changed
+- The `wip` status is now called `draft` (canonical vocabulary:
+  `stable | beta | draft | deprecated`). Existing story files keep working —
+  `wip` and `in progress` normalize to `draft` as aliases; the scaffolder now
+  writes `status: 'draft'`.
+
+### Fixed
+- The picker panel cooperates with Craft's overlay stack (z-index 100 plus a
+  `cg-overlay-open` flag), so modal and slideout footer buttons stay reachable
+  while the gallery is open.
+- Settings fields that are NOT overridden by `config/component-guide.php` no
+  longer show a phantom empty warning icon (the override-note macro emitted
+  stray whitespace, which Craft's form macros treat as a warning).
+- The “previews render without your site's CSS” hint no longer shows when a
+  `previewTemplate` is configured — Vite/manifest asset tags injected there
+  count as styling.
+
+## 0.1.0-beta.2 - 2026-07-30
+
+### Added
 - Previews that render nothing now explain why instead of showing a blank
   frame (markup behind a condition the args don't satisfy, or a template that
   reads Craft data itself).
@@ -23,7 +46,20 @@ Initial MVP (alpha).
   paths, so templates written against a Matrix block (`block.heading`) get a
   renderable story without refactoring — in Twig a plain hash reads the same
   as an element. Nested paths nest; trailing method calls are declared but
-  can't be faked, and the scaffold says so in a note.
+  can't be faked, and the scaffold says so in a note. Guessed values are
+  context-aware, so nested paths get plausible stand-ins too.
+
+### Fixed
+- `block` is no longer treated as a Twig keyword by the scaffolder: in Craft
+  page-builder templates it is almost always the Matrix block variable.
+  `{% block x %}` and `block('x')` are still recognised as language
+  constructs.
+
+## 0.1.0-beta.1 - 2026-07-30
+
+First public beta — the initial MVP.
+
+### Added
 - Marker-file discovery skips `index.twig` and `undefined.twig` — the entry
   point and fallback of the recommended dispatcher pattern are not components.
   (An explicit story file still documents them if you want it to.)
@@ -72,10 +108,6 @@ Initial MVP (alpha).
   scan-cache fingerprint tracks markers and covered templates automatically.
 
 ### Changed
-- The `wip` status is now called `draft` (canonical vocabulary:
-  `stable | beta | draft | deprecated`). Existing story files keep working —
-  `wip` and `in progress` normalize to `draft` as aliases; the scaffolder now
-  writes `status: 'draft'`.
 - The persistent scan cache key now includes the mtimes of the scanner and
   story parsers, so changing that code invalidates stale entries by itself —
   in development and after a `composer update` — instead of relying on a
@@ -89,16 +121,6 @@ Initial MVP (alpha).
   scan per frame, reducing overhead on busy CP pages.
 
 ### Fixed
-- Settings fields that are NOT overridden by `config/component-guide.php` no
-  longer show a phantom empty warning icon (the override-note macro emitted
-  stray whitespace, which Craft's form macros treat as a warning).
-- The “previews render without your site's CSS” hint no longer shows when a
-  `previewTemplate` is configured — Vite/manifest asset tags injected there
-  count as styling.
-- `block` is no longer treated as a Twig keyword by the scaffolder: in Craft
-  page-builder templates it is almost always the Matrix block variable.
-  `{% block x %}` and `block('x')` are still recognised as language
-  constructs.
 - Ungrouped picker cards are no longer clipped/overlapping. Root cause: as
   DIRECT children of the panel's scroll container, Chromium sizes grid rows
   from the `.card` button's containment-affected intrinsic height

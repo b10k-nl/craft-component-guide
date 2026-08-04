@@ -42,7 +42,7 @@ Packagist or the Plugin Store yet):
 
 ```bash
 composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
-composer require b10k/craft-component-guide:0.1.0-beta.2
+composer require b10k/craft-component-guide:0.1.0-beta.3
 php craft plugin/install component-guide
 ```
 

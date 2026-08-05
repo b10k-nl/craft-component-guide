@@ -32,6 +32,11 @@ Component Guide scans a configurable templates directory, discovers Twig compone
 - Surfaces per-component errors without breaking the rest of the guide.
 - Lists story-less templates via **marker files** (`GUIDE.md` / `BLOCKS.md` /
   `COMPONENTS.md`), so the guide doubles as a full component inventory.
+- **Blocks gallery for editors:** a "Blocks gallery" button on every Matrix
+  page-builder field (all view modes — blocks, cards, index) opens a panel of
+  real component previews with descriptions; clicking one adds that block. In
+  "Inline-editable blocks" mode the new block is prefilled with the story's
+  own content, so it is visible on the page immediately.
 - Persistent scan cache keyed by a filesystem fingerprint — invalidates itself
   the moment a story, template or marker changes.
 
@@ -42,7 +47,7 @@ Packagist or the Plugin Store yet):
 
 ```bash
 composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
-composer require b10k/craft-component-guide:0.1.0-beta.3
+composer require b10k/craft-component-guide:0.1.0-beta.4
 php craft plugin/install component-guide
 ```
 

@@ -168,7 +168,7 @@ class Settings extends Model
             'enableScanCache' => 'Cache Scan Results',
             'previewCss' => 'Preview CSS',
             'previewJs' => 'Preview JavaScript',
-            'previewTemplate' => 'Preview Head Template',
+            'previewTemplate' => 'Preview Template',
         ];
     }
 }

@@ -1,89 +1,111 @@
 {% import "_includes/forms" as forms %}
 
-{# Whitespace-free on purpose: Craft's form macros treat any non-empty string
-   as a warning, so stray newlines here would render a phantom ⚠ icon under
-   fields that are NOT overridden. #}
-{% macro overrideNote(overrides, key) %}{% if overrides[key] is defined %}{{ "This value is being overridden by config/component-guide.php."|t('component-guide') }}{% endif %}{% endmacro %}
-{% from _self import overrideNote %}
+{# Passed as a plain string (or null) rather than a macro call: Craft's form
+   macros treat any non-empty warning as a ⚠, and a macro's Markup object with
+   stray whitespace renders an empty phantom warning. #}
+{% set overrideWarning = "This value is being overridden by config/component-guide.php."|t('component-guide') %}
+
+<h2>{{ "Discovery"|t('component-guide') }}</h2>
 
 {{ forms.autosuggestField({
     label: "Scan Root"|t('component-guide'),
-    instructions: "Folder to scan recursively, relative to your templates directory. Leave empty to scan the entire templates directory. Every Twig template that has an adjacent {suffix} (or {twigSuffix}) file is shown."|t('component-guide', {
-        suffix: settings.storySuffix,
-        twigSuffix: settings.storySuffix|replace({'.php': '.twig'}),
-    }),
+    instructions: "Folder to scan recursively, relative to your templates directory. Leave empty to scan the entire templates directory."|t('component-guide'),
     id: 'componentPath',
     name: 'componentPath',
     suggestEnvVars: true,
     value: settings.componentPath,
     errors: settings.getErrors('componentPath'),
     disabled: overrides.componentPath is defined,
-    warning: overrideNote(overrides, 'componentPath'),
+    warning: overrides.componentPath is defined ? overrideWarning : null,
     placeholder: '(entire templates directory)',
 }) }}
 
 {{ forms.textField({
     label: "Story File Suffix"|t('component-guide'),
-    instructions: "Suffix that identifies a story definition file."|t('component-guide'),
+    instructions: "Suffix that identifies a story definition file. The Twig equivalent ({twigSuffix}) is discovered automatically."|t('component-guide', {
+        twigSuffix: settings.twigStorySuffix(),
+    }),
     id: 'storySuffix',
     name: 'storySuffix',
     value: settings.storySuffix,
     errors: settings.getErrors('storySuffix'),
     disabled: overrides.storySuffix is defined,
-    warning: overrideNote(overrides, 'storySuffix'),
+    warning: overrides.storySuffix is defined ? overrideWarning : null,
     required: true,
 }) }}
 
 {{ forms.lightswitchField({
-    label: "Enable Control-Panel Section"|t('component-guide'),
-    instructions: "Show the Component Guide item in the CP navigation."|t('component-guide'),
-    id: 'enableCpSection',
-    name: 'enableCpSection',
-    on: settings.enableCpSection,
-    disabled: overrides.enableCpSection is defined,
-    warning: overrideNote(overrides, 'enableCpSection'),
-}) }}
-
-{{ forms.lightswitchField({
-    label: "Isolated Iframe Preview"|t('component-guide'),
-    instructions: "Render component previews inside a sandboxed iframe so project CSS and CP CSS stay isolated."|t('component-guide'),
-    id: 'enableIframePreview',
-    name: 'enableIframePreview',
-    on: settings.enableIframePreview,
-    disabled: overrides.enableIframePreview is defined,
-    warning: overrideNote(overrides, 'enableIframePreview'),
-}) }}
-
-{{ forms.lightswitchField({
     label: "Cache Scan Results"|t('component-guide'),
-    instructions: "Cache the component scan persistently. The cache invalidates automatically when a story or template file changes, so this is safe to keep on — disable only for debugging."|t('component-guide'),
+    instructions: "Cache the component scan persistently. The cache invalidates itself when a story, template or marker file changes — turn this off only for debugging."|t('component-guide'),
     id: 'enableScanCache',
     name: 'enableScanCache',
     on: settings.enableScanCache,
     disabled: overrides.enableScanCache is defined,
-    warning: overrideNote(overrides, 'enableScanCache'),
+    warning: overrides.enableScanCache is defined ? overrideWarning : null,
+}) }}
+
+<hr>
+
+<h2>{{ "Previews"|t('component-guide') }}</h2>
+
+<p class="light">{{ "Previews render your real templates. Point the plugin at your front-end assets so they look like the live site."|t('component-guide') }}</p>
+
+{{ forms.textField({
+    label: "Preview Template"|t('component-guide'),
+    instructions: "A site template rendered into the preview document's <head>. The best option for Vite or any manifest-based build: put your asset tags there and they resolve exactly like on the front end, in dev and in production."|t('component-guide'),
+    id: 'previewTemplate',
+    name: 'previewTemplate',
+    value: settings.previewTemplate,
+    errors: settings.getErrors('previewTemplate'),
+    disabled: overrides.previewTemplate is defined,
+    warning: overrides.previewTemplate is defined ? overrideWarning : null,
+    placeholder: '_component-guide-preview',
 }) }}
 
 {{ forms.textareaField({
     label: "Preview CSS"|t('component-guide'),
-    instructions: "Front-end CSS URLs to load into the preview document — one per line."|t('component-guide'),
+    instructions: "Static stylesheet URLs, one per line. Use these when your build emits stable paths; leave empty if you use a preview template."|t('component-guide'),
     id: 'previewCss',
     name: 'previewCss',
-    rows: 3,
+    rows: 2,
     value: settings.previewCss|join("\n"),
     disabled: overrides.previewCss is defined,
-    warning: overrideNote(overrides, 'previewCss'),
+    warning: overrides.previewCss is defined ? overrideWarning : null,
     placeholder: '/dist/css/app.css',
 }) }}
 
 {{ forms.textareaField({
     label: "Preview JavaScript"|t('component-guide'),
-    instructions: "Front-end JS URLs to load into the preview document — one per line."|t('component-guide'),
+    instructions: "Static script URLs, one per line — needed only for components with behaviour (carousels, accordions)."|t('component-guide'),
     id: 'previewJs',
     name: 'previewJs',
-    rows: 3,
+    rows: 2,
     value: settings.previewJs|join("\n"),
     disabled: overrides.previewJs is defined,
-    warning: overrideNote(overrides, 'previewJs'),
+    warning: overrides.previewJs is defined ? overrideWarning : null,
     placeholder: '/dist/js/app.js',
+}) }}
+
+{{ forms.lightswitchField({
+    label: "Isolated Iframe Preview"|t('component-guide'),
+    instructions: "Render previews inside a sandboxed iframe so project CSS and CP CSS stay isolated. Turning this off replaces previews with a link."|t('component-guide'),
+    id: 'enableIframePreview',
+    name: 'enableIframePreview',
+    on: settings.enableIframePreview,
+    disabled: overrides.enableIframePreview is defined,
+    warning: overrides.enableIframePreview is defined ? overrideWarning : null,
+}) }}
+
+<hr>
+
+<h2>{{ "Control panel"|t('component-guide') }}</h2>
+
+{{ forms.lightswitchField({
+    label: "Enable Control-Panel Section"|t('component-guide'),
+    instructions: "Show the Component Guide item in the CP navigation. The CLI keeps working either way."|t('component-guide'),
+    id: 'enableCpSection',
+    name: 'enableCpSection',
+    on: settings.enableCpSection,
+    disabled: overrides.enableCpSection is defined,
+    warning: overrides.enableCpSection is defined ? overrideWarning : null,
 }) }}

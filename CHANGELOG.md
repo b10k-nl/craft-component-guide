@@ -5,7 +5,17 @@ to [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
-Nothing yet since 0.1.0-beta.3.
+### Added
+- `previewTemplate` is now editable in the settings screen (it was config-file
+  only) and documented there as the recommended route for Vite/manifest
+  builds — previously the most useful preview setting was invisible in the UI.
+
+### Changed
+- The settings screen is grouped into Discovery / Previews / Control panel
+  sections instead of one flat list, with shorter instructions.
+- The override note is passed to Craft's form macros as a plain string (or
+  `null`) rather than a macro's Markup object, so a stray newline can never
+  render an empty phantom warning again.
 
 ## 0.1.0-beta.3 - 2026-08-04
 

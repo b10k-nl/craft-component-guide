@@ -61,6 +61,9 @@ explicitly press “Add stories”.
 4. **Make previews look real.** Settings → point `previewCss` at your compiled
    front-end stylesheet (e.g. `@web/dist/assets/app.css` or whatever your build
    emits). Without it previews render unstyled — that's expected, not a bug.
+   On a Vite project, set `previewTemplate` to a small template containing your
+   asset tags instead — it resolves the dev server and the built manifest just
+   like the front end does (see the README).
 5. **Sanity-check from the command line:**
    `php craft component-guide/components/scan` prints everything it found.
 

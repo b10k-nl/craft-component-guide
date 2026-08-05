@@ -69,6 +69,35 @@ class PickerController extends Controller
             ];
         }
 
-        return $this->asJson(['components' => $components]);
+        return $this->asJson([
+            'components' => $components,
+            // Cards/Index-mode Matrix fields expose entry types as numeric IDs
+            // (Craft.NestedElementManager settings.createAttributes.typeId),
+            // never handles — so the gallery needs this lookup to match a
+            // type to its component.
+            'entryTypes' => $this->entryTypes(),
+        ]);
+    }
+
+    /**
+     * @return array<int, array{id: int, handle: string, name: string}>
+     */
+    private function entryTypes(): array
+    {
+        $service = \Craft::$app->getEntries();
+        if (!method_exists($service, 'getAllEntryTypes')) {
+            return [];
+        }
+
+        $types = [];
+        foreach ($service->getAllEntryTypes() as $type) {
+            $types[] = [
+                'id' => (int)$type->id,
+                'handle' => (string)$type->handle,
+                'name' => (string)$type->name,
+            ];
+        }
+
+        return $types;
     }
 }

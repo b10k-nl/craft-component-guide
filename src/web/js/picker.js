@@ -100,6 +100,90 @@
         return items;
     };
 
+    // --- Add sources --------------------------------------------------------
+    // Two Matrix UIs, one gallery. “Inline-editable blocks” is driven by
+    // Craft.MatrixInput: a `.buttons` row whose menu items carry data-type.
+    // Cards and Index modes are driven by Craft.NestedElementManager, which
+    // has none of that markup — entry types live in its settings as numeric
+    // IDs and adding goes through createElement() (server-side create + a
+    // slideout). Both are wrapped in a source object with the same shape:
+    //
+    //   items() → [{type, label, el, createAttributes?}]
+    //   add(item) → the live field element (prefillable), true, or null
+    //
+    // Everything below the sources is UI and knows nothing about either mode.
+
+    var inlineSource = function (field) {
+        return {
+            items: function () {
+                return collectTypeItems(field);
+            },
+            add: function (item) {
+                // Entering Live Preview re-renders the editor, so every DOM
+                // reference from panel-build time may be stale. Re-resolve the
+                // LIVE field by id, then go straight to Matrix's own input
+                // instance (stored via jQuery data on the container) — clicking
+                // a stale menu item crashes MatrixInput on an unknown handle.
+                var live = field.isConnected
+                    ? field
+                    : (field.id ? document.getElementById(field.id) : null);
+                if (!live) { closePanel(); return null; }
+
+                var matrix = window.jQuery ? window.jQuery(live).data('matrix') : null;
+                if (matrix && matrix.entryTypesByHandle && matrix.entryTypesByHandle[item.type]
+                    && typeof matrix.addEntry === 'function') {
+                    matrix.addEntry(item.type); // appends at the end
+                    return live;
+                }
+
+                // Fallback: click the live field's native menu item.
+                var fresh = collectTypeItems(live).find(function (it) { return it.type === item.type; });
+                if (fresh && fresh.el.isConnected) {
+                    fresh.el.click();
+                    return live;
+                }
+
+                return null;
+            },
+        };
+    };
+
+    var nestedSource = function (manager, typesById) {
+        return {
+            items: function () {
+                var attrs = manager.settings && manager.settings.createAttributes;
+                if (!Array.isArray(attrs)) { return []; }
+
+                return attrs.map(function (entry, i) {
+                    var typeId = entry.attributes && entry.attributes.typeId;
+                    var type = typesById[typeId];
+
+                    // buildCard() lifts the entry type's icon out of the
+                    // native menu item; here the icon comes as HTML in the
+                    // create-attributes, so wrap it in the same shape.
+                    var el = document.createElement('div');
+                    el.className = 'cp-icon';
+                    if (entry.icon) { el.innerHTML = entry.icon; }
+                    if (entry.color) { el.classList.add(entry.color); }
+
+                    return {
+                        type: type ? type.handle : ('cg-unknown-' + i),
+                        label: entry.label || (type ? type.name : ''),
+                        el: el,
+                        createAttributes: entry.attributes || {},
+                    };
+                });
+            },
+            add: function (item) {
+                if (typeof manager.createElement !== 'function') { return null; }
+                // Craft creates the entry server-side and opens its slideout;
+                // there is no local form to prefill (see PLAN: prefill v2).
+                manager.createElement(item.createAttributes);
+                return true;
+            },
+        };
+    };
+
     // --- Prefill ------------------------------------------------------------
     // A block added from the gallery starts empty — invisible on the page and
     // easy to read as “broken”. Copy the first story's scalar args into the
@@ -165,7 +249,7 @@
         }
     };
 
-    var openPanel = function (field, comps) {
+    var openPanel = function (source, comps) {
         closePanel();
 
         var panel = document.createElement('div');
@@ -381,40 +465,20 @@
             }
 
             card.addEventListener('click', function () {
-                // Entering Live Preview re-renders the editor, so every DOM
-                // reference from panel-build time may be stale. Re-resolve the
-                // LIVE field by id, then go straight to Matrix's own input
-                // instance (stored via jQuery data on the container) — clicking
-                // a stale menu item crashes MatrixInput on an unknown handle.
-                var liveField = field.isConnected
-                    ? field
-                    : (field.id ? document.getElementById(field.id) : null);
-                if (!liveField) { closePanel(); return; }
+                // The source knows how its Matrix UI adds entries: inline
+                // fields hand back the live field element (prefillable),
+                // Cards/Index mode just returns true — Craft opens its own
+                // slideout there, so there is no local form to fill.
+                var target = source.add(item);
+                if (!target) { return; }
 
-                var matrix = window.jQuery ? window.jQuery(liveField).data('matrix') : null;
-                var added = false;
-
-                if (matrix && matrix.entryTypesByHandle && matrix.entryTypesByHandle[item.type]
-                    && typeof matrix.addEntry === 'function') {
-                    matrix.addEntry(item.type); // appends at the end
-                    added = true;
-                } else {
-                    // Fallback: click the live field's native menu item.
-                    var fresh = collectTypeItems(liveField).find(function (it) { return it.type === item.type; });
-                    if (fresh && fresh.el.isConnected) {
-                        fresh.el.click();
-                        added = true;
-                    }
+                if (target.nodeType === 1 && comp && comp.prefill) {
+                    watchForNewBlock(target, item.type, comp.prefill);
                 }
 
-                if (added) {
-                    if (comp && comp.prefill) {
-                        watchForNewBlock(liveField, item.type, comp.prefill);
-                    }
-                    card.classList.remove('is-added');
-                    void card.offsetWidth; // restart the animation
-                    card.classList.add('is-added');
-                }
+                card.classList.remove('is-added');
+                void card.offsetWidth; // restart the animation
+                card.classList.add('is-added');
             });
 
             return card;
@@ -422,7 +486,7 @@
 
         // Build every card once, in native menu order — grouping only decides
         // the layout, so toggling re-parents the same nodes.
-        var entries = collectTypeItems(field).map(function (item) {
+        var entries = source.items().map(function (item) {
             var comp = comps[item.type];
             return { comp: comp, card: buildCard(item, comp) };
         });
@@ -576,10 +640,49 @@
             btn.className = 'cg-picker-open';
             btn.textContent = Craft.t('component-guide', 'Blocks gallery');
             btn.addEventListener('click', function () {
-                openPanel(field, comps);
+                openPanel(inlineSource(field), comps);
             });
 
             anchor.appendChild(btn);
+        });
+    };
+
+    // --- Cards / Index mode enhancement -------------------------------------
+    // Matrix fields in “Cards” or “Index” view mode render no `.matrix-field`
+    // markup at all — they are Craft.NestedElementManager instances. Rather
+    // than guess at their DOM (which changes between Craft minors), hook the
+    // class-level `afterInit` event and use the manager's own public API:
+    // `settings.createAttributes` for the entry types, `addButton()` to place
+    // the trigger (button row in cards, toolbar in index) and `createElement()`
+    // to add one.
+    var enhanceNestedManager = function (manager) {
+        if (!manager || manager.cgPicker || !manager.settings) { return; }
+        if (!manager.settings.canCreate) { return; }
+        manager.cgPicker = true;
+
+        loadMap().then(function (data) {
+            var comps = {};
+            (data.components || []).forEach(function (c) { comps[c.name] = c; });
+
+            var typesById = {};
+            (data.entryTypes || []).forEach(function (t) { typesById[t.id] = t; });
+
+            var source = nestedSource(manager, typesById);
+            if (!source.items().some(function (it) { return comps[it.type]; })) { return; }
+
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cg-picker-open';
+            btn.textContent = Craft.t('component-guide', 'Blocks gallery');
+            btn.addEventListener('click', function () {
+                openPanel(source, comps);
+            });
+
+            if (typeof manager.addButton === 'function' && window.jQuery) {
+                manager.addButton(window.jQuery(btn));
+            } else if (manager.$container && manager.$container.length) {
+                manager.$container[0].appendChild(btn);
+            }
         });
     };
 
@@ -659,6 +762,18 @@
 
     var init = function () {
         trackOverlays();
+
+        // Cards/Index-mode fields announce themselves; there is no markup to
+        // scan for. Registered before the first scan so no instance is missed
+        // (Craft fires afterInit ~100ms after the field's own init).
+        if (window.Garnish && typeof Garnish.on === 'function'
+            && window.Craft && Craft.NestedElementManager
+        ) {
+            Garnish.on(Craft.NestedElementManager, 'afterInit', function (ev) {
+                enhanceNestedManager(ev.target);
+            });
+        }
+
         scan(document);
         // Matrix fields can appear later (slideouts, lazy tabs). CP pages
         // mutate the DOM constantly (Live Preview, editors), so instead of

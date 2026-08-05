@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org).
 ## Unreleased
 
 ### Added
+- The blocks gallery now works in **all** Matrix view modes. Cards and Index
+  fields are `Craft.NestedElementManager` instances with none of the inline
+  mode's markup, so the picker hooks the class-level `afterInit` event and uses
+  the manager's public API (`settings.createAttributes`, `addButton()`,
+  `createElement()`) instead of CSS selectors — which also makes it resilient
+  to Craft's markup changing between minors. Prefill stays inline-only: in
+  cards/index mode Craft creates the entry server-side and opens a slideout.
 - `previewTemplate` is now editable in the settings screen (it was config-file
   only) and documented there as the recommended route for Vite/manifest
   builds — previously the most useful preview setting was invisible in the UI.

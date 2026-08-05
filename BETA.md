@@ -84,6 +84,10 @@ Rough edges are expected — I'd rather hear “this felt weird” than nothing.
 
 ## Known limitations
 
+- In Matrix fields set to **Cards** or **Index** view mode the gallery works,
+  but adding a block follows Craft's own flow: the entry is created and its
+  slideout opens, so the story-args prefill (see below) doesn't apply there.
+  Prefill currently works in **“Inline-editable blocks”** mode only.
 - Components without a story file are listed but not clickable (no detail page
   or preview yet).
 - The story scaffolder is heuristic: it reads the template with regexes, so

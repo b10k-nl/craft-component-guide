@@ -22,7 +22,7 @@
 
 {{ forms.textField({
     label: "Story File Suffix"|t('component-guide'),
-    instructions: "Suffix that identifies a story definition file. The Twig equivalent ({twigSuffix}) is discovered automatically."|t('component-guide', {
+    instructions: "Suffix that identifies a story definition file. The Twig equivalent ({twigSuffix}) is discovered automatically — and is what the “Add stories” button writes."|t('component-guide', {
         twigSuffix: settings.twigStorySuffix(),
     }),
     id: 'storySuffix',

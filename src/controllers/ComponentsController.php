@@ -42,6 +42,7 @@ class ComponentsController extends Controller
             'undocumentedCount' => $repository->undocumentedCount(),
             // Kept in sync with the scanner so onboarding copy can't drift.
             'markerFiles' => \b10k\componentguide\services\ComponentScanner::MARKER_FILES,
+            'canScaffold' => $this->canScaffold(),
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
     }
@@ -77,18 +78,32 @@ class ComponentsController extends Controller
     }
 
     /**
+     * Whether story files may be written from the control panel.
+     *
+     * Gated on `allowAdminChanges` rather than `devMode`: it is Craft's own
+     * signal for “this environment may change project files” (true on local
+     * and staging by convention, false on production), so the button appears
+     * exactly where a developer expects it to.
+     */
+    private function canScaffold(): bool
+    {
+        return \Craft::$app->getConfig()->getGeneral()->allowAdminChanges;
+    }
+
+    /**
      * Generates a story scaffold for an undocumented component and redirects
      * to its (now documented) detail page.
      *
-     * Writes into the project's templates directory, so it is dev-mode only —
-     * the CP button is likewise rendered only in dev mode.
+     * Writes into the project's templates directory, so it follows Craft's
+     * `allowAdminChanges` — see {@see canScaffold()}. The index renders an
+     * explanatory notice instead of the button where that is off.
      */
     public function actionScaffold(): Response
     {
         $this->requirePostRequest();
 
-        if (!\Craft::$app->getConfig()->getGeneral()->devMode) {
-            throw new ForbiddenHttpException('Story scaffolding is only available in dev mode.');
+        if (!$this->canScaffold()) {
+            throw new ForbiddenHttpException('Story scaffolding is disabled in this environment (allowAdminChanges).');
         }
 
         $componentId = (string)$this->request->getRequiredBodyParam('componentId');

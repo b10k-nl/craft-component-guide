@@ -18,6 +18,10 @@ to [Semantic Versioning](https://semver.org).
   builds — previously the most useful preview setting was invisible in the UI.
 
 ### Changed
+- Story scaffolding is gated on Craft's `allowAdminChanges` instead of
+  `devMode` — the flag that actually means "this environment may change
+  project files" — and where it is off the index states that plainly instead
+  of silently hiding the button.
 - The settings screen is grouped into Discovery / Previews / Control panel
   sections instead of one flat list, with shorter instructions.
 - The override note is passed to Craft's form macros as a plain string (or

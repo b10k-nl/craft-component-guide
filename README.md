@@ -201,8 +201,10 @@ story files are not blocked, but arrays keep stories portable.
 ## Scaffolding stories
 
 Undocumented components (see marker files above) can bootstrap their own
-story. In dev mode each undocumented card gets an **Add stories** button; the
-equivalent on the command line is:
+story. Each undocumented card gets an **Add stories** button in environments
+where Craft's `allowAdminChanges` is on (local and staging by convention — the
+same gate Craft uses for its own project-file changes); elsewhere the guide
+says so instead of hiding the feature. The equivalent on the command line is:
 
 ```sh
 php craft component-guide/components/make hero            # writes hero.stories.twig

@@ -227,3 +227,9 @@
     font-size: 13px; color: #6b5a2b;
 }
 .cg-hint a { color: inherit; text-decoration: underline; }
+
+/* Neutral variant for environment facts (not warnings). */
+.cg-hint--locked {
+    display: flex; align-items: center; gap: 7px;
+    background: #f1f3f5; border-color: #dfe3e8; color: #5a6672;
+}

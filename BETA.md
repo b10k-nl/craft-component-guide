@@ -53,11 +53,11 @@ explicitly press “Add stories”.
 
    The first heading becomes the section name, the text under it the section
    description.
-3. **Add previews.** In dev mode each listed component has an **Add stories**
-   button: it reads the template's variables and writes a first-draft
-   `*.stories.twig` next to it. The values are guesses — open the file and fix
-   them. Same thing from the CLI:
-   `php craft component-guide/components/make <component-id>`.
+3. **Add previews.** Each listed component has an **Add stories** button (in
+   environments where Craft's `allowAdminChanges` is on): it reads the
+   template's variables and writes a first-draft `*.stories.twig` next to it.
+   The values are guesses — open the file and fix them. Same thing from the
+   CLI: `php craft component-guide/components/make <component-id>`.
 4. **Make previews look real.** Settings → point `previewCss` at your compiled
    front-end stylesheet (e.g. `@web/dist/assets/app.css` or whatever your build
    emits). Without it previews render unstyled — that's expected, not a bug.

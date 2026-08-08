@@ -85,6 +85,17 @@ hero{{ settings.twigStorySuffix() }}</div>
             </ol>
         </div>
     {% else %}
+        {% if not canScaffold and undocumentedCount %}
+            {# Craft-style environment notice: an absent button is a mystery,
+               a stated reason is information. #}
+            <p class="cg-hint cg-hint--locked">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path fill="currentColor" d="M11 6V4.5a3 3 0 1 0-6 0V6H4v8h8V6h-1zM6 4.5a2 2 0 1 1 4 0V6H6V4.5z"/>
+                </svg>
+                {{ "Story scaffolding isn’t permitted in this environment."|t('component-guide') }}
+            </p>
+        {% endif %}
+
         {% if settings.previewCss is empty and settings.previewTemplate is empty %}
             {# Unstyled previews read as “broken plugin” — say why before they conclude that.
                A configured previewTemplate counts as styling too (e.g. Vite asset tags). #}
@@ -117,8 +128,8 @@ hero{{ settings.twigStorySuffix() }}</div>
                                             <span class="cg-chip cg-chip--status cg-chip--undocumented">{{ "undocumented"|t('component-guide') }}</span>
                                             {{ "Add a story file to unlock previews."|t('component-guide') }}
                                         </span>
-                                        {% if craft.app.config.general.devMode %}
-                                            {# Scaffolder writes into templates/, hence dev-mode only
+                                        {% if canScaffold %}
+                                            {# Writes into templates/, hence gated on allowAdminChanges
                                                (the controller enforces the same gate). #}
                                             <form method="post" accept-charset="UTF-8" style="margin-top: 10px;">
                                                 {{ csrfInput() }}

@@ -16,7 +16,7 @@ staging only. Free to use during the beta (see [LICENSE.md](LICENSE.md)).
 
 ```bash
 composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
-composer require b10k/craft-component-guide:0.1.0-beta.4
+composer require "b10k/craft-component-guide:^0.1.0-beta"
 php craft plugin/install component-guide
 ```
 
@@ -30,6 +30,9 @@ clone, which skips the GitHub API entirely:
 composer config --unset repositories.component-guide
 composer config repositories.component-guide '{"type":"git","url":"https://github.com/b10k-nl/craft-component-guide.git"}' --json
 ```
+
+To update later: `composer update b10k/craft-component-guide` — the constraint
+above always picks up the newest beta.
 
 To remove it afterwards: `composer remove b10k/craft-component-guide` and
 `composer config --unset repositories.component-guide`. The plugin never writes

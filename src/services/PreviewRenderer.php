@@ -49,9 +49,17 @@ class PreviewRenderer extends Component
                 'component-guide',
             );
 
-            $details = Craft::$app->getConfig()->getGeneral()->devMode
-                ? $e->getMessage() . "\n\n" . $e->getTraceAsString()
-                : null;
+            $general = Craft::$app->getConfig()->getGeneral();
+            // The message alone is what a developer needs 99% of the time and
+            // is safe wherever project files may be edited; the stack trace
+            // stays behind devMode. Showing nothing at all just turns a typo
+            // into a mystery.
+            $details = null;
+            if ($general->devMode) {
+                $details = $e->getMessage() . "\n\n" . $e->getTraceAsString();
+            } elseif ($general->allowAdminChanges) {
+                $details = $e->getMessage();
+            }
 
             return RenderResult::failure('The component template threw while rendering.', $details);
         } finally {

@@ -130,12 +130,21 @@ hero{{ settings.twigStorySuffix() }}</div>
                                         </span>
                                         {% if canScaffold %}
                                             {# Writes into templates/, hence gated on allowAdminChanges
-                                               (the controller enforces the same gate). #}
+                                               (the controller enforces the same gate). The second
+                                               submit appears only where the template actually has
+                                               states worth splitting into separate stories. #}
                                             <form method="post" accept-charset="UTF-8" style="margin-top: 10px;">
                                                 {{ csrfInput() }}
                                                 {{ actionInput('component-guide/components/scaffold') }}
                                                 {{ hiddenInput('componentId', component.id) }}
                                                 <button type="submit" class="btn small">{{ "Add stories"|t('component-guide') }}</button>
+                                                {% set stateCount = statesByComponent[component.id] ?? 0 %}
+                                                {% if stateCount > 1 %}
+                                                    <button type="submit" name="states" value="1" class="btn small"
+                                                            title="{{ "Scaffold one story per state the template switches on"|t('component-guide') }}">
+                                                        {{ "One per state ({count})"|t('component-guide', { count: stateCount }) }}
+                                                    </button>
+                                                {% endif %}
                                             </form>
                                         {% endif %}
                                     </div>

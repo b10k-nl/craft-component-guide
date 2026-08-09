@@ -60,7 +60,7 @@ class StoryScaffolder extends Component
      * @throws \RuntimeException When the component is already documented, the
      * template is unreadable, the story file already exists, or writing fails.
      */
-    public function scaffold(ComponentDefinition $component, string $storySuffix): string
+    public function scaffold(ComponentDefinition $component, string $storySuffix, bool $withStates = false): string
     {
         if ($component->isDocumented) {
             throw new \RuntimeException('This component already has a story file.');
@@ -85,9 +85,20 @@ class StoryScaffolder extends Component
         $description = $this->describe($source);
         $warning = $this->needsRuntimeData($source) ? self::RUNTIME_DATA_NOTE : null;
 
+        $stories = ['Default' => $args];
+        if ($withStates) {
+            $state = $this->detectStates($source);
+            if ($state !== null && array_key_exists($state['var'], $args)) {
+                $stories = [];
+                foreach ($state['values'] as $value) {
+                    $stories[$this->stateName($state['var'], $value)] = [$state['var'] => $value] + $args;
+                }
+            }
+        }
+
         $contents = str_ends_with($storySuffix, '.twig')
-            ? $this->renderTwig($component->title, $description, $args, $warning)
-            : $this->render($component->title, $description, $args, $warning);
+            ? $this->renderTwig($component->title, $description, $stories, $warning)
+            : $this->render($component->title, $description, $stories, $warning);
 
         if (@file_put_contents($storyPath, $contents) === false) {
             throw new \RuntimeException('Could not write the story file — check filesystem permissions.');
@@ -327,12 +338,103 @@ class StoryScaffolder extends Component
     }
 
     /**
-     * Renders the PHP story-file source (rich format, one "Default" story,
-     * status "draft" so the guide flags it as unreviewed).
+     * Finds the template's own “switch” — an argument compared against two or
+     * more string literals (`theme == 'dark'`, `mediaPosition == 'right'`).
+     * Those comparisons are the component's documented states, so one story
+     * per value beats one story that shows a single path through the markup.
      *
-     * @param array<string, mixed> $args
+     * Only one switch is used: two enums would multiply into a story matrix
+     * nobody asked for. The variable with the most values wins.
+     *
+     * @return array{var: string, values: string[]}|null
      */
-    public function render(string $title, ?string $description, array $args, ?string $warning = null): string
+    public function detectStates(string $source): ?array
+    {
+        $source = preg_replace('/\{#.*?#\}/s', '', $source) ?? $source;
+        if (preg_match_all('/\{\{(.*?)\}\}|\{%(.*?)%\}/s', $source, $m) === false) {
+            return null;
+        }
+
+        $byVar = [];
+        $fallbacks = [];
+        foreach (array_merge($m[1], $m[2]) as $expr) {
+            // `theme == 'dark'`, `mediaPosition != 'background'`
+            preg_match_all(
+                '/(?<![\w.])([a-zA-Z_]\w*)\s*[!=]=\s*\'([^\']*)\'/',
+                $expr,
+                $comparisons,
+                PREG_SET_ORDER,
+            );
+            foreach ($comparisons as $c) {
+                if (in_array(strtolower($c[1]), self::KEYWORDS, true) || $c[2] === '') {
+                    continue;
+                }
+                $byVar[$c[1]][$c[2]] = true;
+            }
+
+            // The fallback counts as a state too: `theme ?? 'light'`. Collected
+            // separately — the `{% set %}` that carries it usually precedes the
+            // comparison that makes the variable interesting.
+            if (preg_match('/(?<![\w.])([a-zA-Z_]\w*)\s*(?:\|\s*default\(|\?\?\s*)\'([^\']+)\'/', $expr, $d) === 1) {
+                $fallbacks[$d[1]] ??= $d[2];
+            }
+        }
+
+        foreach ($fallbacks as $var => $value) {
+            if (isset($byVar[$var])) {
+                $byVar[$var][$value] ??= true;
+            }
+        }
+
+        $best = null;
+        foreach ($byVar as $var => $values) {
+            if (count($values) < 2) {
+                continue;
+            }
+            if ($best === null || count($values) > count($byVar[$best])) {
+                $best = $var;
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        return [
+            'var' => $best,
+            // Four states is plenty for a scaffold; more is a sign the guess
+            // went wrong, not that the component has ten looks.
+            'values' => array_slice(array_keys($byVar[$best]), 0, 4),
+        ];
+    }
+
+    /**
+     * “theme” + “dark” → “Dark”; “mediaPosition” + “right” → “Media right”.
+     * Modifier-ish variable names add nothing to the label, everything else
+     * lends its first word so the story name stays self-explanatory.
+     */
+    private function stateName(string $var, string $value): string
+    {
+        $label = strtolower(str_replace(['-', '_'], ' ', $value));
+        $plain = ['theme', 'variant', 'style', 'type', 'mode', 'size', 'color', 'colour', 'state'];
+
+        if (in_array(strtolower($var), $plain, true)) {
+            return ucfirst($label);
+        }
+
+        $words = strtolower(trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $var) ?? $var));
+        $lead = explode(' ', $words)[0];
+
+        return ucfirst($lead . ' ' . $label);
+    }
+
+    /**
+     * Renders the PHP story-file source (rich format, status "draft" so the
+     * guide flags it as unreviewed).
+     *
+     * @param array<string, array<string, mixed>> $stories Story name => args.
+     */
+    public function render(string $title, ?string $description, array $stories, ?string $warning = null): string
     {
         return sprintf(
             <<<'PHP'
@@ -346,17 +448,13 @@ class StoryScaffolder extends Component
 
             return [
                 'meta' => %s,
-                'stories' => [
-                    'Default' => [
-                        'args' => %s,
-                    ],
-                ],
+                'stories' => %s,
             ];
 
             PHP,
             $warning !== null ? "\n *\n * " . wordwrap($warning, 74, "\n * ") : '',
             $this->export($this->meta($title, $description), 1),
-            $this->export($args, 3),
+            $this->export($this->wrapStories($stories), 1),
         );
     }
 
@@ -364,9 +462,9 @@ class StoryScaffolder extends Component
      * Renders the Twig story-template source — pure data, same shape as the
      * PHP format, in the language the component itself is written in.
      *
-     * @param array<string, mixed> $args
+     * @param array<string, array<string, mixed>> $stories Story name => args.
      */
-    public function renderTwig(string $title, ?string $description, array $args, ?string $warning = null): string
+    public function renderTwig(string $title, ?string $description, array $stories, ?string $warning = null): string
     {
         return sprintf(
             <<<'TWIG'
@@ -376,17 +474,47 @@ class StoryScaffolder extends Component
 
             {%% set meta = %s %%}
 
-            {%% set stories = {
-                'Default': {
-                    args: %s,
-                },
-            } %%}
+            {%% set stories = %s %%}
 
             TWIG,
             $warning !== null ? "\n\n   " . wordwrap($warning, 74, "\n   ") : '',
             $this->exportTwig($this->meta($title, $description), 0),
-            $this->exportTwig($args, 2),
+            $this->exportTwigStories($stories),
         );
+    }
+
+    /**
+     * Story names are labels, not identifiers, so they are always quoted —
+     * otherwise `Default:` and `'Media right':` would sit side by side in the
+     * same file.
+     *
+     * @param array<string, array<string, mixed>> $stories
+     */
+    private function exportTwigStories(array $stories): string
+    {
+        $lines = ['{'];
+        foreach ($stories as $name => $args) {
+            $lines[] = '    ' . $this->twigString($name) . ': {';
+            $lines[] = '        args: ' . $this->exportTwig($args, 2) . ',';
+            $lines[] = '    },';
+        }
+        $lines[] = '}';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $stories
+     * @return array<string, array{args: array<string, mixed>}>
+     */
+    private function wrapStories(array $stories): array
+    {
+        $wrapped = [];
+        foreach ($stories as $name => $args) {
+            $wrapped[$name] = ['args' => $args];
+        }
+
+        return $wrapped;
     }
 
     /**

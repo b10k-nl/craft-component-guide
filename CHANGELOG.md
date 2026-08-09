@@ -6,6 +6,12 @@ to [Semantic Versioning](https://semver.org).
 ## Unreleased
 
 ### Added
+- **One story per state, on request.** When a template switches on a value
+  (`theme == 'dark'`, `mediaPosition == 'right'`), the scaffolder can write one
+  story per value instead of a single `Default` — named after the state
+  (`Light`, `Dark`, `Media right`). Opt-in: a second **One per state (N)**
+  button appears on undocumented cards only where states were actually found,
+  and `--states` does the same from the CLI.
 - **Placeholder tokens in stories.** String args can now say what kind of
   content they need instead of carrying it: `@lorem_w_6`, `@lorem_p_2`,
   `@image_1600x600`, `@icon_star`. Expansion is deterministic (seeded by

@@ -191,6 +191,68 @@ class StoryScaffolderTest extends TestCase
         $this->assertFalse($this->scaffolder->needsRuntimeData('<h2>{{ block.heading }}</h2>'));
     }
 
+    public function testDetectsStatesFromLiteralComparisons(): void
+    {
+        $source = <<<'TWIG'
+            {% set theme = theme ?? 'light' %}
+            <section class="{{ theme == 'dark' ? 'bg-slate-900' : 'bg-orange-50' }}">
+                <h2>{{ heading }}</h2>
+            </section>
+            TWIG;
+
+        $state = $this->scaffolder->detectStates($source);
+
+        $this->assertSame('theme', $state['var']);
+        // Both the comparison and the ?? fallback count as states.
+        $this->assertEqualsCanonicalizing(['dark', 'light'], $state['values']);
+
+        // A template with no switch has no states to split.
+        $this->assertNull($this->scaffolder->detectStates('<h2>{{ heading }}</h2>'));
+    }
+
+    public function testScaffoldWritesOneStoryPerStateOnRequest(): void
+    {
+        $dir = $this->makeTmpDir();
+        file_put_contents($dir . '/hero.twig', <<<'TWIG'
+            {% set mediaPosition = mediaPosition ?? 'background' %}
+            <section>
+                {% if mediaPosition == 'right' %}<img src="{{ imageUrl }}">{% endif %}
+                <h2>{{ heading }}</h2>
+            </section>
+            TWIG);
+
+        $component = $this->undocumented($dir . '/hero.twig', 'Hero');
+        $path = $this->scaffolder->scaffold($component, '.stories.php', true);
+
+        $result = (new StoryParser())->parse($path, 'hero.stories.php');
+        $this->assertSame([], $result['errors']);
+        $this->assertCount(2, $result['stories']);
+
+        // Names read like the states they document — the variable's first word
+        // plus the value, since “Right” alone would say nothing.
+        $names = array_map(static fn($s) => $s->name, $result['stories']);
+        $this->assertEqualsCanonicalizing(['Media background', 'Media right'], $names);
+
+        // Each story differs only in the switched arg.
+        foreach ($result['stories'] as $story) {
+            $expected = str_contains($story->name, 'right') ? 'right' : 'background';
+            $this->assertSame($expected, $story->args['mediaPosition']);
+            $this->assertSame('@lorem_w_4', $story->args['heading']);
+        }
+    }
+
+    public function testScaffoldStaysSingleWithoutTheOptIn(): void
+    {
+        $dir = $this->makeTmpDir();
+        file_put_contents($dir . '/hero.twig', "{% set theme = theme ?? 'light' %}<b class=\"{{ theme == 'dark' ? 'x' : 'y' }}\">{{ heading }}</b>");
+
+        $path = $this->scaffolder->scaffold($this->undocumented($dir . '/hero.twig', 'Hero'), '.stories.php');
+        $result = (new StoryParser())->parse($path, 'hero.stories.php');
+
+        $this->assertCount(1, $result['stories']);
+        $this->assertSame('Default', $result['stories'][0]->name);
+    }
+
     public function testRenderedScaffoldIsAValidRichStoryFile(): void
     {
         $dir = $this->makeTmpDir();

@@ -22,11 +22,18 @@ class ComponentsController extends Controller
      */
     public string $format = 'twig';
 
+    /**
+     * @var bool Scaffold one story per state the template switches on
+     * (`theme == 'dark'`, `mediaPosition == 'right'`, …) instead of a single
+     * "Default".
+     */
+    public bool $states = false;
+
     public function options($actionID): array
     {
         return array_merge(
             parent::options($actionID),
-            $actionID === 'make' ? ['format'] : [],
+            $actionID === 'make' ? ['format', 'states'] : [],
         );
     }
 
@@ -67,9 +74,9 @@ class ComponentsController extends Controller
 
     /**
      * Generates a skeleton story file for an undocumented component from its
-     * template's variables (marked `status: wip`; never overwrites).
+     * template's variables (marked `status: draft`; never overwrites).
      *
-     * `php craft component-guide/components/make <componentId> [--format=php]`
+     * `php craft component-guide/components/make <componentId> [--format=php] [--states]`
      */
     public function actionMake(string $componentId): int
     {
@@ -90,7 +97,7 @@ class ComponentsController extends Controller
         $suffix = $this->format === 'php' ? $settings->storySuffix : $settings->twigStorySuffix();
 
         try {
-            $path = $plugin->getStoryScaffolder()->scaffold($component, $suffix);
+            $path = $plugin->getStoryScaffolder()->scaffold($component, $suffix, $this->states);
         } catch (\RuntimeException $e) {
             $this->stderr($e->getMessage() . "\n", Console::FG_RED);
             return ExitCode::UNSPECIFIED_ERROR;

@@ -43,6 +43,7 @@ class ComponentsController extends Controller
             // Kept in sync with the scanner so onboarding copy can't drift.
             'markerFiles' => \b10k\componentguide\services\ComponentScanner::MARKER_FILES,
             'canScaffold' => $this->canScaffold(),
+            'statesByComponent' => $this->detectStates($repository->getAll()),
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
     }
@@ -75,6 +76,43 @@ class ComponentsController extends Controller
             'snippet' => $snippet,
             'enableIframePreview' => $plugin->getSettings()->enableIframePreview,
         ]);
+    }
+
+    /**
+     * How many built-in states the scaffolder can find per undocumented
+     * component, so the index can offer “one story per state” only where that
+     * would actually produce more than one story.
+     *
+     * Costs one small file read per undocumented component, and only where
+     * scaffolding is available at all.
+     *
+     * @param \b10k\componentguide\models\ComponentDefinition[] $components
+     * @return array<string, int> Component id => number of states.
+     */
+    private function detectStates(array $components): array
+    {
+        if (!$this->canScaffold()) {
+            return [];
+        }
+
+        $scaffolder = Plugin::getInstance()->getStoryScaffolder();
+        $states = [];
+
+        foreach ($components as $component) {
+            if ($component->isDocumented || !is_readable($component->absoluteTemplatePath)) {
+                continue;
+            }
+            $source = @file_get_contents($component->absoluteTemplatePath);
+            if ($source === false) {
+                continue;
+            }
+            $detected = $scaffolder->detectStates($source);
+            if ($detected !== null) {
+                $states[$component->id] = count($detected['values']);
+            }
+        }
+
+        return $states;
     }
 
     /**
@@ -116,7 +154,11 @@ class ComponentsController extends Controller
 
         try {
             // Twig is the scaffold default: same language as the component.
-            $plugin->getStoryScaffolder()->scaffold($component, $plugin->getSettings()->twigStorySuffix());
+            $plugin->getStoryScaffolder()->scaffold(
+                $component,
+                $plugin->getSettings()->twigStorySuffix(),
+                (bool)$this->request->getBodyParam('states'),
+            );
         } catch (\RuntimeException $e) {
             $this->setFailFlash($e->getMessage());
             return $this->redirect('component-guide');

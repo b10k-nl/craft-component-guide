@@ -208,6 +208,7 @@ says so instead of hiding the feature. The equivalent on the command line is:
 
 ```sh
 php craft component-guide/components/make hero            # writes hero.stories.twig
+php craft component-guide/components/make hero --states   # one story per detected state
 php craft component-guide/components/make hero --format=php
 ```
 
@@ -220,6 +221,14 @@ The scaffolder reads the template and guesses a `Default` story from it:
   inline SVG placeholder, `*Html` → a paragraph, `is*`/`has*` → `true`;
 - the first sentence of the template's leading `{# … #}` comment becomes the
   component description.
+
+**One story, or one per state.** If the template switches on a value —
+`theme == 'dark'`, `mediaPosition == 'right'` — those comparisons are its
+states, and the guide offers a second button (**One per state**) next to **Add
+stories**, showing how many it found. Taking it writes one story per value
+(`Light`, `Dark`, `Media right`…) instead of a single `Default`, so the
+component's variants are documented from the start. It stays opt-in: the
+plain button always writes exactly one story.
 
 The result is a **draft**: it is written with `status: draft`, the args are
 guesses, and an existing story file is never overwritten. Review it, fix what

@@ -41,7 +41,12 @@ class PickerController extends Controller
             // reliably and are skipped, as are data-URI image placeholders.
             $prefill = [];
             if ($firstStory !== null) {
-                foreach ($firstStory->args as $key => $value) {
+                // Resolve with the same seed the preview uses, so the block a
+                // click adds contains exactly the text its gallery card shows.
+                $resolved = Plugin::getInstance()->getPlaceholderResolver()
+                    ->resolveArgs($firstStory->args, $component->id . '/' . $firstStory->id);
+
+                foreach ($resolved as $key => $value) {
                     if (is_bool($value) || is_int($value) || is_float($value)) {
                         $prefill[$key] = $value;
                     } elseif (is_string($value)

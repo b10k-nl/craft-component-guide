@@ -226,6 +226,71 @@ guesses, and an existing story file is never overwritten. Review it, fix what
 the heuristics got wrong, and promote the status when the component is
 properly documented.
 
+## Placeholder tokens
+
+Stories don't have to carry their own copy. Any string arg can be a token,
+expanded when the preview renders:
+
+```twig
+{% set stories = {
+    'Default': {
+        args: {
+            heading:  '@lorem_w_6',
+            bodyHtml: '@lorem_p_2',
+            imageUrl: '@image_1600x600',
+            iconUrl:  '@icon_star',
+        },
+    },
+} %}
+```
+
+| Token | Result |
+| --- | --- |
+| `@lorem` | a short phrase |
+| `@lorem_w_12` | 12 words |
+| `@lorem_s_3` | 3 sentences |
+| `@lorem_p_2` | 2 paragraphs, wrapped in `<p>` |
+| `@image` | a photo, 800×600 |
+| `@image_1600x600` | a photo at that size |
+| `@icon` | one of Craft's system icons |
+| `@icon_star` | that specific system icon |
+
+Three things worth knowing:
+
+- **Deterministic.** Values are derived from the component, story and argument
+  path — the same story always renders the same text, so previews don't
+  flicker and gallery thumbnails match the detail page. Items in a list still
+  differ from each other, so three identical `@lorem_w_4` tokens produce three
+  different samples.
+- **Offline-safe.** Photos come from an external service; if it can't be
+  reached, the preview falls back to an inline placeholder of the same size.
+  Icons are always inline (no network).
+- **Unknown tokens pass through.** `@something` the plugin doesn't recognise
+  is left exactly as written.
+
+The story scaffolder emits these tokens, which is why generated stories stay
+short and readable.
+
+### What to tokenise — and what not to
+
+Tokens exist to kill busywork, not meaning. A useful rule:
+
+- **Tokenise what carries no information:** photography, icons, “just some
+  paragraph of text” in a fresh scaffold, the third and fourth items of a list.
+- **Write real copy where the story asserts something:** the flagship state
+  you'd screenshot, and the edge cases you're documenting on purpose — a
+  heading long enough to wrap, a button label that nearly overflows, a card
+  with no image.
+
+A preview full of lorem tells you the component renders. A preview with real
+copy tells you it *works* — that the two-line heading still fits, that the
+tone is right, that “Membership” doesn't break the button. That's also what
+makes the guide worth showing to a client or a new teammate.
+
+So: scaffold with tokens (one click, previews come alive), then replace the
+values that are worth a human's attention. That's exactly what the `draft`
+status is there to remind you of.
+
 ## Recommended architecture: adapters + presentational components
 
 The guide works with any template structure, but this three-layer pattern gets

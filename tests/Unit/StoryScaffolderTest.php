@@ -51,9 +51,9 @@ class StoryScaffolderTest extends TestCase
         $this->assertArrayNotHasKey('raw', $args);
         $this->assertArrayNotHasKey('dump', $args);
 
-        // Name-based guesses.
-        $this->assertSame('Lorem ipsum', $args['heading']);
-        $this->assertStringStartsWith('<p>', $args['bodyHtml']);
+        // Name-based guesses, emitted as placeholder tokens.
+        $this->assertSame('@lorem_w_4', $args['heading']);
+        $this->assertSame('@lorem_p_1', $args['bodyHtml']);
         $this->assertTrue($args['showBadge']);
         $this->assertSame('#', $args['viewAllUrl']);
         // |default() literal wins over the guess.
@@ -74,10 +74,11 @@ class StoryScaffolderTest extends TestCase
         $this->assertCount(3, $args['items']);
         $first = $args['items'][0];
         $this->assertSame(['iconUrl', 'iconAlt', 'title'], array_keys($first));
-        $this->assertStringStartsWith('data:image/svg+xml', $first['iconUrl']);
-        // Plain-text samples are numbered so list previews look alive.
-        $this->assertSame('Lorem ipsum 1', $first['title']);
-        $this->assertSame('Lorem ipsum 2', $args['items'][1]['title']);
+        $this->assertSame('@icon', $first['iconUrl']);
+        // Identical tokens are fine: the resolver seeds them per array index,
+        // so the three items still render as three different samples.
+        $this->assertSame('@lorem_w_4', $first['title']);
+        $this->assertSame('@lorem_w_4', $args['items'][1]['title']);
     }
 
     public function testAnalyzeHandlesSelfDefaultingSetIdiom(): void
@@ -154,7 +155,7 @@ class StoryScaffolderTest extends TestCase
         $this->assertEqualsCanonicalizing(['eyebrow', 'heading', 'image'], array_keys($args['block']));
         // Nested paths nest.
         $this->assertEqualsCanonicalizing(['url', 'alt'], array_keys($args['block']['image']));
-        $this->assertStringStartsWith('data:image/svg+xml', $args['block']['image']['url']);
+        $this->assertSame('@image', $args['block']['image']['url']);
         // Locals derived from the block stay out of the args.
         $this->assertArrayNotHasKey('eyebrow', $args);
     }
@@ -207,7 +208,7 @@ class StoryScaffolderTest extends TestCase
         $this->assertSame('Card', $result['meta']['title']);
         $this->assertSame('draft', $result['meta']['status']);
         $this->assertCount(1, $result['stories']);
-        $this->assertSame('Lorem ipsum', $result['stories'][0]->args['heading']);
+        $this->assertSame('@lorem_w_4', $result['stories'][0]->args['heading']);
     }
 
     public function testTwigScaffoldIsWrittenAsATwigStoryTemplate(): void
@@ -224,7 +225,7 @@ class StoryScaffolderTest extends TestCase
         $this->assertStringContainsString('{% set stories = {', $source);
         $this->assertStringContainsString("'Default': {", $source);
         $this->assertStringContainsString('args: {', $source);
-        $this->assertStringContainsString("heading: 'Lorem ipsum',", $source);
+        $this->assertStringContainsString("heading: '@lorem_w_4',", $source);
         // Quotes in values are escaped, not left to break the template.
         $this->assertStringContainsString("title: 'Bob\\'s Card',", $source);
     }

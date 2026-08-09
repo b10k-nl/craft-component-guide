@@ -5,6 +5,7 @@ namespace b10k\componentguide;
 use b10k\componentguide\models\Settings;
 use b10k\componentguide\services\ComponentRepository;
 use b10k\componentguide\services\ComponentScanner;
+use b10k\componentguide\services\PlaceholderResolver;
 use b10k\componentguide\services\PreviewRenderer;
 use b10k\componentguide\services\StoryParser;
 use b10k\componentguide\services\StoryScaffolder;
@@ -29,6 +30,7 @@ use yii\base\Event;
  * @property-read StoryScaffolder $storyScaffolder
  * @property-read TwigStoryLoader $twigStoryLoader
  * @property-read PreviewRenderer $previewRenderer
+ * @property-read PlaceholderResolver $placeholderResolver
  * @property-read TwigSnippetGenerator $snippetGenerator
  * @method Settings getSettings()
  */
@@ -61,6 +63,7 @@ class Plugin extends BasePlugin
                     self::getInstance()->getScanner(),
                 ),
                 'previewRenderer' => PreviewRenderer::class,
+                'placeholderResolver' => PlaceholderResolver::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
                 'storyScaffolder' => StoryScaffolder::class,
             ],
@@ -131,6 +134,13 @@ class Plugin extends BasePlugin
         /** @var StoryScaffolder $scaffolder */
         $scaffolder = $this->get('storyScaffolder');
         return $scaffolder;
+    }
+
+    public function getPlaceholderResolver(): PlaceholderResolver
+    {
+        /** @var PlaceholderResolver $resolver */
+        $resolver = $this->get('placeholderResolver');
+        return $resolver;
     }
 
     protected function createSettingsModel(): ?Model

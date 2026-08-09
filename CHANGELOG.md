@@ -6,6 +6,17 @@ to [Semantic Versioning](https://semver.org).
 ## Unreleased
 
 ### Added
+- **Placeholder tokens in stories.** String args can now say what kind of
+  content they need instead of carrying it: `@lorem_w_6`, `@lorem_p_2`,
+  `@image_1600x600`, `@icon_star`. Expansion is deterministic (seeded by
+  component + story + argument path), so previews never flicker and gallery
+  thumbnails match the detail page, while items in a list still differ from
+  each other. Photos fall back to an inline placeholder when the network
+  isn't available; icons are inline Craft system icons. Unknown `@…` values
+  pass through untouched.
+- The story scaffolder emits those tokens instead of baked-in "Lorem ipsum",
+  so generated stories stay short and readable — and blocks added from the
+  gallery are prefilled with the resolved text, not the raw token.
 - The blocks gallery now works in **all** Matrix view modes. Cards and Index
   fields are `Craft.NestedElementManager` instances with none of the inline
   mode's markup, so the picker hooks the class-level `afterInit` event and uses

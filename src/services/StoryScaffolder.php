@@ -418,15 +418,9 @@ class StoryScaffolder extends Component
         for ($i = 1; $i <= 3; $i++) {
             $item = [];
             foreach ($keys as $key) {
-                $value = $this->guessValue($key);
-                // Vary plain-text samples so list previews look alive.
-                if (is_string($value) && $value !== '#'
-                    && !str_starts_with($value, '<')
-                    && !str_starts_with($value, 'data:')
-                ) {
-                    $value .= ' ' . $i;
-                }
-                $item[$key] = $value;
+                // Tokens are seeded per array index at render time, so three
+                // identical tokens still produce three different samples.
+                $item[$key] = $this->guessValue($key);
             }
             $items[] = $item;
         }
@@ -486,20 +480,26 @@ class StoryScaffolder extends Component
         $n = strtolower($name);
         $scope = strtolower(trim($context . ' ' . $name));
 
+        // Values are emitted as placeholder tokens rather than baked-in text:
+        // the story file stays short and readable, and PlaceholderResolver
+        // expands them deterministically at render time.
         if (str_ends_with($n, 'url') && preg_match('/(image|img|photo|picture|logo|icon|avatar|thumb|media)/', $scope) === 1) {
-            return 'data:image/svg+xml,' . rawurlencode(
-                '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260">'
-                . '<rect width="100%" height="100%" fill="#e2e8f0"/>'
-                . '<path d="M0 260 130 130l78 78 65-65 127 117z" fill="#94a3b8"/>'
-                . '<circle cx="310" cy="70" r="36" fill="#cbd5e1"/>'
-                . '</svg>'
-            );
+            if (preg_match('/(icon|avatar|logo)/', $scope) === 1) {
+                return '@icon';
+            }
+            if (preg_match('/(hero|banner|cover)/', $scope) === 1) {
+                return '@image_1600x600';
+            }
+            return '@image';
         }
         if (str_ends_with($n, 'url') || str_ends_with($n, 'href') || str_ends_with($n, 'link')) {
             return '#';
         }
-        if (str_ends_with($n, 'html') || str_starts_with($n, 'body') || str_ends_with($n, 'text') || $n === 'quote') {
-            return '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.</p>';
+        if (str_ends_with($n, 'html') || str_starts_with($n, 'body') || $n === 'quote') {
+            return '@lorem_p_1';
+        }
+        if (str_ends_with($n, 'text') || str_starts_with($n, 'description')) {
+            return '@lorem_s_2';
         }
         if (str_ends_with($n, 'alt')) {
             return 'Placeholder image';
@@ -516,8 +516,11 @@ class StoryScaffolder extends Component
         if (str_ends_with($n, 'ids')) {
             return [];
         }
+        if (preg_match('/(heading|title|label|name|question|eyebrow|kicker|badge)$/', $n) === 1) {
+            return '@lorem_w_4';
+        }
 
-        return 'Lorem ipsum';
+        return '@lorem';
     }
 
     /**

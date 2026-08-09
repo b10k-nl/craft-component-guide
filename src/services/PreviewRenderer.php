@@ -32,9 +32,16 @@ class PreviewRenderer extends Component
 
         try {
             $view->setTemplateMode(View::TEMPLATE_MODE_SITE);
+            // Placeholder tokens (@lorem…, @image…, @icon…) are expanded here
+            // rather than in the parser, so story files stay short and the
+            // resolved content is identical on every render (the seed is the
+            // component + story + argument path).
+            $args = Plugin::getInstance()->getPlaceholderResolver()
+                ->resolveArgs($story->args, $component->id . '/' . $story->id);
+
             // renderTemplate scopes the template to exactly these variables
             // (plus globals) — story args never inherit CP template state.
-            $html = $view->renderTemplate($component->templatePath, $story->args, View::TEMPLATE_MODE_SITE);
+            $html = $view->renderTemplate($component->templatePath, $args, View::TEMPLATE_MODE_SITE);
             return RenderResult::success($html);
         } catch (\Throwable $e) {
             Craft::error(

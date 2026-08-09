@@ -87,7 +87,7 @@ class ComponentsController extends Controller
      * scaffolding is available at all.
      *
      * @param \b10k\componentguide\models\ComponentDefinition[] $components
-     * @return array<string, int> Component id => number of states.
+     * @return array<string, array{var: string, values: string[]}>
      */
     private function detectStates(array $components): array
     {
@@ -108,7 +108,7 @@ class ComponentsController extends Controller
             }
             $detected = $scaffolder->detectStates($source);
             if ($detected !== null) {
-                $states[$component->id] = count($detected['values']);
+                $states[$component->id] = $detected;
             }
         }
 

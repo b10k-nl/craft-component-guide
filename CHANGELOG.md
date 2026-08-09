@@ -9,9 +9,10 @@ to [Semantic Versioning](https://semver.org).
 - **One story per state, on request.** When a template switches on a value
   (`theme == 'dark'`, `mediaPosition == 'right'`), the scaffolder can write one
   story per value instead of a single `Default` — named after the state
-  (`Light`, `Dark`, `Media right`). Opt-in: a second **One per state (N)**
-  button appears on undocumented cards only where states were actually found,
-  and `--states` does the same from the CLI.
+  (`Light`, `Dark`, `Media right`). Opt-in and self-explanatory: the buttons
+  read **Add story** and **Add 2 stories** (however many were found, with a
+  tooltip naming the values), and the second only appears where states exist.
+  `--states` does the same from the CLI.
 - **Placeholder tokens in stories.** String args can now say what kind of
   content they need instead of carrying it: `@lorem_w_6`, `@lorem_p_2`,
   `@image_1600x600`, `@icon_star`. Expansion is deterministic (seeded by
@@ -35,6 +36,9 @@ to [Semantic Versioning](https://semver.org).
   builds — previously the most useful preview setting was invisible in the UI.
 
 ### Changed
+- The scaffold button is now labelled **Add story** (singular): it always
+  writes one story file, and the second button says how many stories go
+  inside it.
 - Story scaffolding is gated on Craft's `allowAdminChanges` instead of
   `devMode` — the flag that actually means "this environment may change
   project files" — and where it is off the index states that plainly instead

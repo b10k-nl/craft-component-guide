@@ -201,7 +201,7 @@ story files are not blocked, but arrays keep stories portable.
 ## Scaffolding stories
 
 Undocumented components (see marker files above) can bootstrap their own
-story. Each undocumented card gets an **Add stories** button in environments
+story. Each undocumented card gets an **Add story** button in environments
 where Craft's `allowAdminChanges` is on (local and staging by convention — the
 same gate Craft uses for its own project-file changes); elsewhere the guide
 says so instead of hiding the feature. The equivalent on the command line is:
@@ -224,11 +224,12 @@ The scaffolder reads the template and guesses a `Default` story from it:
 
 **One story, or one per state.** If the template switches on a value —
 `theme == 'dark'`, `mediaPosition == 'right'` — those comparisons are its
-states, and the guide offers a second button (**One per state**) next to **Add
-stories**, showing how many it found. Taking it writes one story per value
-(`Light`, `Dark`, `Media right`…) instead of a single `Default`, so the
-component's variants are documented from the start. It stays opt-in: the
-plain button always writes exactly one story.
+states, and a second button appears next to **Add story**: **Add 2 stories**
+(however many it found), with a tooltip naming the values. Taking it writes
+one story per value (`Light`, `Dark`, `Media right`…) instead of a single
+`Default`, so the component's variants are documented from the start. Either
+way it is one story file — the buttons differ only in how many stories go
+inside it.
 
 The result is a **draft**: it is written with `status: draft`, the args are
 guesses, and an existing story file is never overwritten. Review it, fix what

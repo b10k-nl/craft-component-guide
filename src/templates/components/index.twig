@@ -68,7 +68,7 @@
                 <li>
                     <strong>{{ "Then: add a story to unlock previews."|t('component-guide') }}</strong>
                     <p class="light">
-                        {{ "A story file next to a template defines the props to render it with. Listed components get an “Add stories” button that writes a first draft for you."|t('component-guide') }}
+                        {{ "A story file next to a template defines the props to render it with. Listed components get an “Add story” button that writes a first draft for you."|t('component-guide') }}
                     </p>
                     {# Flush-left on purpose: .cg-code is pre-wrap, so template
                        indentation would show up in the output. #}
@@ -137,12 +137,18 @@ hero{{ settings.twigStorySuffix() }}</div>
                                                 {{ csrfInput() }}
                                                 {{ actionInput('component-guide/components/scaffold') }}
                                                 {{ hiddenInput('componentId', component.id) }}
-                                                <button type="submit" class="btn small">{{ "Add stories"|t('component-guide') }}</button>
-                                                {% set stateCount = statesByComponent[component.id] ?? 0 %}
-                                                {% if stateCount > 1 %}
+                                                <button type="submit" class="btn small"
+                                                        title="{{ "Write one story with guessed args"|t('component-guide') }}">
+                                                    {{ "Add story"|t('component-guide') }}
+                                                </button>
+                                                {% set states = statesByComponent[component.id] ?? null %}
+                                                {% if states and states.values|length > 1 %}
                                                     <button type="submit" name="states" value="1" class="btn small"
-                                                            title="{{ "Scaffold one story per state the template switches on"|t('component-guide') }}">
-                                                        {{ "One per state ({count})"|t('component-guide', { count: stateCount }) }}
+                                                            title="{{ "Write one story per {var} value: {values}"|t('component-guide', {
+                                                                var: states.var,
+                                                                values: states.values|join(', '),
+                                                            }) }}">
+                                                        {{ "Add {count} stories"|t('component-guide', { count: states.values|length }) }}
                                                     </button>
                                                 {% endif %}
                                             </form>

@@ -56,7 +56,7 @@ explicitly press “Add stories”.
 
    The first heading becomes the section name, the text under it the section
    description.
-3. **Add previews.** Each listed component has an **Add stories** button (in
+3. **Add previews.** Each listed component has an **Add story** button (in
    environments where Craft's `allowAdminChanges` is on): it reads the
    template's variables and writes a first-draft `*.stories.twig` next to it.
    The values are guesses — open the file and fix them. Same thing from the

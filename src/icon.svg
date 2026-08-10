@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Component Guide">
-  <rect x="8" y="8" width="38" height="38" rx="6" fill="none" stroke="currentColor" stroke-width="6"/>
-  <rect x="54" y="8" width="38" height="38" rx="6" fill="currentColor"/>
-  <rect x="8" y="54" width="38" height="38" rx="6" fill="currentColor"/>
-  <rect x="54" y="54" width="38" height="38" rx="6" fill="none" stroke="currentColor" stroke-width="6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Component Guide">
+  <title>Component Guide</title>
+  <rect x="3" y="4" width="18" height="6" rx="1.8" fill="currentColor"/>
+  <rect x="3" y="12" width="10" height="3.4" rx="1.2" fill="currentColor" opacity=".75"/>
+  <rect x="15" y="12" width="6" height="3.4" rx="1.2" fill="currentColor" opacity=".45"/>
+  <rect x="3" y="17.2" width="18" height="3.4" rx="1.2" fill="currentColor" opacity=".75"/>
 </svg>

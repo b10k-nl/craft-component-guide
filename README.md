@@ -12,6 +12,10 @@ Component Guide scans a configurable templates directory, discovers Twig compone
 
 ![The blocks gallery inside Craft's Live Preview: real previews and descriptions where editors add blocks](docs/images/picker.png)
 
+Nothing configured yet? The guide starts by explaining how to get there:
+
+![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
+
 > **Status:** `0.1.0-beta` — public beta. The discovery/preview workflow is stable; APIs may still change before `1.0`. See [BETA.md](BETA.md).
 
 ---
@@ -21,11 +25,13 @@ Component Guide scans a configurable templates directory, discovers Twig compone
 - Craft CMS **5.0+**
 - PHP **8.2+**
 
-## What it does (MVP)
+## What it does
 
 - Recursively discovers components from a configured templates folder.
-- Supports nested (`button/button.twig` + `button/button.stories.php`) and adjacent (`button.twig` + `button.stories.php`) conventions.
-- Two story formats (simple + rich) normalized to one internal model.
+- Supports nested (`button/button.twig` + `button/button.stories.twig`) and
+  adjacent (`button.twig` + `button.stories.twig`) conventions.
+- Two story languages (Twig and PHP) and two shapes (simple + rich),
+  normalized to one internal model.
 - Groups, lists and client-side-searches components in the CP.
 - Renders each story in a sandboxed **iframe** with your front-end CSS.
 - Generates a copy-pasteable Twig `{% include … with {…} only %}` snippet.
@@ -79,7 +85,7 @@ return [
 | Setting | Default | Notes |
 |---|---|---|
 | `componentPath` | `''` (whole `templates/`) | Scan root relative to `templates/`. Empty scans everything; set e.g. `_components` to narrow. No absolute paths or `..`. |
-| `storySuffix` | `.stories.php` | Must end in `.php`. |
+| `storySuffix` | `.stories.php` | Must end in `.php`. The Twig equivalent (`.stories.twig`) is derived from it automatically and discovered too — that's the format the scaffolder writes. |
 | `enableCpSection` | `true` | Show/hide the CP nav item. |
 | `enableIframePreview` | `true` | Isolated iframe vs. an "open preview" link. |
 | `previewCss` / `previewJs` | `[]` | Front-end assets injected into the preview. |
@@ -88,8 +94,9 @@ return [
 **The model is Storybook-style:** the scanner walks the scan root recursively and
 shows *every* Twig template that has an adjacent story file — anywhere in the
 tree (components, page-builder blocks, partials). A template's author opts it into
-the guide simply by dropping a `*.stories.php` next to it; nothing else registers
-it. Components are grouped by their folder path (or by a story's `meta.group`).
+the guide simply by dropping a `*.stories.twig` (or `*.stories.php`) next to it;
+nothing else registers it. Components are grouped by their folder path (or by a
+story's `meta.group`).
 
 ## Directory conventions
 
@@ -97,12 +104,12 @@ it. Components are grouped by their folder path (or by a story's `meta.group`).
 templates/_components/
 ├── button/
 │   ├── button.twig
-│   └── button.stories.php
+│   └── button.stories.twig
 ├── card.twig                 # adjacent convention also works
-├── card.stories.php
+├── card.stories.twig
 └── navigation/menu/
     ├── menu.twig
-    └── menu.stories.php
+    └── menu.stories.twig
 ```
 
 A Twig file is listed as a component only when it has a matching story file —
@@ -145,7 +152,36 @@ Reusable page blocks editors can add through the Matrix page builder.
 
 ## Story format
 
-### Simple
+Stories come in two languages — **Twig** (`*.stories.twig`) and **PHP**
+(`*.stories.php`) — with the same shape. Twig is the default: it's the language
+the component is already written in, and it's what the scaffolder writes. Both
+are discovered automatically; pick per component if you like.
+
+### Twig
+
+```twig
+{% set meta = {
+    title: 'Button',
+    group: 'Atoms',
+    description: 'Primary user-action button.',
+    status: 'stable',
+} %}
+
+{% set stories = {
+    'Primary': {
+        args: { label: 'Save', variant: 'primary' },
+        description: 'The default call to action.',
+    },
+    'Secondary': {
+        args: { label: 'Cancel', variant: 'secondary' },
+    },
+} %}
+```
+
+`meta` is optional — a file with just `stories` works. The story file is
+rendered as a data-only template: set those two variables and output nothing.
+
+### PHP — simple
 
 ```php
 <?php
@@ -156,7 +192,7 @@ return [
 ];
 ```
 
-### Rich (with metadata)
+### PHP — rich (with metadata)
 
 ```php
 <?php
@@ -181,6 +217,10 @@ return [
 ```
 
 Optional story keys: `args`, `description`, `background`, `viewport`, `tags`.
+
+**Status vocabulary:** `stable`, `beta`, `draft`, `deprecated` (case-insensitive;
+`wip`, `ready`, `experimental` and `legacy` are accepted as aliases). Only
+`stable` components are addable from the blocks gallery — see below.
 
 ### Component example
 
@@ -316,7 +356,7 @@ templates/_v2/
 └── _blocks/                 # presentational components (listed in the guide)
     ├── BLOCKS.md            #   marker file — inventory + group description
     ├── hero.twig            #   pure: accepts scalars/arrays, never an Entry
-    ├── hero.stories.php     #   preview states for the guide
+    ├── hero.stories.twig    #   preview states for the guide
     └── promoBanner.twig
 ```
 
@@ -377,35 +417,45 @@ working component JS (carousels included) in both environments:
 
 ## Security & trust model
 
-- Story files are **PHP** and therefore trusted project code — treat them like
-  any template in your repo. They are only ever discovered inside the configured
-  `componentPath`.
+- Story files are **project code** — Twig templates or PHP files in your repo.
+  Treat them like any other template. They are only ever discovered inside the
+  configured `componentPath`.
 - The scanner refuses absolute paths and `..` traversal; the resolved directory
   must live inside your templates folder.
 - Previews render only component/story **IDs** resolved through the repository —
   a request can never supply a raw template path.
 - Every CP/preview action requires login and the `component-guide:access`
   permission.
-- Previews are isolated in a `sandbox`ed iframe; metadata is escaped; absolute
-  paths and stack traces are shown only when Craft dev mode is on.
+- Previews are isolated in a `sandbox`ed iframe; metadata is escaped; error
+  messages appear where `allowAdminChanges` is on, absolute paths and stack
+  traces only in `devMode`.
 
-Do **not** expose the plugin to untrusted users — PHP story files are not a
-sandbox.
+Do **not** expose the plugin to untrusted users — story files are project code,
+not a sandbox.
 
 ## Troubleshooting
 
 - **"No components found."** — check `componentPath` (relative to `templates/`)
-  and that story files end in `storySuffix`.
+  and that story files end in `storySuffix` (or its `.twig` equivalent). The
+  index also walks you through this when nothing is discovered yet.
 - **Component missing** — it needs a matching `*.twig` next to its story file.
-- **Render error in preview** — the component threw; enable `devMode` to see the
-  message/trace.
-- **Styles missing in preview** — set `previewCss`.
+- **Render error in preview** — the component threw; the message is shown
+  wherever `allowAdminChanges` is on, and the full trace in `devMode`.
+- **A story renders nothing** — usually markup behind a condition the args
+  don't satisfy, or a template that reads Craft data itself; the preview says
+  so instead of showing a blank frame.
+- **Styles missing in preview** — set `previewCss`, or `previewTemplate` if you
+  build with Vite.
+- **No "Add story" button** — scaffolding writes files, so it needs
+  `allowAdminChanges`; the index says so where that's off.
+- **No "Blocks gallery" button** — the field's entry-type handles must match
+  component names; open `component-guide/picker-map` to compare.
 
 ## Development
 
 ```bash
 composer install
-composer test       # PHPUnit (scanner, parser, snippet generator)
+composer test       # PHPUnit (scanner, story parser, scaffolder, placeholders)
 composer analyse    # PHPStan (level 5)
 composer check      # both
 ```

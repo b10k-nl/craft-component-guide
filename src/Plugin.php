@@ -15,6 +15,7 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterUrlRulesEvent;
+use craft\helpers\Console;
 use craft\services\UserPermissions;
 use craft\utilities\ClearCaches;
 use craft\events\RegisterCacheOptionsEvent;
@@ -104,10 +105,16 @@ class Plugin extends BasePlugin
 
         ComponentRepository::invalidateCache();
 
-        Craft::info(
-            'Component Guide uninstalled. Story and marker files were left in your templates folder — they are plain project files and harmless without the plugin.',
-            __METHOD__,
-        );
+        $message = 'Component Guide uninstalled. Your story and marker files were left in templates/ — they are plain project files and do nothing without the plugin. See the “Uninstalling” section of the README if you want to remove them too.';
+
+        Craft::info($message, __METHOD__);
+
+        // Console uninstalls are the common case for developers; say it there
+        // too, rather than burying the one thing they might wonder about in a
+        // log file.
+        if (Craft::$app->getRequest()->getIsConsoleRequest()) {
+            Console::output(Console::ansiFormat("\n" . $message . "\n", [Console::FG_GREY]));
+        }
     }
 
     public function getRepository(): ComponentRepository

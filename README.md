@@ -423,25 +423,65 @@ working component JS (carousels included) in both environments:
 
 ## Uninstalling
 
+### 1. Remove the plugin
+
+Either from the control panel — **Settings → Plugins → Component Guide → ⚙ →
+Uninstall** — or from the command line:
+
 ```bash
 php craft plugin/uninstall component-guide
 composer remove b10k/craft-component-guide
 composer config --unset repositories.component-guide
 ```
 
-**What goes:** the plugin, its settings, its permission, and its scan cache.
+That removes the plugin, its settings, its permission and its scan cache.
 
-**What stays:** your story files and marker files. They are plain project files
-in git — a `*.stories.twig` next to a template is inert without the plugin, and
-a `GUIDE.md` is just a markdown file in a folder. Delete them if you want to;
-nothing else references them.
+### 2. Decide what to do with your story files
 
-**What was never touched:** your content, your Matrix fields, your templates.
-The guide only ever reads them — the one exception is the **Add story** button,
-which writes a story file you explicitly asked for.
+They are **left in place on purpose.** A `*.stories.twig` next to a template is
+inert without the plugin — nothing includes it, nothing renders it, it costs
+nothing. A `GUIDE.md` is just a markdown file that reads as folder
+documentation on GitHub. Keeping them means reinstalling later picks up exactly
+where you left off.
 
-The scan cache can also be cleared on its own at any time, from
-**Utilities → Caches → Component Guide scan cache**.
+If you do want them gone, delete them yourself — they're your files, in your
+repository, and you should see the diff before it lands:
+
+**In your editor (PhpStorm, VS Code, …)**
+
+1. Search the project for `*.stories.twig` and `*.stories.php`
+   (PhpStorm: <kbd>⌘⇧O</kbd> → type `.stories.` · VS Code: <kbd>⌘P</kbd> → same).
+2. Review the list — some of these may be files you wrote or heavily edited.
+3. Select and delete.
+4. Search for `GUIDE.md`, `BLOCKS.md` and `COMPONENTS.md` inside your templates
+   folder and delete those too, if you don't want them as folder docs.
+5. Commit, so the removal is reviewable and revertable like any other change.
+
+**In a terminal**
+
+```bash
+# preview first — nothing is deleted by this
+find templates -name '*.stories.twig' -o -name '*.stories.php'
+
+# then remove them through git, so the change is staged and revertable
+git rm 'templates/**/*.stories.twig' 'templates/**/*.stories.php'
+```
+
+Marker files, if you want those gone too:
+
+```bash
+git rm 'templates/**/GUIDE.md' 'templates/**/BLOCKS.md' 'templates/**/COMPONENTS.md'
+```
+
+### What was never touched
+
+Your content, your Matrix fields, your entry types, your templates. The guide
+only ever *reads* them. The single exception is the **Add story** button (and
+its CLI equivalent), which writes a story file you explicitly asked for — and
+never overwrites an existing one.
+
+The scan cache can also be cleared on its own at any time, without uninstalling
+anything: **Utilities → Caches → Component Guide scan cache**.
 
 ## Security & trust model
 

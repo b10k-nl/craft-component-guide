@@ -44,7 +44,9 @@ class StoryParserTest extends TestCase
         $this->assertSame(['label' => 'Save'], $story->args);
         $this->assertSame('The default CTA.', $story->description);
         $this->assertSame('#f5f5f5', $story->background);
-        $this->assertSame('mobile', $story->viewport);
+        // The fixture says “mobile”; the parser normalizes it to the device the
+        // preview actually has (see testViewportNormalizesAliasesAndReportsTypos).
+        $this->assertSame('phone', $story->viewport);
         $this->assertSame(['action', 'form'], $story->tags);
     }
 
@@ -93,6 +95,31 @@ class StoryParserTest extends TestCase
         $this->assertSame('save-cancel', $this->parser->slug('  Save / Cancel  '));
         // Stable across calls.
         $this->assertSame($this->parser->slug('A B C'), $this->parser->slug('a b c'));
+    }
+
+    public function testViewportNormalizesAliasesAndReportsTypos(): void
+    {
+        // Canonical, case-insensitive.
+        $ok = $this->parser->parseData([
+            'stories' => ['Primary' => ['args' => [], 'viewport' => 'Phone']],
+        ], 'x.stories.php');
+        $this->assertSame([], $ok['errors']);
+        $this->assertSame('phone', $ok['stories'][0]->viewport);
+
+        // “mobile” is the obvious way to say “phone” — accept it as an alias.
+        $alias = $this->parser->parseData([
+            'stories' => ['Primary' => ['args' => [], 'viewport' => 'mobile']],
+        ], 'x.stories.php');
+        $this->assertSame([], $alias['errors']);
+        $this->assertSame('phone', $alias['stories'][0]->viewport);
+
+        // Anything else is a typo the preview would silently ignore — say so.
+        $typo = $this->parser->parseData([
+            'stories' => ['Primary' => ['args' => [], 'viewport' => 'watch']],
+        ], 'x.stories.php');
+        $this->assertCount(1, $typo['errors']);
+        $this->assertSame(ScanError::UNKNOWN_VIEWPORT, $typo['errors'][0]->type);
+        $this->assertNull($typo['stories'][0]->viewport, 'the story still loads');
     }
 
     public function testStatusNormalizesCaseAndAliases(): void

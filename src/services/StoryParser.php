@@ -25,6 +25,20 @@ class StoryParser extends Component
     /** Canonical component lifecycle statuses (what the UI color-codes). */
     public const STATUSES = ['stable', 'beta', 'draft', 'deprecated'];
 
+    /** Devices the preview can open in (see the toolbar in components/view). */
+    public const VIEWPORTS = ['desktop', 'tablet', 'phone'];
+
+    /** Accepted spellings that normalize to a canonical viewport. */
+    private const VIEWPORT_ALIASES = [
+        'mobile' => 'phone',
+        'handheld' => 'phone',
+        'small' => 'phone',
+        'medium' => 'tablet',
+        'ipad' => 'tablet',
+        'large' => 'desktop',
+        'wide' => 'desktop',
+    ];
+
     /** Accepted spellings that normalize to a canonical status. */
     private const STATUS_ALIASES = [
         'ready' => 'stable',
@@ -242,7 +256,13 @@ class StoryParser extends Component
             }
             $description = $this->stringOrNull($definition['description'] ?? null);
             $background = $this->stringOrNull($definition['background'] ?? null);
-            $viewport = $this->stringOrNull($definition['viewport'] ?? null);
+            $viewport = $this->normalizeViewport(
+                $this->stringOrNull($definition['viewport'] ?? null),
+                $name,
+                $id,
+                $relativeFile,
+                $errors,
+            );
             $tags = $this->normalizeTags($definition['tags'] ?? []);
         } else {
             $args = $definition;
@@ -260,6 +280,41 @@ class StoryParser extends Component
             viewport: $viewport,
             tags: $tags,
         );
+    }
+
+    /**
+     * Viewports come from a fixed vocabulary, like statuses: the preview can
+     * only open in one of its three devices, so a typo (“mobile” for “phone”)
+     * must be reported rather than silently ignored.
+     *
+     * @param ScanError[] $errors
+     */
+    private function normalizeViewport(
+        ?string $viewport,
+        string $name,
+        string $id,
+        string $relativeFile,
+        array &$errors,
+    ): ?string {
+        if ($viewport === null) {
+            return null;
+        }
+
+        $value = strtolower($viewport);
+        $value = self::VIEWPORT_ALIASES[$value] ?? $value;
+
+        if (in_array($value, self::VIEWPORTS, true)) {
+            return $value;
+        }
+
+        $errors[] = new ScanError(
+            ScanError::UNKNOWN_VIEWPORT,
+            sprintf('Story “%s” has an unknown viewport “%s”.', $name, $viewport),
+            $relativeFile,
+            storyId: $id,
+        );
+
+        return null;
     }
 
     private function stringOrNull(mixed $value): ?string

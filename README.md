@@ -209,7 +209,7 @@ return [
             'args' => ['label' => 'Save', 'variant' => 'primary'],
             'description' => 'The default call to action.',
             'background' => '#f5f5f5',
-            'viewport' => 'mobile',
+            'viewport' => 'phone',
             'tags' => ['action', 'form'],
         ],
     ],
@@ -217,6 +217,12 @@ return [
 ```
 
 Optional story keys: `args`, `description`, `background`, `viewport`, `tags`.
+
+- **`viewport`** picks the device the preview opens in — `desktop` (default),
+  `tablet` or `phone`. The reader can still switch; this just says which state
+  the story is really about, so a mobile-only variant doesn't open in desktop.
+- **`background`** sets the colour behind the preview frame (any CSS colour),
+  useful for components meant to sit on a dark or tinted section.
 
 **Status vocabulary:** `stable`, `beta`, `draft`, `deprecated` (case-insensitive;
 `wip`, `ready`, `experimental` and `legacy` are accepted as aliases). Only

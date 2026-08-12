@@ -36,6 +36,10 @@ to [Semantic Versioning](https://semver.org).
   builds — previously the most useful preview setting was invisible in the UI.
 
 ### Changed
+- A story's `viewport` is now validated like `status`: `desktop`, `tablet` or
+  `phone`, with aliases (`mobile` → `phone`, `ipad` → `tablet`, …). An
+  unrecognised value used to be accepted and then silently ignored by the
+  preview; it now surfaces as a scan error naming the valid options.
 - The scaffold button is now labelled **Add story** (singular): it always
   writes one story file, and the second button says how many stories go
   inside it.

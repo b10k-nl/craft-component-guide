@@ -34,10 +34,12 @@ composer config repositories.component-guide '{"type":"git","url":"https://githu
 To update later: `composer update b10k/craft-component-guide` — the constraint
 above always picks up the newest beta.
 
-To remove it afterwards: `composer remove b10k/craft-component-guide` and
-`composer config --unset repositories.component-guide`. The plugin never writes
-to your database beyond its own settings row, and only writes files when you
-explicitly press “Add stories”.
+To remove it: `php craft plugin/uninstall component-guide`, then
+`composer remove b10k/craft-component-guide` and
+`composer config --unset repositories.component-guide`. Your story and marker
+files stay in `templates/` — they're plain project files and do nothing without
+the plugin. Nothing in your content or field layouts is touched, and the plugin
+only ever writes files when you press “Add story”.
 
 ## First five minutes
 

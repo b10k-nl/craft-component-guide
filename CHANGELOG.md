@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org).
 ## Unreleased
 
 ### Added
+- The scan cache is now taggable and appears in **Utilities → Caches** as
+  “Component Guide scan cache”, so it can be cleared on its own instead of
+  forcing Craft's global “clear everything”.
+- Uninstalling drops that cache and logs what was deliberately left behind:
+  story and marker files stay, because they are project code in git — "remove
+  the plugin and your project is untouched" only holds if nothing deletes them.
+  README and BETA.md now spell out what goes, what stays and what was never
+  touched.
 - **One story per state, on request.** When a template switches on a value
   (`theme == 'dark'`, `mediaPosition == 'right'`), the scaffolder can write one
   story per value instead of a single `Default` — named after the state

@@ -9,6 +9,7 @@ use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\Plugin;
 use Craft;
 use yii\base\Component;
+use yii\caching\TagDependency;
 
 /**
  * Single entry point for discovered components.
@@ -29,6 +30,13 @@ class ComponentRepository extends Component
     private const CACHE_TTL = 3600;
 
     private const CACHE_KEY_PREFIX = 'component-guide:scan:';
+
+    /**
+     * Tag on every cached scan, so the whole set can be dropped at once — by
+     * the Utilities → Caches entry, and on uninstall. Without it the only way
+     * to clear our data would be Craft's global “clear everything”.
+     */
+    public const CACHE_TAG = 'component-guide';
 
     /**
      * Sources whose code determines the *shape and semantics* of a cached scan
@@ -161,6 +169,14 @@ class ComponentRepository extends Component
     }
 
     /**
+     * Drops every cached scan (all sites, all settings permutations).
+     */
+    public static function invalidateCache(): void
+    {
+        TagDependency::invalidate(Craft::$app->getCache(), self::CACHE_TAG);
+    }
+
+    /**
      * Forget the memoized scan (e.g. after settings change within a request).
      */
     public function flush(): void
@@ -206,7 +222,12 @@ class ComponentRepository extends Component
             $result = $this->scanner->scan($templatesRoot, $settings->componentPath, $suffixes);
 
             if ($cacheKey !== null) {
-                Craft::$app->getCache()->set($cacheKey, $result, self::CACHE_TTL);
+                Craft::$app->getCache()->set(
+                    $cacheKey,
+                    $result,
+                    self::CACHE_TTL,
+                    new TagDependency(['tags' => [self::CACHE_TAG]]),
+                );
             }
         }
 

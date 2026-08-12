@@ -16,6 +16,8 @@ use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterUrlRulesEvent;
 use craft\services\UserPermissions;
+use craft\utilities\ClearCaches;
+use craft\events\RegisterCacheOptionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -85,6 +87,27 @@ class Plugin extends BasePlugin
         $this->registerPermissions();
         $this->registerCpRoutes();
         $this->registerBlockPicker();
+        $this->registerCacheOption();
+    }
+
+    /**
+     * Leaves nothing behind but the files the developer asked for.
+     *
+     * Craft removes the plugin row, its settings and its permissions itself;
+     * the scan cache is ours to drop. Story and marker files stay: they are
+     * project code in git, and “remove the plugin and your project is
+     * untouched” only holds if we don't delete them.
+     */
+    public function afterUninstall(): void
+    {
+        parent::afterUninstall();
+
+        ComponentRepository::invalidateCache();
+
+        Craft::info(
+            'Component Guide uninstalled. Story and marker files were left in your templates folder — they are plain project files and harmless without the plugin.',
+            __METHOD__,
+        );
     }
 
     public function getRepository(): ComponentRepository
@@ -167,6 +190,25 @@ class Plugin extends BasePlugin
         $item['label'] = Craft::t('component-guide', 'Component Guide');
         $item['url'] = 'component-guide';
         return $item;
+    }
+
+    /**
+     * Adds the scan cache to Utilities → Caches, so it can be cleared on its
+     * own instead of forcing a global “clear everything”.
+     */
+    private function registerCacheOption(): void
+    {
+        Event::on(
+            ClearCaches::class,
+            ClearCaches::EVENT_REGISTER_CACHE_OPTIONS,
+            static function (RegisterCacheOptionsEvent $event): void {
+                $event->options[] = [
+                    'key' => 'component-guide-scan',
+                    'label' => Craft::t('component-guide', 'Component Guide scan cache'),
+                    'action' => static fn() => ComponentRepository::invalidateCache(),
+                ];
+            }
+        );
     }
 
     private function registerPermissions(): void

@@ -421,6 +421,28 @@ working component JS (carousels included) in both environments:
 'previewTemplate' => '_component-guide-preview',
 ```
 
+## Uninstalling
+
+```bash
+php craft plugin/uninstall component-guide
+composer remove b10k/craft-component-guide
+composer config --unset repositories.component-guide
+```
+
+**What goes:** the plugin, its settings, its permission, and its scan cache.
+
+**What stays:** your story files and marker files. They are plain project files
+in git — a `*.stories.twig` next to a template is inert without the plugin, and
+a `GUIDE.md` is just a markdown file in a folder. Delete them if you want to;
+nothing else references them.
+
+**What was never touched:** your content, your Matrix fields, your templates.
+The guide only ever reads them — the one exception is the **Add story** button,
+which writes a story file you explicitly asked for.
+
+The scan cache can also be cleared on its own at any time, from
+**Utilities → Caches → Component Guide scan cache**.
+
 ## Security & trust model
 
 - Story files are **project code** — Twig templates or PHP files in your repo.

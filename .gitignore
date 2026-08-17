@@ -5,4 +5,4 @@
 .DS_Store
 
 # Private planning notes — the public roadmap lives in docs/PLAN.md
-docs/PLAN.local.md
+docs/*.local.md

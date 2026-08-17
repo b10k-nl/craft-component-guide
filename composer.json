@@ -1,6 +1,6 @@
 {
     "name": "b10k/craft-component-guide",
-    "description": "A lightweight Storybook-style component guide for reusable Twig components in Craft CMS.",
+    "description": "A Storybook-style component browser inside the control panel — live previews for developers, a visual blocks gallery for editors.",
     "type": "craft-plugin",
     "keywords": [
         "craft",

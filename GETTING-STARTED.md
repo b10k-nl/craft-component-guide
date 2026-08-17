@@ -15,27 +15,17 @@ staging, a paid per-site licence once it runs on a production site.
 ## Install
 
 ```bash
-composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
 composer require b10k/craft-component-guide
 php craft plugin/install component-guide
 ```
 
-On DDEV, prefix each line with `ddev` (`ddev composer config …`, and
+On DDEV, prefix each line with `ddev` (`ddev composer require …`, and
 `ddev craft plugin/install component-guide`).
-
-If Composer asks for a GitHub token, swap the repository type for a plain git
-clone, which skips the GitHub API entirely:
-
-```bash
-composer config --unset repositories.component-guide
-composer config repositories.component-guide '{"type":"git","url":"https://github.com/b10k-nl/craft-component-guide.git"}' --json
-```
 
 To update later: `composer update b10k/craft-component-guide`.
 
 To remove it: `php craft plugin/uninstall component-guide`, then
-`composer remove b10k/craft-component-guide` and
-`composer config --unset repositories.component-guide`. Your story and marker
+`composer remove b10k/craft-component-guide`. Your story and marker
 files stay in `templates/` — they're plain project files and do nothing without
 the plugin. Nothing in your content or field layouts is touched, and the plugin
 only ever writes files when you press “Add story”.

@@ -49,7 +49,6 @@ Nothing configured yet? The guide starts by explaining how to get there:
 ## Installation
 
 ```bash
-composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
 composer require b10k/craft-component-guide
 php craft plugin/install component-guide
 ```
@@ -57,8 +56,7 @@ php craft plugin/install component-guide
 On DDEV, prefix each command with `ddev`.
 
 The Plugin Store listing is in review. Once it is live you can also install
-Component Guide from **Settings → Plugins** in the control panel, and the
-`composer config` line above stops being necessary.
+Component Guide from **Settings → Plugins** in the control panel.
 
 New to it? [GETTING-STARTED.md](GETTING-STARTED.md) walks through the first
 five minutes.
@@ -434,7 +432,6 @@ Uninstall** — or from the command line:
 ```bash
 php craft plugin/uninstall component-guide
 composer remove b10k/craft-component-guide
-composer config --unset repositories.component-guide
 ```
 
 That removes the plugin, its settings, its permission and its scan cache.

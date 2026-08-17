@@ -5,7 +5,9 @@ inside Craft's control panel: it scans your `templates/` folder, lists your
 reusable Twig components and renders live previews of them.
 
 This is an early beta — **please don't run it on a production site.** Local or
-staging only. Free to use during the beta (see [LICENSE.md](LICENSE.md)).
+staging only. It's licensed under [the Craft License](LICENSE.md), which lets
+you trial it freely in development and staging; a paid per-site licence applies
+once it's on a production site.
 
 ## Requirements
 
@@ -100,7 +102,7 @@ Rough edges are expected — I'd rather hear “this felt weird” than nothing.
   need manual fixing.
 - Components that query Craft or use Sprig internally may render partially in
   previews.
-- No paid/free feature split yet; everything is enabled.
+- No paid/free feature split — there's a single edition with everything in it.
 
 ## Reporting
 

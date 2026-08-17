@@ -1,59 +1,42 @@
-# Component Guide — Licence
+# The Craft License
 
-Copyright © 2026 b10k. All rights reserved.
+Copyright © b10k
 
-This software is **source-available, not open source**. Reading the source is
-encouraged; the rights below are the only ones granted.
+Permission is hereby granted to any person obtaining a copy of this software
+(the “Software”) to use, copy, modify, merge, publish and/or distribute copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-## 1. Beta evaluation licence
+1. **Don’t plagiarize.** The above copyright notice and this license shall be
+   included in all copies or substantial portions of the Software.
 
-While this software is distributed as a beta or pre-release version, you are
-granted a free, non-exclusive, non-transferable, revocable licence to install
-and use it for evaluation and development purposes, on any number of local or
-staging environments, and to provide feedback to the copyright holder.
+2. **Don’t use the same license on more than one project.** Each licensed copy
+   of the Software shall be actively installed in no more than one production
+   environment at a time.
 
-Beta versions are provided for evaluation. Use on a production site is at your
-own risk and is not covered by any support or warranty commitment.
+3. **Don’t mess with the licensing features.** Software features related to
+   licensing shall not be altered or circumvented in any way, including (but
+   not limited to) license validation, payment prompts, feature restrictions,
+   and update eligibility.
 
-## 2. Commercial licence
+4. **Pay up.** Payment shall be made immediately upon receipt of any notice,
+   prompt, reminder, or other message indicating that a payment is owed.
 
-Once a stable version is released, installing or using this software on a
-production site requires a valid paid licence per site, obtained from the
-copyright holder or an authorised distributor (for example the Craft Plugin
-Store).
+5. **Follow the law.** All use of the Software shall not violate any applicable
+   law or regulation, nor infringe the rights of any other person or entity.
 
-## 3. Restrictions
+Failure to comply with the foregoing conditions will automatically and
+immediately result in termination of the permission granted hereby. This
+license does not include any right to receive updates to the Software or
+technical support. Licensees bear all risk related to the quality and
+performance of the Software and any modifications made or obtained to it,
+including liability for actual and consequential harm, such as loss or
+corruption of data, and any necessary service, repair, or correction.
 
-You may not:
-
-- redistribute, publish, sublicense, sell, rent or lease this software, in
-  whole or in part, whether modified or unmodified;
-- create or distribute derivative works or forks for use beyond your own
-  licensed sites;
-- remove, disable or circumvent any licence check, copyright notice or
-  attribution;
-- use this software to build a product that competes with it.
-
-You may modify the source for your own licensed sites, and you may keep such
-modifications in your own private repositories.
-
-## 4. Feedback
-
-Feedback, bug reports and suggestions you choose to share may be used by the
-copyright holder without restriction or compensation. You retain no claim over
-features inspired by your feedback.
-
-## 5. No warranty
-
-THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## 6. Termination
-
-This licence terminates automatically if you breach any of its terms. On
-termination you must stop using and delete all copies of the software.
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, INCLUDING SPECIAL, INCIDENTAL AND CONSEQUENTIAL DAMAGES, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

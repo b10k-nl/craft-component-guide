@@ -557,5 +557,6 @@ that file) rather than via public issues.
 
 ## License
 
-Source-available, not open source: free to evaluate during the beta, a paid
-per-site licence once a stable version ships. See [LICENSE.md](LICENSE.md).
+[The Craft License](LICENSE.md) — the standard licence for commercial Craft
+plugins: source-available, one licensed copy per production environment, free
+to trial in development and staging.

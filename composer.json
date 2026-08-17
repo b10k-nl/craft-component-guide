@@ -17,7 +17,7 @@
     "authors": [
         {
             "name": "b10k",
-            "homepage": "https://github.com/b10k-nl"
+            "homepage": "https://b10k.nl"
         }
     ],
     "support": {
@@ -47,7 +47,7 @@
         "handle": "component-guide",
         "name": "Component Guide",
         "developer": "b10k",
-        "developerUrl": "https://github.com/b10k-nl",
+        "developerUrl": "https://b10k.nl",
         "documentationUrl": "https://github.com/b10k-nl/craft-component-guide/blob/main/README.md",
         "changelogUrl": "https://github.com/b10k-nl/craft-component-guide/blob/main/CHANGELOG.md",
         "class": "b10k\\componentguide\\Plugin"

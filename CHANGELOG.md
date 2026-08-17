@@ -3,7 +3,11 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 1.0.0 - 2026-08-17
+
+First stable release. The discovery and preview workflow has run on real
+Craft 5 projects through seven public betas; this release marks the API stable
+and the plugin production-ready. Everything below landed since `0.1.0-beta.3`.
 
 ### Added
 - The scan cache is now taggable and appears in **Utilities → Caches** as

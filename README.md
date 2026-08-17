@@ -16,7 +16,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `0.1.0-beta` — public beta. The discovery/preview workflow is stable; APIs may still change before `1.0`. See [BETA.md](BETA.md).
+> **Status:** `1.0.0` — stable. Sold per site through the Craft Plugin Store; free to trial in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -48,17 +48,20 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ## Installation
 
-During the beta the plugin installs straight from GitHub (it is not on
-Packagist or the Plugin Store yet):
-
 ```bash
 composer config repositories.component-guide vcs https://github.com/b10k-nl/craft-component-guide.git
-composer require "b10k/craft-component-guide:^0.1.0-beta"
+composer require b10k/craft-component-guide
 php craft plugin/install component-guide
 ```
 
-On DDEV, prefix each command with `ddev`. See [BETA.md](BETA.md) for a
-“first five minutes” walkthrough and what feedback helps most.
+On DDEV, prefix each command with `ddev`.
+
+The Plugin Store listing is in review. Once it is live you can also install
+Component Guide from **Settings → Plugins** in the control panel, and the
+`composer config` line above stops being necessary.
+
+New to it? [GETTING-STARTED.md](GETTING-STARTED.md) walks through the first
+five minutes.
 
 ## Configuration
 
@@ -545,10 +548,11 @@ ddev exec php craft component-guide/components/scan
 - Page-builder awareness: map Matrix entry types to their components
 - Additional story formats
 
-## Beta
+## Feedback
 
-In public beta — see [BETA.md](BETA.md) for install instructions and
-what feedback is most useful.
+Bug reports, feature ideas and “this felt weird” notes are all welcome —
+[open an issue](https://github.com/b10k-nl/craft-component-guide/issues).
+[GETTING-STARTED.md](GETTING-STARTED.md) lists the current known limitations.
 
 ## Contributing
 

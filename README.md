@@ -48,15 +48,18 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ## Installation
 
+From the [Craft Plugin Store](https://plugins.craftcms.com/component-guide):
+open **Settings → Plugins** in your control panel and search for
+“Component Guide”.
+
+Or with Composer:
+
 ```bash
 composer require b10k/craft-component-guide
 php craft plugin/install component-guide
 ```
 
 On DDEV, prefix each command with `ddev`.
-
-The Plugin Store listing is in review. Once it is live you can also install
-Component Guide from **Settings → Plugins** in the control panel.
 
 New to it? [GETTING-STARTED.md](GETTING-STARTED.md) walks through the first
 five minutes.

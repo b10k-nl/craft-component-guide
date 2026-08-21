@@ -11,7 +11,14 @@
         "component library",
         "design system",
         "storybook",
-        "twig"
+        "twig",
+        "matrix",
+        "matrix blocks",
+        "page builder",
+        "blocks",
+        "block preview",
+        "live preview",
+        "authoring experience"
     ],
     "license": "proprietary",
     "authors": [

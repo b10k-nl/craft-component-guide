@@ -3,6 +3,21 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.0.1 - 2026-08-18
+
+Packaging and metadata only — nothing about the plugin's behaviour changes.
+
+### Changed
+- The distributed package no longer ships tests, docs, screenshots or static
+  analysis config, so installing it downloads roughly 700 KB less. The
+  repository is unchanged; this only affects what Composer pulls down.
+- `composer.json` gained discovery keywords (`matrix`, `matrix blocks`,
+  `page builder`, `blocks`, `block preview`, `live preview`,
+  `authoring experience`) so the package is findable by the words people
+  actually search for rather than only the ones that describe it.
+- The bundled README now documents installing from the Plugin Store first;
+  the `1.0.0` tag still carried the pre-release instructions.
+
 ## 1.0.0 - 2026-08-17
 
 First stable release. The discovery and preview workflow has run on real

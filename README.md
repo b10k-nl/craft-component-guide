@@ -10,7 +10,7 @@ Component Guide scans a configurable templates directory, discovers Twig compone
 
 ![A component page: stories, viewport switcher and an isolated preview rendered with the site's own CSS](docs/images/component.png)
 
-![The blocks gallery inside Craft's Live Preview: real previews and descriptions where editors add blocks](docs/images/picker.png)
+![The blocks gallery on a page-builder field: real previews and descriptions where editors add blocks](docs/images/picker.png)
 
 Nothing configured yet? The guide starts by explaining how to get there:
 

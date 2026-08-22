@@ -5,6 +5,7 @@ namespace b10k\componentguide;
 use b10k\componentguide\models\Settings;
 use b10k\componentguide\services\ComponentRepository;
 use b10k\componentguide\services\ComponentScanner;
+use b10k\componentguide\services\GalleryMatcher;
 use b10k\componentguide\services\PlaceholderResolver;
 use b10k\componentguide\services\PreviewRenderer;
 use b10k\componentguide\services\StoryParser;
@@ -29,6 +30,7 @@ use yii\base\Event;
  *
  * @property-read ComponentRepository $repository
  * @property-read ComponentScanner $scanner
+ * @property-read GalleryMatcher $galleryMatcher
  * @property-read StoryParser $storyParser
  * @property-read StoryScaffolder $storyScaffolder
  * @property-read TwigStoryLoader $twigStoryLoader
@@ -65,6 +67,7 @@ class Plugin extends BasePlugin
                 'repository' => static fn(): ComponentRepository => new ComponentRepository(
                     self::getInstance()->getScanner(),
                 ),
+                'galleryMatcher' => GalleryMatcher::class,
                 'previewRenderer' => PreviewRenderer::class,
                 'placeholderResolver' => PlaceholderResolver::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
@@ -143,6 +146,13 @@ class Plugin extends BasePlugin
         /** @var TwigStoryLoader $loader */
         $loader = $this->get('twigStoryLoader');
         return $loader;
+    }
+
+    public function getGalleryMatcher(): GalleryMatcher
+    {
+        /** @var GalleryMatcher $matcher */
+        $matcher = $this->get('galleryMatcher');
+        return $matcher;
     }
 
     public function getPreviewRenderer(): PreviewRenderer

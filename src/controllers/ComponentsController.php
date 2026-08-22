@@ -31,6 +31,8 @@ class ComponentsController extends Controller
     public function actionIndex(): Response
     {
         $repository = Plugin::getInstance()->getRepository();
+        $matcher = Plugin::getInstance()->getGalleryMatcher();
+        $components = $repository->getAll();
 
         return $this->renderTemplate('component-guide/components/index', [
             'title' => \Craft::t('component-guide', 'Component Guide'),
@@ -43,7 +45,15 @@ class ComponentsController extends Controller
             // Kept in sync with the scanner so onboarding copy can't drift.
             'markerFiles' => \b10k\componentguide\services\ComponentScanner::MARKER_FILES,
             'canScaffold' => $this->canScaffold(),
-            'statesByComponent' => $this->detectStates($repository->getAll()),
+            'statesByComponent' => $this->detectStates($components),
+            // What the editor half of the plugin actually amounts to on THIS
+            // project, as a number rather than a claim. `entryTypeNames` is
+            // every component the gallery knows about (disabled and story-less
+            // included); `galleryReadyCount` is the subset an editor can add
+            // and see — the completed handoffs.
+            'entryTypeNames' => $matcher->entryTypeNames($components),
+            'galleryReadyCount' => $matcher->countReadyForEditors($components),
+            'galleryMatchedCount' => $matcher->countMatched($components),
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
     }
@@ -69,9 +79,13 @@ class ComponentsController extends Controller
             ? $plugin->getSnippetGenerator()->generate($component->templatePath, $story->args)
             : null;
 
+        $matcher = $plugin->getGalleryMatcher();
+
         return $this->renderTemplate('component-guide/components/view', [
             'title' => $component->title,
             'component' => $component,
+            'entryTypeName' => $matcher->matchedEntryType($component),
+            'readyForEditors' => $matcher->isReadyForEditors($component),
             'story' => $story,
             'snippet' => $snippet,
             'enableIframePreview' => $plugin->getSettings()->enableIframePreview,

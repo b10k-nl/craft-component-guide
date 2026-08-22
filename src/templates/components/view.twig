@@ -19,7 +19,24 @@
                 <span class="cg-chip">{{ component.effectiveGroup }}</span>
                 {% if component.status %}<span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}">{{ component.status }}</span>{% endif %}
                 <span class="cg-detail__path code">{{ component.templatePath }}</span>
+                {% if readyForEditors %}
+                    <span class="cg-chip cg-chip--gallery">{{ "in gallery"|t('component-guide') }}</span>
+                {% endif %}
             </div>
+            {% if readyForEditors %}
+                {# The other half of this component's life, which is otherwise
+                   invisible from the control panel. #}
+                <p class="cg-detail__editors light">
+                    {{ "Editors add this as the “{name}” block, from the blocks gallery on any page-builder field — with this story's content already filled in."|t('component-guide', { name: entryTypeName }) }}
+                </p>
+            {% elseif entryTypeName and component.status and component.status != 'stable' %}
+                <p class="cg-detail__editors light">
+                    {{ "Marked “{status}”, so the blocks gallery shows editors the “{name}” block as unavailable."|t('component-guide', {
+                        status: component.status,
+                        name: entryTypeName,
+                    }) }}
+                </p>
+            {% endif %}
             {% if component.description %}
                 <p class="cg-detail__desc">{{ component.description }}</p>
             {% endif %}

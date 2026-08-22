@@ -3,6 +3,30 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Added
+- **The index now reports what editors actually get.** A component reaches the
+  blocks gallery only when a Matrix entry type carries its template's base name
+  as a handle — a rule that lived in the picker's JavaScript and was invisible
+  from the control panel, so a mismatched name made the gallery silently empty
+  with nothing to explain it. The index now counts the components that are
+  documented, stable and matched (“N ready for editors”), marks each one **in
+  gallery** with the block name it becomes, and tells a story-less template
+  that a story would also buy it a card in the gallery. The count is hidden
+  entirely on projects where no component matches an entry type, so a guide
+  that was never about page-builder blocks doesn't display a permanent zero.
+- Component pages say the same thing in one line, including the inverse: a
+  component marked `draft` or `deprecated` states that the gallery is showing
+  editors that block as unavailable.
+
+### Changed
+- The intro and onboarding copy name the second half of the plugin: a story
+  file buys previews here *and* a card editors click to add the block.
+- New `GalleryMatcher` service, now the single source of the entry-type
+  matching rule; the picker endpoint and the control panel share it instead of
+  keeping two copies that could drift apart.
+
 ## 1.0.1 - 2026-08-18
 
 Packaging and metadata only — nothing about the plugin's behaviour changes.

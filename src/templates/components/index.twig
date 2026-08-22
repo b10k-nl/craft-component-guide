@@ -9,6 +9,11 @@
 {% block content %}
     <p class="cg-intro light">
         {{ "A browser for reusable Twig components and their story states, discovered from your templates directory."|t('component-guide') }}
+        {# The editor half is invisible from this page, so the page has to name
+           it: a component the developer documents here is a component an editor
+           can add there. Addressed to the developer about the editor — an
+           editor reading it still learns where to go. #}
+        {{ "Where a template's name matches a Matrix entry type, a documented, stable component also becomes a card in the blocks gallery — the picker editors get on every page-builder field, in the entry editor and in Live Preview."|t('component-guide') }}
     </p>
 
     {% include "component-guide/components/_errors" with { errors: scanErrors } only %}
@@ -27,6 +32,16 @@
                 <span class="cg-stat">
                     <strong>{{ undocumentedCount }}</strong>
                     {{ "without stories"|t('component-guide') }}
+                </span>
+            {% endif %}
+            {# Only where the guide is actually feeding a page builder. On a
+               project whose components are not Matrix blocks at all, a
+               permanent “0 ready for editors” would read as a fault. #}
+            {% if galleryMatchedCount > 0 %}
+                <span class="cg-stat cg-stat--editors"
+                      title="{{ "Documented and stable, matched to an entry type — editors can add these from the blocks gallery, prefilled with the story's content."|t('component-guide') }}">
+                    <strong>{{ galleryReadyCount }}</strong>
+                    {{ "ready for editors"|t('component-guide') }}
                 </span>
             {% endif %}
         </div>
@@ -66,9 +81,12 @@
                     </p>
                 </li>
                 <li>
-                    <strong>{{ "Then: add a story to unlock previews."|t('component-guide') }}</strong>
+                    <strong>{{ "Then: add a story — previews here, a gallery card there."|t('component-guide') }}</strong>
                     <p class="light">
                         {{ "A story file next to a template defines the props to render it with. Listed components get an “Add story” button that writes a first draft for you."|t('component-guide') }}
+                    </p>
+                    <p class="light cg-onboarding__hint">
+                        {{ "Where the template's name matches a Matrix entry type handle, that same story gives editors a card in the blocks gallery — a real preview they click to add, prefilled with the story's content."|t('component-guide') }}
                     </p>
                     {# Flush-left on purpose: .cg-code is pre-wrap, so template
                        indentation would show up in the output. #}
@@ -126,7 +144,13 @@ hero{{ settings.twigStorySuffix() }}</div>
                                         <span class="cg-card__meta code">{{ component.templatePath }}</span>
                                         <span class="cg-card__meta light">
                                             <span class="cg-chip cg-chip--status cg-chip--undocumented">{{ "undocumented"|t('component-guide') }}</span>
-                                            {{ "Add a story file to unlock previews."|t('component-guide') }}
+                                            {% if entryTypeNames[component.id] is defined %}
+                                                {# This one is already a block editors can add — it just
+                                                   arrives as an empty card. A story is worth more here. #}
+                                                {{ "Add a story file for previews here, and a preview card in the editors' gallery."|t('component-guide') }}
+                                            {% else %}
+                                                {{ "Add a story file to unlock previews."|t('component-guide') }}
+                                            {% endif %}
                                         </span>
                                         {% if canScaffold %}
                                             {# Writes into templates/, hence gated on allowAdminChanges
@@ -183,6 +207,16 @@ hero{{ settings.twigStorySuffix() }}</div>
                                         {{ component.storyCount }} {{ (component.storyCount == 1 ? "story" : "stories")|t('component-guide') }}
                                         {% if component.status %}
                                             <span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}">{{ component.status }}</span>
+                                        {% endif %}
+                                        {# Shown only for the components that actually made it across:
+                                           matched, stable, documented. A non-stable status is deliberately
+                                           disabled in the gallery, so it gets no chip. #}
+                                        {% set entryTypeName = entryTypeNames[component.id] ?? null %}
+                                        {% if entryTypeName and (component.status is empty or component.status == 'stable') %}
+                                            <span class="cg-chip cg-chip--gallery"
+                                                  title="{{ "Editors add this as the “{name}” block, from the blocks gallery on any page-builder field."|t('component-guide', { name: entryTypeName }) }}">
+                                                {{ "in gallery"|t('component-guide') }}
+                                            </span>
                                         {% endif %}
                                     </span>
                                 </a>

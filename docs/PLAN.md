@@ -30,7 +30,7 @@ how to call it) and to editors (what a block looks like before adding it).
 
 The current beta covers: recursive component discovery (PHP and Twig story
 formats), marker-file inventory with hierarchy-aware groups, isolated previews
-with the site's own CSS, a block gallery inside Live Preview, a story
+with the site's own CSS, a block gallery on every page-builder field, a story
 scaffolder that drafts a first story from the template's variables, a
 persistent self-invalidating scan cache, and CLI tooling. See
 [BETA.md](../BETA.md) for how to try it.
@@ -41,8 +41,9 @@ Roughly in order:
 
 - **Dogfooding & beta feedback.** Real projects decide what's next; the list
   below is a bet, not a promise.
-- **Page-builder awareness.** Map Matrix entry types to their components so
-  the guide reflects what editors can actually add.
+- **Page-builder awareness.** *(shipped)* Matrix entry types are matched to
+  their components, and the guide reports how many of them an editor can
+  actually add.
 - **Deeper story automation.** Make the path from “undocumented” to “fully
   documented with realistic args” shorter and smarter.
 - **Preview ergonomics.** Viewport presets, background samples, and

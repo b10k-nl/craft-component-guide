@@ -13,6 +13,8 @@
 .cg-stats { display: flex; gap: 20px; }
 .cg-stat { color: #596673; }
 .cg-stat strong { color: #3f4d5a; font-size: 18px; }
+.cg-stat--editors { cursor: help; }
+.cg-stat--editors strong { color: #5334a8; }
 .cg-search { min-width: 240px; flex: 1; max-width: 360px; }
 
 /* Grid + cards */
@@ -77,6 +79,11 @@
 .cg-chip--beta { background: #dbe9fb; color: #1a5dab; }
 .cg-chip--draft { background: #fbeeca; color: #8a5f0b; }
 .cg-chip--deprecated { background: #fcdcd8; color: #9a1f11; }
+
+/* The editor half of the plugin, reported as state: this component reaches
+   editors through the blocks gallery. Deliberately quieter than a status
+   chip — it is information, not a warning. */
+.cg-chip--gallery { background: #eae4fb; color: #5334a8; }
 .cg-badge {
     display: inline-flex;
     align-items: center;
@@ -221,6 +228,8 @@
 .cg-onboarding .cg-code { white-space: pre-wrap; }
 
 /* Non-blocking notice above the grid (e.g. previewCss not configured) */
+.cg-detail__editors { margin-top: 6px; font-size: 13px; }
+
 .cg-hint {
     margin: 0 0 16px; padding: 9px 13px;
     background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px;

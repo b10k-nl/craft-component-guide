@@ -3,7 +3,7 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 1.1.0 - 2026-08-24
 
 ### Added
 - **The index now reports what editors actually get.** A component reaches the

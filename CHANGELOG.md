@@ -3,7 +3,7 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 1.1.1 - 2026-08-24
 
 ### Fixed
 - The story-file hint on undocumented cards no longer breaks words mid-letter

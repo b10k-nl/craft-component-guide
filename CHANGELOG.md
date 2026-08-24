@@ -20,6 +20,17 @@ to [Semantic Versioning](https://semver.org).
   component marked `draft` or `deprecated` states that the gallery is showing
   editors that block as unavailable.
 
+### Fixed
+- **Scaffolding on read-only hosting no longer lies about why it failed.**
+  With `allowAdminChanges` on but a read-only deployed filesystem — Craft
+  Cloud, containers, some managed hosts — the **Add story** button appeared,
+  the write failed, and the message read “check filesystem permissions”,
+  sending the developer after a `chmod` that does not exist. The button is
+  now hidden wherever the templates directory isn't writable, with the same
+  stated-reason notice the `allowAdminChanges` gate already used, and the
+  scaffolder itself says the directory is read-only and that the story should
+  be scaffolded locally and committed. Found on Craft Cloud, 24.08.2026.
+
 ### Changed
 - The intro and onboarding copy name the second half of the plugin: a story
   file buys previews here *and* a card editors click to add the block.

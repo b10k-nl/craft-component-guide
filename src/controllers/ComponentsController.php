@@ -45,6 +45,7 @@ class ComponentsController extends Controller
             // Kept in sync with the scanner so onboarding copy can't drift.
             'markerFiles' => \b10k\componentguide\services\ComponentScanner::MARKER_FILES,
             'canScaffold' => $this->canScaffold(),
+            'scaffoldBlockedReason' => $this->scaffoldBlockedReason(),
             'statesByComponent' => $this->detectStates($components),
             // What the editor half of the plugin actually amounts to on THIS
             // project, as a number rather than a claim. `entryTypeNames` is
@@ -132,14 +133,34 @@ class ComponentsController extends Controller
     /**
      * Whether story files may be written from the control panel.
      *
-     * Gated on `allowAdminChanges` rather than `devMode`: it is Craft's own
-     * signal for “this environment may change project files” (true on local
-     * and staging by convention, false on production), so the button appears
-     * exactly where a developer expects it to.
+     * Two independent gates, and the index needs to know which one closed —
+     * an absent button with no reason is a mystery, and the two reasons call
+     * for different actions.
+     *
+     * @return null|'admin-changes'|'read-only' Null when scaffolding is available.
      */
+    private function scaffoldBlockedReason(): ?string
+    {
+        // Craft's own signal for “this environment may change project files”:
+        // true on local and staging by convention, false on production.
+        if (!\Craft::$app->getConfig()->getGeneral()->allowAdminChanges) {
+            return 'admin-changes';
+        }
+
+        // Verified on Craft Cloud, 24.08.2026: with allowAdminChanges on, the
+        // button appeared and the write failed, because the deployed
+        // filesystem is read-only. Offering an action the environment cannot
+        // perform is worse than not offering it.
+        if (!is_writable(\Craft::$app->getPath()->getSiteTemplatesPath())) {
+            return 'read-only';
+        }
+
+        return null;
+    }
+
     private function canScaffold(): bool
     {
-        return \Craft::$app->getConfig()->getGeneral()->allowAdminChanges;
+        return $this->scaffoldBlockedReason() === null;
     }
 
     /**
@@ -155,7 +176,9 @@ class ComponentsController extends Controller
         $this->requirePostRequest();
 
         if (!$this->canScaffold()) {
-            throw new ForbiddenHttpException('Story scaffolding is disabled in this environment (allowAdminChanges).');
+            throw new ForbiddenHttpException($this->scaffoldBlockedReason() === 'read-only'
+                ? 'The templates directory is read-only on this environment, so story files cannot be created here.'
+                : 'Story scaffolding is disabled in this environment (allowAdminChanges).');
         }
 
         $componentId = (string)$this->request->getRequiredBodyParam('componentId');

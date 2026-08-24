@@ -100,8 +100,27 @@ class StoryScaffolder extends Component
             ? $this->renderTwig($component->title, $description, $stories, $warning)
             : $this->render($component->title, $description, $stories, $warning);
 
+        // Distinguish the two ways this fails. "Check permissions" sends the
+        // developer looking for a chmod that doesn't exist on read-only or
+        // ephemeral hosting (Craft Cloud, containers, some managed hosts),
+        // where the templates directory is deliberately not writable at
+        // runtime and the only route is a local checkout plus a commit.
+        $directory = dirname($storyPath);
+
+        if (!is_writable($directory)) {
+            throw new \RuntimeException(sprintf(
+                'The templates directory is read-only on this environment (%s), so story files can’t be created here. Scaffold the story locally and commit it.',
+                $directory,
+            ));
+        }
+
         if (@file_put_contents($storyPath, $contents) === false) {
-            throw new \RuntimeException('Could not write the story file — check filesystem permissions.');
+            $error = error_get_last()['message'] ?? null;
+            throw new \RuntimeException(sprintf(
+                'Could not write %s.%s',
+                $storyPath,
+                $error !== null ? ' ' . $error : '',
+            ));
         }
 
         return $storyPath;

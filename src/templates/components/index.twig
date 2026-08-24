@@ -110,7 +110,12 @@ hero{{ settings.twigStorySuffix() }}</div>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
                     <path fill="currentColor" d="M11 6V4.5a3 3 0 1 0-6 0V6H4v8h8V6h-1zM6 4.5a2 2 0 1 1 4 0V6H6V4.5z"/>
                 </svg>
-                {{ "Story scaffolding isn’t permitted in this environment."|t('component-guide') }}
+                {# Two different closed doors, two different next steps. #}
+                {% if scaffoldBlockedReason == 'read-only' %}
+                    {{ "The templates directory is read-only on this environment, so story files can’t be created here. Scaffold them locally and commit."|t('component-guide') }}
+                {% else %}
+                    {{ "Story scaffolding isn’t permitted in this environment."|t('component-guide') }}
+                {% endif %}
             </p>
         {% endif %}
 

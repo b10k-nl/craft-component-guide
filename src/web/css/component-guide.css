@@ -56,10 +56,13 @@
 }
 .cg-card__title { font-weight: 600; color: #1f2933; display: flex; align-items: center; gap: 6px; }
 .cg-card__desc { font-size: 12px; color: #7a8794; line-height: 1.5; }
-.cg-card__meta { font-size: 12px; word-break: break-all; }
+/* `break-all` belongs to the template path, not to the prose next to it:
+   applied to the whole element it splits ordinary words mid-letter
+   ("the" → "t / he"), which is what the story-file hint hit. */
+.cg-card__meta { font-size: 12px; }
 /* The template path is incidental info — keep it out of the way.
    !important needed: the CP's own `.code, code` rule sets font-size .9em !important. */
-.cg-card__meta.code { color: #9aa5b1; font-size: .75em !important; line-height: 1.4; }
+.cg-card__meta.code { color: #9aa5b1; font-size: .75em !important; line-height: 1.4; word-break: break-all; }
 
 /* Chips + badges */
 .cg-chip {

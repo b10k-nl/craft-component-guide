@@ -3,6 +3,21 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Fixed
+- The story-file hint on undocumented cards no longer breaks words mid-letter
+  (“the” rendering as “t / he”). `word-break: break-all` was set on the whole
+  card meta line so long template paths would wrap; it now applies only to the
+  path itself, which is the part that needs it.
+
+### Changed
+- The index intro is one short sentence again. It named the entry-type matching
+  rule, the gallery and both places editors meet it — four lines of prose before
+  anything actionable. The rule is now reported by the page itself (the
+  “ready for editors” count, the **in gallery** chips, the hint on story-less
+  cards), so the prose no longer has to teach it.
+
 ## 1.1.0 - 2026-08-24
 
 ### Added

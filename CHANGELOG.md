@@ -3,7 +3,7 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## 1.1.2 - 2026-08-24
+## 1.1.2 - 2026-08-25
 
 ### Changed
 - Scaffolded stories now include `group`, empty. The key has always worked and

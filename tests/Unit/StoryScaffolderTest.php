@@ -292,6 +292,35 @@ class StoryScaffolderTest extends TestCase
         $this->assertStringContainsString("title: 'Bob\\'s Card',", $source);
     }
 
+    public function testScaffoldNamesTheGroupKeyWithoutSettingIt(): void
+    {
+        // `group` is the one meta key the scaffolder can't guess, and the one a
+        // developer would otherwise never learn exists — it is written out empty
+        // so the option sits where you would type it. Empty must stay
+        // equivalent to absent: the parser trims and drops it, and the component
+        // keeps inheriting its group from the folder or marker file above it.
+        // Filling it in here would freeze that inheritance for every scaffold.
+        $dir = $this->makeTmpDir();
+        file_put_contents($dir . '/card.twig', '<h2>{{ heading }}</h2>');
+
+        $php = $this->scaffolder->scaffold($this->undocumented($dir . '/card.twig', 'Card'), '.stories.php');
+        $this->assertStringContainsString('group', file_get_contents($php));
+
+        $meta = (new StoryParser())->parse($php, 'card.stories.php')['meta'];
+        $this->assertSame('Card', $meta['title']);
+        $this->assertArrayNotHasKey('group', $meta);
+    }
+
+    public function testTwigScaffoldNamesTheGroupKeyWithoutSettingIt(): void
+    {
+        $dir = $this->makeTmpDir();
+        file_put_contents($dir . '/panel.twig', '<h2>{{ heading }}</h2>');
+
+        $path = $this->scaffolder->scaffold($this->undocumented($dir . '/panel.twig', 'Panel'), '.stories.twig');
+
+        $this->assertStringContainsString("group: '',", file_get_contents($path));
+    }
+
     public function testDescriptionComesFromTheLeadingComment(): void
     {
         // First sentence only — the rest is developer notes.

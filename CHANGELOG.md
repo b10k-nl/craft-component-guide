@@ -3,6 +3,21 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Changed
+- Scaffolded stories now include `group`, empty. The key has always worked and
+  the README documents it, but the scaffolder never wrote it — so a developer
+  working from a generated file had no way to learn the option exists, and the
+  three keys it did write (`title`, `description`, `status`) read as the whole
+  vocabulary. It is emitted empty rather than filled: the parser trims and drops
+  empty values, so an empty group is identical to no group at all and the
+  component keeps inheriting from its folder hierarchy or marker file. A real
+  group written into every scaffold would freeze that inheritance, and renaming
+  a marker's H1 would stop moving anything under it. The generated file now
+  shows the full meta vocabulary with the one optional key sitting where you
+  would type it.
+
 ## 1.1.1 - 2026-08-24
 
 ### Fixed

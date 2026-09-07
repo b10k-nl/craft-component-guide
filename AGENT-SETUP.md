@@ -133,6 +133,10 @@ One sentence on what this folder holds and who uses it.
 Keep it to those two lines unless the folder genuinely needs more. Do not invent
 history, ownership or roadmap.
 
+**Write the paragraph as plain prose.** The guide prints it as text, so backticks,
+asterisks and links appear as the characters you typed. Name a file or a handle
+in plain words instead of marking it up.
+
 ## Step 4 — Write one story file per component
 
 **First, ask which format to use.** Stories come in two languages with the same
@@ -256,3 +260,15 @@ Then tell the human, in these words or close to them:
 
 That review pass is the whole point. You produced drafts; the previews are how a
 human checks them in minutes instead of reading a large diff.
+
+### Report failures, never a pass rate
+
+You may render your stories to find mistakes, and you should report every error
+you find — with the file and the message. **Do not report how many rendered
+cleanly.** “34 of 34 render without error” reads as verification, and it invites
+someone to skip the review pass that is the entire point of this file.
+
+It would also be a claim you cannot make. Your render and the control panel's
+are not the same request, and a template can compile in one and fail in the
+other — a Twig filter or function from another plugin may be registered for
+site requests only. So say what broke and stay silent about the rest.

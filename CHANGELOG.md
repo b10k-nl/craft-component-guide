@@ -25,6 +25,16 @@ to [Semantic Versioning](https://semver.org).
   information and skipping those files documents nothing.
 - The recipe's report format now asks which presentational template each block
   type is handed to. That map is the part a human cannot get from the file tree.
+- **The recipe no longer lets an agent report a pass rate.** One reported “34 of
+  34 render without error” and the control panel disagreed on five of them: an
+  agent's render and the control panel's are not the same request, and a
+  template that compiles in one can fail in the other when a Twig filter from
+  another plugin is registered for site requests only. A number like that reads
+  as verification and invites skipping the review pass the whole recipe exists
+  to set up. Errors get reported with file and message; silence covers the rest.
+- **Marker descriptions are prose now, not Markdown.** The guide prints the
+  paragraph as text, so backticks and asterisks showed up as characters. The
+  recipe says to write it plainly.
 
 ### Added
 - **The control panel names the recipe.** 1.2.0 shipped it and then never

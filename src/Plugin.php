@@ -10,8 +10,10 @@ use b10k\componentguide\services\PlaceholderResolver;
 use b10k\componentguide\services\PreviewRenderer;
 use b10k\componentguide\services\StoryParser;
 use b10k\componentguide\services\StoryScaffolder;
+use b10k\componentguide\services\StoryStatusWriter;
 use b10k\componentguide\services\TwigSnippetGenerator;
 use b10k\componentguide\services\TwigStoryLoader;
+use b10k\componentguide\services\WriteJournal;
 use Craft;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
@@ -33,6 +35,8 @@ use yii\base\Event;
  * @property-read GalleryMatcher $galleryMatcher
  * @property-read StoryParser $storyParser
  * @property-read StoryScaffolder $storyScaffolder
+ * @property-read StoryStatusWriter $storyStatusWriter
+ * @property-read WriteJournal $writeJournal
  * @property-read TwigStoryLoader $twigStoryLoader
  * @property-read PreviewRenderer $previewRenderer
  * @property-read PlaceholderResolver $placeholderResolver
@@ -72,6 +76,17 @@ class Plugin extends BasePlugin
                 'placeholderResolver' => PlaceholderResolver::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
                 'storyScaffolder' => StoryScaffolder::class,
+                'storyStatusWriter' => StoryStatusWriter::class,
+                // The journal lives in runtime storage, never in the repo, and
+                // looks for `.git/index` above the templates directory so it
+                // can drop entries a commit has already taken care of.
+                'writeJournal' => static function (): WriteJournal {
+                    $path = Craft::$app->getPath();
+                    return new WriteJournal(
+                        $path->getStoragePath() . '/component-guide/writes.json',
+                        WriteJournal::locateGitIndex($path->getSiteTemplatesPath()),
+                    );
+                },
             ],
         ];
     }
@@ -174,6 +189,20 @@ class Plugin extends BasePlugin
         /** @var StoryScaffolder $scaffolder */
         $scaffolder = $this->get('storyScaffolder');
         return $scaffolder;
+    }
+
+    public function getStoryStatusWriter(): StoryStatusWriter
+    {
+        /** @var StoryStatusWriter $writer */
+        $writer = $this->get('storyStatusWriter');
+        return $writer;
+    }
+
+    public function getWriteJournal(): WriteJournal
+    {
+        /** @var WriteJournal $journal */
+        $journal = $this->get('writeJournal');
+        return $journal;
     }
 
     public function getPlaceholderResolver(): PlaceholderResolver

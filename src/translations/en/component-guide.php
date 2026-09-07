@@ -45,4 +45,22 @@ return [
     'Front-end CSS URLs to load into the preview document — one per line.' => 'Front-end CSS URLs to load into the preview document — one per line.',
     'Front-end JS URLs to load into the preview document — one per line.' => 'Front-end JS URLs to load into the preview document — one per line.',
     'This value is being overridden by config/component-guide.php.' => 'This value is being overridden by config/component-guide.php.',
+
+    // Status toggle and the CP-writes banner (index).
+    'Component Guide changed {count} {files} from the control panel, and the changes are still on disk.' => 'Component Guide changed {count} {files} from the control panel, and the changes are still on disk.',
+    'file' => 'file',
+    'files' => 'files',
+    'Review the diff and commit.' => 'Review the diff and commit.',
+    'Reviewed' => 'Reviewed',
+    'story scaffolded' => 'story scaffolded',
+    'status changed' => 'status changed',
+    'Sets status: \'stable\' in the story file. Editors can then add this component from the blocks gallery.' => 'Sets status: \'stable\' in the story file. Editors can then add this component from the blocks gallery.',
+    'Mark stable' => 'Mark stable',
+    'Sets status: \'draft\' in the story file. The component stays in the guide but leaves the editors\' gallery.' => 'Sets status: \'draft\' in the story file. The component stays in the guide but leaves the editors\' gallery.',
+    'Back to draft' => 'Back to draft',
+    '“{title}” is stable — editors can now add it from the blocks gallery.' => '“{title}” is stable — editors can now add it from the blocks gallery.',
+    '“{title}” is back to draft.' => '“{title}” is back to draft.',
+    'Component Guide changed these files from the control panel, and the changes are still on disk.' => 'Component Guide changed these files from the control panel, and the changes are still on disk.',
+    'Could not change the status.' => 'Could not change the status.',
+    'Could not clear the notice.' => 'Could not clear the notice.',
 ];

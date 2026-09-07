@@ -4,6 +4,7 @@ namespace b10k\componentguide\controllers;
 
 use b10k\componentguide\Plugin;
 use craft\web\Controller;
+use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
@@ -55,6 +56,13 @@ class ComponentsController extends Controller
             'entryTypeNames' => $matcher->entryTypeNames($components),
             'galleryReadyCount' => $matcher->countReadyForEditors($components),
             'galleryMatchedCount' => $matcher->countMatched($components),
+            // Files the CP itself changed and that are still, verifiably, in
+            // that changed state — see WriteJournal. Relative paths only: the
+            // CP never echoes absolute paths.
+            'cpWrites' => $this->cpWrites(),
+            // The status toggle writes into templates/ exactly like the
+            // scaffolder, so it opens and closes with the same two gates.
+            'canToggleStatus' => $this->canScaffold(),
             'settings' => Plugin::getInstance()->getSettings(),
         ]);
     }
@@ -89,6 +97,9 @@ class ComponentsController extends Controller
             'readyForEditors' => $matcher->isReadyForEditors($component),
             'story' => $story,
             'snippet' => $snippet,
+            // Same gate as the index toggle; the detail page is where a
+            // reviewer actually looks at the preview before promoting.
+            'canToggleStatus' => $this->canScaffold(),
             'enableIframePreview' => $plugin->getSettings()->enableIframePreview,
         ]);
     }
@@ -191,11 +202,15 @@ class ComponentsController extends Controller
 
         try {
             // Twig is the scaffold default: same language as the component.
-            $plugin->getStoryScaffolder()->scaffold(
+            $storyPath = $plugin->getStoryScaffolder()->scaffold(
                 $component,
                 $plugin->getSettings()->twigStorySuffix(),
                 (bool)$this->request->getBodyParam('states'),
             );
+            $hash = @sha1_file($storyPath);
+            if ($hash !== false) {
+                $plugin->getWriteJournal()->record($storyPath, $hash, 'scaffold');
+            }
         } catch (\RuntimeException $e) {
             $this->setFailFlash($e->getMessage());
             return $this->redirect('component-guide');
@@ -209,5 +224,140 @@ class ComponentsController extends Controller
         // The new story file changes the scan fingerprint, so the fresh scan
         // already sees this component as documented.
         return $this->redirect('component-guide/components/' . $component->id);
+    }
+
+    /**
+     * Flips a documented component between `draft` and `stable` — the one
+     * status change that is a review decision rather than a design one.
+     *
+     * `beta` and `deprecated` are left to the IDE on purpose: both express
+     * developer intent about a component's lifecycle, not a verdict on a
+     * generated story. The toggle exists because an agent or the scaffolder
+     * can leave forty drafts behind, and promoting each one by opening a file
+     * is the kind of chore that makes “help” feel like more work.
+     *
+     * Writes into templates/, so it shares the scaffolder's gates, and every
+     * write is journalled so the index can report it — the CP has no
+     * `git status`, so it has to say what it did itself.
+     */
+    public function actionSetStatus(): Response
+    {
+        $this->requirePostRequest();
+
+        if (!$this->canScaffold()) {
+            throw new ForbiddenHttpException($this->scaffoldBlockedReason() === 'read-only'
+                ? 'The templates directory is read-only on this environment, so story files cannot be changed here.'
+                : 'Changing story files is disabled in this environment (allowAdminChanges).');
+        }
+
+        $componentId = (string)$this->request->getRequiredBodyParam('componentId');
+        $status = (string)$this->request->getRequiredBodyParam('status');
+
+        if (!in_array($status, ['draft', 'stable'], true)) {
+            throw new BadRequestHttpException('Only draft and stable can be set from the control panel.');
+        }
+
+        $plugin = Plugin::getInstance();
+        $component = $plugin->getRepository()->getById($componentId);
+
+        if ($component === null || !$component->isDocumented) {
+            throw new NotFoundHttpException('Component not found.');
+        }
+
+        // A story without a status, or with beta/deprecated, was written that
+        // way by hand. The toggle is for reviewing drafts, not for overriding
+        // decisions.
+        if (!in_array($component->status, ['draft', 'stable'], true)) {
+            throw new BadRequestHttpException('This component’s status is set in its story file and is not a draft/stable toggle.');
+        }
+
+        $storyPath = $this->storyAbsolutePath($component->storyFilePath);
+
+        try {
+            $hash = $plugin->getStoryStatusWriter()->setStatus($storyPath, $status);
+            $plugin->getWriteJournal()->record($storyPath, $hash, 'status');
+        } catch (\RuntimeException $e) {
+            return $this->asFailure($e->getMessage());
+        }
+
+        $message = $status === 'stable'
+            ? \Craft::t('component-guide', '“{title}” is stable — editors can now add it from the blocks gallery.', ['title' => $component->title])
+            : \Craft::t('component-guide', '“{title}” is back to draft.', ['title' => $component->title]);
+
+        // The file's mtime changed, so the scan fingerprint changed and the
+        // next read is a fresh scan. The reviewer is halfway down a list of
+        // forty cards, though, so nothing reloads: the response carries every
+        // piece of state the page shows about this component, and the JS
+        // repaints it in place.
+        $matcher = $plugin->getGalleryMatcher();
+        $repository = $plugin->getRepository();
+        // Drops the in-request memoization; the file's new mtime changes the
+        // scan fingerprint, so this reads fresh rather than from cache.
+        $repository->flush();
+        $updated = $repository->getById($componentId) ?? $component;
+        $components = $repository->getAll();
+
+        return $this->asSuccess($message, [
+            'componentId' => $component->id,
+            'status' => $status,
+            'entryTypeName' => $matcher->matchedEntryType($updated),
+            'inGallery' => $matcher->isReadyForEditors($updated),
+            'galleryReadyCount' => $matcher->countReadyForEditors($components),
+            'writes' => $this->cpWrites(),
+        ]);
+    }
+
+    /**
+     * Clears the “changed from the control panel” banner, for one file or all.
+     * The files themselves are untouched — this only says “I have seen it”.
+     */
+    public function actionMarkReviewed(): Response
+    {
+        $this->requirePostRequest();
+
+        $relative = $this->request->getBodyParam('file');
+        $journal = Plugin::getInstance()->getWriteJournal();
+
+        if (is_string($relative) && $relative !== '') {
+            $journal->markReviewed($this->storyAbsolutePath($relative));
+        } else {
+            $journal->markReviewed();
+        }
+
+        return $this->asSuccess(data: ['writes' => $this->cpWrites()]);
+    }
+
+    /**
+     * Journal entries as the template may show them: path relative to the
+     * templates root, the kind of write, and when.
+     *
+     * @return array<int, array{file: string, action: string, time: int}>
+     */
+    private function cpWrites(): array
+    {
+        $root = rtrim(str_replace('\\', '/', \Craft::$app->getPath()->getSiteTemplatesPath()), '/') . '/';
+        $rows = [];
+
+        foreach (Plugin::getInstance()->getWriteJournal()->entries() as $absolute => $entry) {
+            $normalized = str_replace('\\', '/', $absolute);
+            $rows[] = [
+                'file' => str_starts_with($normalized, $root) ? substr($normalized, strlen($root)) : basename($normalized),
+                'action' => (string)($entry['action'] ?? ''),
+                'time' => (int)($entry['time'] ?? 0),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Story paths are stored relative to the templates root and must stay that
+     * way in the CP; this is the one place they become absolute again.
+     */
+    private function storyAbsolutePath(string $relative): string
+    {
+        return rtrim(\Craft::$app->getPath()->getSiteTemplatesPath(), '/\\')
+            . DIRECTORY_SEPARATOR
+            . ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $relative), DIRECTORY_SEPARATOR);
     }
 }

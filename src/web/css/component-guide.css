@@ -28,7 +28,7 @@
     padding: 0;
     list-style: none;
 }
-.cg-card { margin: 0; }
+.cg-card { margin: 0; display: flex; flex-direction: column; }
 .cg-card__link {
     display: flex;
     flex-direction: column;
@@ -39,8 +39,37 @@
     background: #fff;
     text-decoration: none;
     transition: border-color .15s, box-shadow .15s;
-    height: 100%;
+    flex: 1;
 }
+/* A card that contains its own controls cannot be one big <a> — a button
+   inside a link is invalid HTML and would navigate on click. So the box is a
+   div, and the link is an overlay stretched across it. Everything else in the
+   card sits above that overlay, which keeps real buttons clickable while the
+   whole card still opens the component. */
+.cg-card__link--interactive { position: relative; }
+/* The overlay sits ABOVE the card's content, not below it. Below, every text
+   node would need pointer-events:none to stay click-through, and that also
+   kills the native title tooltips on the error badge and the gallery chip —
+   where the tooltip is the only place the actual message lives. Above, the
+   whole box is one target by default, and the few elements that genuinely
+   need the pointer are lifted over it by name. */
+.cg-card__hit {
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    z-index: 1;
+}
+/* Clickable: the toggle. Hoverable: the two chips whose title attribute is
+   carrying information. Both must be above the overlay. */
+.cg-card__link--interactive .cg-card__actions,
+.cg-card__link--interactive .cg-badge--error,
+.cg-card__link--interactive .cg-chip--gallery { position: relative; z-index: 2; }
+/* An iframe would otherwise swallow the click before it reaches the overlay. */
+.cg-card__link--interactive .cg-card__thumb { pointer-events: none; }
+.cg-card__link--interactive:focus-within { border-color: #5b6a7a; }
+
+/* Review control, not a call to action: right-aligned, quiet, and it stops
+   the click from reaching the overlay link. */
+.cg-card__actions { display: flex; justify-content: flex-end; margin-top: auto; padding-top: 8px; }
 .cg-card__link:hover { border-color: #5b6a7a; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 /* Live mini-preview: a fixed 1280×800 iframe scaled down by JS to the thumb's
    width. The box keeps the same 16:10 aspect so the scaled iframe fills it
@@ -239,6 +268,24 @@
     font-size: 13px; color: #6b5a2b;
 }
 .cg-hint a { color: inherit; text-decoration: underline; }
+
+/* “The CP changed these files” banner. Informational, not alarming: it
+   states a verified fact about the plugin's own writes, never a claim about
+   git. Blue-grey rather than amber so it does not read as an error. */
+.cg-hint--writes {
+    background: #eef3f8; border-color: #cfdbe8; color: #3d4b5c;
+}
+/* The banner is always in the DOM and toggled with the `hidden` attribute, so
+   it must not carry a `display` of its own: the browser's own `[hidden] {
+   display: none }` has zero specificity and any class-level display beats it.
+   This rule keeps that from silently coming back. */
+.cg-hint--writes[hidden] { display: none; }
+.cg-hint__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cg-hint__row strong { font-weight: 600; }
+.cg-hint__action { margin-left: auto; }
+.cg-writes { margin: 8px 0 0 22px; padding: 0; list-style: none; font-size: 12.5px; }
+.cg-writes li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.cg-writes code { font-size: .85em; }
 
 /* Neutral variant for environment facts (not warnings). */
 .cg-hint--locked {

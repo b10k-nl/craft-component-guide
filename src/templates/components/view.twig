@@ -17,10 +17,28 @@
         <header class="cg-detail__header">
             <div class="cg-detail__meta">
                 <span class="cg-chip">{{ component.effectiveGroup }}</span>
-                {% if component.status %}<span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}">{{ component.status }}</span>{% endif %}
+                {% if component.status %}
+                    <span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}"
+                          data-cg-status-chip>{{ component.status }}</span>
+                {% endif %}
                 <span class="cg-detail__path code">{{ component.templatePath }}</span>
-                {% if readyForEditors %}
+                <span data-cg-gallery-chip{% if not readyForEditors %} hidden{% endif %}>
                     <span class="cg-chip cg-chip--gallery">{{ "in gallery"|t('component-guide') }}</span>
+                </span>
+                {# The page you are on when you decide. The index toggle is for
+                   the obvious ones; this is for the ones you had to look at. #}
+                {% if canToggleStatus and component.status in ['draft', 'stable'] %}
+                    <button type="button" class="btn small cg-detail__status"
+                            data-cg-status-toggle
+                            data-component-id="{{ component.id }}"
+                            data-status="{{ component.status }}"
+                            data-label-stable="{{ "Mark stable"|t('component-guide') }}"
+                            data-label-draft="{{ "Back to draft"|t('component-guide') }}"
+                            data-error-status="{{ "Could not change the status."|t('component-guide') }}">
+                        {{ component.status == 'draft'
+                            ? "Mark stable"|t('component-guide')
+                            : "Back to draft"|t('component-guide') }}
+                    </button>
                 {% endif %}
             </div>
             {% if readyForEditors %}

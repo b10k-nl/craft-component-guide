@@ -241,4 +241,121 @@
         })[0] || devButtons[0];
         selectDevice(defaultDevice, defaultBtn);
     }
+
+    // --- Status toggle: draft <-> stable, without leaving the page ---
+    // A reviewer working through forty generated drafts is somewhere in the
+    // middle of a long list. A form post would reload and send them back to
+    // the top after every decision, so this posts over fetch and repaints only
+    // what changed: the chip, the button, the "in gallery" flag, the counter,
+    // and the list of files the control panel has written.
+    //
+    // Nothing here is translated in JS. Every label and message was rendered
+    // server-side into a data attribute, because Craft.t() only knows a
+    // category that has been registered for the page and would otherwise
+    // silently fall back to English.
+    var statusToggles = Array.prototype.slice.call(document.querySelectorAll('[data-cg-status-toggle]'));
+    if (statusToggles.length && window.Craft && Craft.sendActionRequest) {
+        var STATUS_CLASSES = ['cg-chip--stable', 'cg-chip--beta', 'cg-chip--draft', 'cg-chip--deprecated'];
+        var banner = document.querySelector('[data-cg-writes]');
+
+        var notice = function (message) {
+            if (message && Craft.cp && Craft.cp.displayNotice) { Craft.cp.displayNotice(message); }
+        };
+        var failure = function (message) {
+            if (message && Craft.cp && Craft.cp.displayError) { Craft.cp.displayError(message); }
+        };
+
+        var repaintWrites = function (writes) {
+            if (!banner) { return; }
+            var list = banner.querySelector('[data-cg-writes-list]');
+            if (list) {
+                list.textContent = '';
+                writes.forEach(function (write) {
+                    var li = document.createElement('li');
+                    var code = document.createElement('code');
+                    code.textContent = write.file;
+                    var note = document.createElement('span');
+                    note.className = 'light';
+                    note.textContent = write.action === 'scaffold'
+                        ? banner.getAttribute('data-word-scaffold')
+                        : banner.getAttribute('data-word-status');
+                    li.appendChild(code);
+                    li.appendChild(note);
+                    list.appendChild(li);
+                });
+            }
+            banner.hidden = writes.length === 0;
+        };
+
+        var repaint = function (scope, data) {
+            var chip = scope.querySelector('[data-cg-status-chip]');
+            if (chip && data.status) {
+                STATUS_CLASSES.forEach(function (c) { chip.classList.remove(c); });
+                chip.classList.add('cg-chip--' + data.status);
+                chip.textContent = data.status;
+            }
+
+            var gallery = scope.querySelector('[data-cg-gallery-chip]');
+            if (gallery) { gallery.hidden = !data.inGallery; }
+        };
+
+        statusToggles.forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                // The card is one big overlay link; a click on the button must
+                // not reach it.
+                event.preventDefault();
+                event.stopPropagation();
+
+                var next = button.getAttribute('data-status') === 'draft' ? 'stable' : 'draft';
+                button.disabled = true;
+
+                Craft.sendActionRequest('POST', 'component-guide/components/set-status', {
+                    data: {
+                        componentId: button.getAttribute('data-component-id'),
+                        status: next
+                    }
+                }).then(function (response) {
+                    var data = (response && response.data) || {};
+                    var status = data.status || next;
+
+                    button.setAttribute('data-status', status);
+                    button.textContent = status === 'draft'
+                        ? button.getAttribute('data-label-stable')
+                        : button.getAttribute('data-label-draft');
+
+                    // The card on the index, or the whole header on a detail page.
+                    repaint(button.closest('.cg-card') || document, data);
+
+                    var readyCount = document.querySelector('[data-cg-ready-count]');
+                    if (readyCount && typeof data.galleryReadyCount === 'number') {
+                        readyCount.textContent = data.galleryReadyCount;
+                    }
+
+                    if (data.writes) { repaintWrites(data.writes); }
+                    notice(data.message);
+                }).catch(function (error) {
+                    var body = error && error.response && error.response.data;
+                    failure((body && body.message) || button.getAttribute('data-error-status'));
+                }).then(function () {
+                    button.disabled = false;
+                });
+            });
+        });
+
+        var reviewed = document.querySelector('[data-cg-reviewed]');
+        if (reviewed && banner) {
+            reviewed.addEventListener('click', function () {
+                reviewed.disabled = true;
+                Craft.sendActionRequest('POST', 'component-guide/components/mark-reviewed')
+                    .then(function (response) {
+                        repaintWrites(((response && response.data) || {}).writes || []);
+                    })
+                    .catch(function () {
+                        failure(banner.getAttribute('data-error-reviewed'));
+                    })
+                    .then(function () { reviewed.disabled = false; });
+            });
+        }
+    }
+
 })();

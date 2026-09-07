@@ -6,3 +6,7 @@
 
 # Private planning notes — the public roadmap lives in docs/PLAN.md
 docs/*.local.md
+
+# Cowork session scratch.
+/Claude outputs
+/.claude

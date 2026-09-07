@@ -3,6 +3,44 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Added
+- **Status toggle in the control panel.** A documented component that is `draft`
+  gets a “Mark stable” button on its index card; a `stable` one gets “Back to
+  draft”. Only those two: `beta` and `deprecated` express a developer's
+  lifecycle decision and stay in the IDE. The edit is surgical — the one
+  `status` entry inside `meta` changes, every other byte of the story file is
+  left as written — and it goes through the same two gates as “Add story”
+  (`allowAdminChanges`, writable templates directory), so it does not appear on
+  read-only environments. Exists because a scaffolder or a coding agent can
+  leave forty drafts behind, and promoting each by opening a file is the kind
+  of chore that makes help feel like more work. Posts over fetch and repaints
+  the card in place: a reload would throw a reviewer back to the top of the
+  list after every single decision, which at forty components is the whole
+  cost of the feature. The card is now a box with a stretched overlay link
+  rather than one large `<a>`, so it can hold real buttons and still open the
+  component when clicked anywhere else.
+- **Status toggle on the component page too** — next to the status chip, where
+  a reviewer is already looking at the preview when they decide. The index is
+  for the obvious ones; this is for the ones you had to open.
+- **“Changed from the control panel” banner.** The CP has no `git status`, so
+  it now says what it wrote itself: every scaffold and every status change is
+  journalled (in runtime storage, never in the repository), and the index lists
+  the files until they have been dealt with. The journal verifies its own claim
+  on every read and drops an entry the moment there is doubt — the file's hash
+  no longer matches what was written (edited or reverted since), `.git/index`
+  is newer than the file (committed since), or a person clicked “Reviewed”. A
+  warning that can be wrong errs towards silence: a banner that lies twice is a
+  banner nobody reads.
+- **`AGENT-SETUP.md`** — a setup recipe written for coding agents, shipped in
+  the package root so it is on disk after `composer require`. Point any agent at
+  it and it documents an existing component library: one marker file, one
+  `draft` story per component, a report of blocks with no matching entry-type
+  handle. It does not duplicate the story format (it points at the README) and
+  never commits; the human reviews the result on the rendered previews and
+  promotes with the new toggle.
+
 ## 1.1.2 - 2026-08-25
 
 ### Changed

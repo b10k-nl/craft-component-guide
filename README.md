@@ -43,6 +43,13 @@ Nothing configured yet? The guide starts by explaining how to get there:
   real component previews with descriptions; clicking one adds that block. In
   "Inline-editable blocks" mode the new block is prefilled with the story's
   own content, so it is visible on the page immediately.
+- **Bulk setup with a coding agent:** a recipe in `AGENT-SETUP.md` any agent
+  can follow to document an existing library in one pass — marker file, one
+  draft story per component, and a report of the blocks that do not match an
+  entry-type handle.
+- **Promote from the control panel:** flip a reviewed component between `draft`
+  and `stable` on its card, and the guide tells you which files it changed so
+  nothing is written behind git's back.
 - Persistent scan cache keyed by a filesystem fingerprint — invalidates itself
   the moment a story, template or marker changes.
 
@@ -286,6 +293,70 @@ guesses, and an existing story file is never overwritten. Review it, fix what
 the heuristics got wrong, and promote the status when the component is
 properly documented.
 
+## Documenting a whole library with a coding agent
+
+Scaffolding one component at a time is fine for a handful. For a library that
+already has forty templates, the format is documented well enough that an agent
+can write the stories for you — so the package ships a recipe for exactly that:
+
+```
+Read AGENT-SETUP.md in vendor/b10k/craft-component-guide and follow it.
+```
+
+It is tool-agnostic — nothing in it names a particular agent — and it is a plain
+Markdown file in the package root, so it is on disk as soon as Composer has run.
+The recipe tells the agent to find the component folders and ask which to
+document, read entry-type handles from `config/project/` rather than inventing
+them, write one story per component (plus one per switchable state), use
+placeholder tokens for what carries no information and real copy where the
+story asserts something — and to stop there:
+
+- it never renames a template or an entry type to force a gallery match; the
+  mismatches go into its report instead, which is the most useful thing it hands
+  back;
+- it never touches your component templates or `config/project/`;
+- it never commits — the diff is the point;
+- **every story it writes is `status: draft`.** Only `stable` components are
+  addable from the blocks gallery, so after an agent pass your own index is full
+  of previews while editors see nothing new. That is deliberate: a generated
+  story marked `stable` would be a claim nobody had checked.
+
+Then you review — not by reading a large diff, but by looking. Open the guide,
+scan the rendered previews, and the ones that came out wrong are the ones whose
+args need a two-line fix.
+
+## Reviewing and promoting
+
+A component whose story is `draft` gets a **Mark stable** button on its index
+card and on its own page; a `stable` one gets **Back to draft**. Both write the
+one `status` line in the story file and leave every other byte of it alone, so
+your comments, spacing and argument order survive.
+
+Only those two statuses are toggleable. `beta` and `deprecated` say something
+about a component's lifecycle that only a developer knows, so they stay in the
+editor where you wrote them; the toggle is for the review verdict, which is the
+one status change you make in bulk.
+
+The same two gates as scaffolding apply (`allowAdminChanges`, and a writable
+templates directory), so the button is absent — with a stated reason — on
+read-only environments.
+
+### What the guide changed
+
+The control panel has no `git status`. So when it writes into `templates/` —
+a scaffolded story, a promoted status — it says so: a notice on the index lists
+the files it changed, until they are dealt with.
+
+It only ever claims what it can still verify. Each entry records the content
+hash of what was written, and is re-checked on every read: if the file's hash no
+longer matches, someone edited or reverted it after the guide did, and the entry
+is dropped. If `.git/index` is newer than the file, a `git add` or commit
+happened since, and the entry is dropped. **Reviewed** drops it by hand. The
+notice would rather miss a file than cry wolf — one that lies twice is one you
+stop reading, and git remains the real safeguard.
+
+The record lives in Craft's runtime storage, never in your repository.
+
 ## Placeholder tokens
 
 Stories don't have to carry their own copy. Any string arg can be a token,
@@ -497,6 +568,12 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   a request can never supply a raw template path.
 - Every CP/preview action requires login and the `component-guide:access`
   permission.
+- The two actions that **write** into `templates/` — scaffolding a story and
+  changing a status — are POST-only, CSRF-protected, and gated on
+  `allowAdminChanges` plus a writable templates directory. A status change
+  rewrites exactly one line. Every such write is recorded and surfaced on the
+  index (see *What the guide changed*), because a control panel that edits
+  project files silently is worse than one that cannot.
 - Previews are isolated in a `sandbox`ed iframe; metadata is escaped; error
   messages appear where `allowAdminChanges` is on, absolute paths and stack
   traces only in `devMode`.
@@ -545,7 +622,8 @@ ddev exec php craft component-guide/components/scan
 ## Roadmap
 
 - Viewport presets, more preview controls
-- Page-builder awareness: map Matrix entry types to their components
+- Seeding scaffolded args from the matched entry type's field layout, so the
+  draft comes from the schema instead of a guess
 - Additional story formats
 
 ## Feedback

@@ -3,7 +3,7 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 1.2.0 - 2026-09-07
 
 ### Added
 - **Status toggle in the control panel.** A documented component that is `draft`

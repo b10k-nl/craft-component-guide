@@ -51,6 +51,11 @@ only ever writes files when you press “Add story”.
    template's variables and writes a first-draft `*.stories.twig` next to it.
    The values are guesses — open the file and fix them. Same thing from the
    CLI: `php craft component-guide/components/make <component-id>`.
+
+   For a library that already has dozens of templates, hand the whole job to a
+   coding agent instead: `AGENT-SETUP.md` in this package is a recipe for it.
+   Everything it writes is a `draft`, and you promote what looks right with the
+   **Mark stable** button on the card — see the README.
 4. **Make previews look real.** Settings → point `previewCss` at your compiled
    front-end stylesheet (e.g. `@web/dist/assets/app.css` or whatever your build
    emits). Without it previews render unstyled — that's expected, not a bug.

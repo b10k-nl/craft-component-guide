@@ -3,6 +3,37 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.2.1 - 2026-09-07
+
+### Fixed
+- **The agent recipe pointed at the wrong folder.** A dry run on a real project
+  documented a folder of shared partials — pagination, sidebar boxes, form
+  fragments — and left the page-builder blocks alone, which is the half that
+  reaches editors. Two rules were at fault. Step 1 asked which folder holds
+  components, and that is a question projects answer with a folder name; it now
+  starts from the adapters instead (the templates that switch on a block type),
+  because every template an adapter includes is a presentational component with
+  its argument list already written out at the include site. Step 2 treated any
+  mention of `entry.`, `block.` or `craft.` as proof of an adapter, and so
+  rejected six templates that an adapter already feeds with plain variables —
+  their `craft.` calls were a query parameter, a config value and a helper
+  called on an id that a story can supply. The test now asks what a template
+  *fetches*; `{% include … only %}` is stated as proof that a template is
+  presentational, since `only` cuts off the surrounding context and leaves it
+  nothing else it could be; and a leading underscore is read in context —
+  where nearly every file in a folder carries one, the prefix carries no
+  information and skipping those files documents nothing.
+- The recipe's report format now asks which presentational template each block
+  type is handed to. That map is the part a human cannot get from the file tree.
+
+### Added
+- **The control panel names the recipe.** 1.2.0 shipped it and then never
+  mentioned it: the empty-state panel described the one-button path only, and
+  that panel is gone exactly when a folder is large enough for the recipe to
+  matter. It is named in the panel now and, separately, as a hint above the list
+  whenever more than three components have no story. Both carry the one line to
+  hand an agent.
+
 ## 1.2.0 - 2026-09-07
 
 ### Added

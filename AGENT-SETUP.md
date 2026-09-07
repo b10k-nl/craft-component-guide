@@ -26,20 +26,39 @@ rather than guessing.
 
 ---
 
-## Step 1 — Find the component folders
+## Step 1 — Find the components, starting from the blocks
 
-Look under the project's `templates/` directory for folders holding
-presentational components. Common names: `_components/`, `_blocks/`,
-`components/`, `blocks/`.
+**Do not start from folder names.** On a real project `_components/` usually
+holds shared partials — pagination, sidebar boxes, form fragments — while the
+page-builder blocks, the half that reaches editors, sit one level down or in a
+folder named after nothing in particular. Choosing by folder name reliably
+finds the wrong half.
+
+Start from the adapters, because they are findable mechanically:
+
+```
+grep -rn "block.type ==" templates/
+grep -rn "\.type ==" templates/
+```
+
+A template that loops a Matrix field and switches on the block type is an
+adapter, and **every template it includes is a presentational component** —
+with its argument list written out at the include site. That is the
+highest-value set on the project, and it arrives already documented.
+
+Then, separately, look for folders of shared presentational partials. Common
+names: `_components/`, `_blocks/`, `components/`, `blocks/`.
 
 **More than one is normal, and supported.** Projects often separate
 page-builder blocks from shared UI — `_blocks/` and `_components/` side by
 side. Each folder gets its own marker file and becomes its own group in the
 guide, and group names mirror the folder hierarchy.
 
-So: list every candidate you found, say in one line what each appears to hold,
-and **ask which ones to document** — one, several, or all. Do not choose for
-the human, and do not document every folder that merely contains Twig.
+So: list what you found — the block set first, named by the adapter that feeds
+it, then the candidate folders with one line each on what each appears to hold
+— and **ask which to document**: the blocks, one folder, several, or all. Do
+not choose for the human, and do not document every folder that merely
+contains Twig.
 
 **One marker per component folder, not per subfolder.** A marker covers its own
 folder and everything below it; plain subfolders become sub-groups
@@ -51,14 +70,46 @@ produces a mess of one-item groups.
 Document only **presentational** templates: ones that render markup from plain
 variables passed in.
 
+**One signal settles it, and it is not a judgement call.** If a template is
+pulled in like this:
+
+```twig
+{% include 'path/to/thing.twig' with { heading: …, items: … } only %}
+```
+
+then `only` cuts off the surrounding context: that template physically cannot
+reach anything except the variables listed at the include site. It is
+presentational **by construction**, and that variable list is the argument list
+your story needs. When you find this, stop reasoning and write the story.
+
+**The adapter test is about fetching data, not about naming Craft.** A real
+adapter runs element queries and walks fields: `.one()`, `.all()`,
+`.eagerly()`, `craft.entries`, `block.someField.one()`, iterating a Matrix
+field.
+
+These do **not** make a template an adapter:
+
+- `craft.app.request.getQueryParam(…)`, `craft.app.config…`, `|t`, `url()` —
+  ambient calls that return null or a harmless default inside a preview
+- a project helper called on a value that was handed in, such as
+  `craft.myplugin.intToUid(thing.id, …)` — a story satisfies that with a plain
+  hash: `thing: { id: 123 }`
+
+So count what a template **fetches**, not how often the word `craft` appears. A
+template that says `craft.` eight times and fetches nothing is a component, and
+skipping it is the most expensive mistake you can make in this pass.
+
+**The `_` prefix means nothing by itself.** Craft's own conventions put an
+underscore on any template that should not be routed to, so on many projects
+nearly every file has one. Count before you judge: if most files in the folder
+start with `_`, the prefix carries no information — ignore it entirely. Only
+where a folder mixes both, a few `_`-prefixed files among plain ones, does the
+prefix mean "internal partial", and only there should you skip them.
+
 Skip:
 
-- files whose name starts with `_` — internal partials, deliberately excluded
 - `index.twig` and `undefined.twig` — dispatcher entry point and fallback
-- **adapters** — templates whose job is to read Craft entry and field objects
-  and hand plain variables to a component. An adapter usually mentions
-  `entry.`, `block.`, `.one()`, `craft.` or field handles; a presentational
-  component should not.
+- true adapters, by the test above
 - anything under `node_modules`, `vendor`, or a cache folder
 
 If you cannot tell whether a file is a component or an adapter, list it in your
@@ -187,11 +238,13 @@ Never promote a status yourself.
 Report, in this order:
 
 1. Components documented, with counts.
-2. Components matched to an entry type — and components that look like
+2. The adapters you found, and which presentational template each block type
+   is handed to — the map a human cannot get from the file tree.
+3. Components matched to an entry type — and components that look like
    page-builder blocks but have **no** matching handle. That second list is the
    most useful thing you can hand over.
-3. Files you skipped, and why.
-4. Anything you were unsure about.
+4. Files you skipped, and why.
+5. Anything you were unsure about.
 
 Then tell the human, in these words or close to them:
 

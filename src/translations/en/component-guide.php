@@ -63,4 +63,7 @@ return [
     'Component Guide changed these files from the control panel, and the changes are still on disk.' => 'Component Guide changed these files from the control panel, and the changes are still on disk.',
     'Could not change the status.' => 'Could not change the status.',
     'Could not clear the notice.' => 'Could not clear the notice.',
+    'For a folder that already has dozens of templates: {file} in this plugin is a recipe any coding agent can follow to draft them all in one pass, for you to review here.' => 'For a folder that already has dozens of templates: {file} in this plugin is a recipe any coding agent can follow to draft them all in one pass, for you to review here.',
+    '{count} components have no story yet.' => '{count} components have no story yet.',
+    'Rather than one button at a time, {file} in this plugin is a recipe any coding agent can follow to draft them all at once — everything it writes is a draft for you to review here.' => 'Rather than one button at a time, {file} in this plugin is a recipe any coding agent can follow to draft them all at once — everything it writes is a draft for you to review here.',
 ];

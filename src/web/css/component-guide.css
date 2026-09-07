@@ -287,6 +287,12 @@
 .cg-writes li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
 .cg-writes code { font-size: .85em; }
 
+/* The bulk-setup route, surfaced where it is needed rather than only in the
+   zero state. Neutral like the environment notices: it is an option, not a
+   problem. */
+.cg-hint--agent { background: #f1f3f5; border-color: #dfe3e8; color: #4a5560; }
+.cg-hint--agent .cg-code { margin-top: 8px; white-space: pre-wrap; }
+
 /* Neutral variant for environment facts (not warnings). */
 .cg-hint--locked {
     display: flex; align-items: center; gap: 7px;

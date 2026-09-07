@@ -88,6 +88,15 @@
                     <p class="light cg-onboarding__hint">
                         {{ "Where the template's name matches a Matrix entry type handle, that same story gives editors a card in the blocks gallery — a real preview they click to add, prefilled with the story's content."|t('component-guide') }}
                     </p>
+                    {# A library that already exists is the normal case, and doing it
+                       a button at a time is the wrong shape for it. The recipe ships
+                       in the package, so this is a path, not a promise. #}
+                    <p class="light cg-onboarding__hint">
+                        {{ "For a folder that already has dozens of templates: {file} in this plugin is a recipe any coding agent can follow to draft them all in one pass, for you to review here."|t('component-guide', {
+                            file: '<code>AGENT-SETUP.md</code>',
+                        })|raw }}
+                    </p>
+                    <div class="cg-code">Read AGENT-SETUP.md in vendor/b10k/craft-component-guide and follow it.</div>
                     {# Flush-left on purpose: .cg-code is pre-wrap, so template
                        indentation would show up in the output. #}
                     <div class="cg-code">hero.twig
@@ -150,6 +159,26 @@ hero{{ settings.twigStorySuffix() }}</div>
                 {% endfor %}
             </ul>
         </div>
+
+        {% if canScaffold and undocumentedCount > 3 %}
+            {# The onboarding panel only shows at zero components, so it is gone by
+               the time this matters: a folder listed via a marker file, dozens of
+               cards, and an “Add story” button on each. Saying it once here is the
+               difference between a feature and a secret. #}
+            <div class="cg-hint cg-hint--agent">
+                <div class="cg-hint__row">
+                    <strong>
+                        {{ "{count} components have no story yet."|t('component-guide', { count: undocumentedCount }) }}
+                    </strong>
+                    <span class="light">
+                        {{ "Rather than one button at a time, {file} in this plugin is a recipe any coding agent can follow to draft them all at once — everything it writes is a draft for you to review here."|t('component-guide', {
+                            file: '<code>AGENT-SETUP.md</code>',
+                        })|raw }}
+                    </span>
+                </div>
+                <div class="cg-code">Read AGENT-SETUP.md in vendor/b10k/craft-component-guide and follow it.</div>
+            </div>
+        {% endif %}
 
         {% if settings.previewCss is empty and settings.previewTemplate is empty %}
             {# Unstyled previews read as “broken plugin” — say why before they conclude that.

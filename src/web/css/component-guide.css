@@ -127,6 +127,9 @@
     line-height: 1;
 }
 .cg-badge--error { background: #d0021b; color: #fff; }
+/* `.cg-badge` sets display, which outranks the browser's [hidden] rule
+   (zero specificity) — without this the render badge would never hide. */
+.cg-badge[hidden] { display: none; }
 
 /* Detail layout */
 .cg-detail__header { margin-bottom: 20px; }

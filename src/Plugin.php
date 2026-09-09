@@ -19,6 +19,7 @@ use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterUrlRulesEvent;
 use craft\helpers\Console;
+use craft\helpers\UrlHelper;
 use craft\services\UserPermissions;
 use craft\utilities\ClearCaches;
 use craft\events\RegisterCacheOptionsEvent;
@@ -46,6 +47,9 @@ use yii\base\Event;
 class Plugin extends BasePlugin
 {
     public const PERMISSION_ACCESS = 'component-guide:access';
+
+    /** Base path of the story preview route, on the site and in the CP. */
+    public const PREVIEW_PATH = 'component-guide/preview';
 
     public string $schemaVersion = '0.1.0';
     public bool $hasCpSettings = true;
@@ -105,6 +109,7 @@ class Plugin extends BasePlugin
 
         $this->registerPermissions();
         $this->registerCpRoutes();
+        $this->registerSiteRoutes();
         $this->registerBlockPicker();
         $this->registerCacheOption();
     }
@@ -275,6 +280,48 @@ class Plugin extends BasePlugin
         );
     }
 
+    /**
+     * The URL an iframe should load for one story's preview.
+     *
+     * A site URL, not a control-panel one, and that is the whole point: a CP
+     * request is missing every Twig extension that another plugin registers for
+     * site requests only — Formie's filters, Sprig, and plenty of project
+     * modules. A template that uses one of those does not merely misbehave, it
+     * fails to compile, because Twig resolves filters at compile time; even an
+     * unreachable branch takes the preview down with an “Unknown filter” parse
+     * error. Serving the preview through a site route puts it in the same
+     * request shape as the front end, which is what it is supposed to be
+     * showing.
+     *
+     * Headless installs have no site routing at all, so there the CP route
+     * stands in.
+     */
+    public static function previewUrl(string $componentId, string $storyId): string
+    {
+        $path = self::PREVIEW_PATH . "/$componentId/$storyId";
+
+        return Craft::$app->getConfig()->getGeneral()->headlessMode
+            ? UrlHelper::cpUrl($path)
+            : UrlHelper::siteUrl($path);
+    }
+
+    /**
+     * The preview route lives on the site as well, and the site one is what the
+     * guide links to (see previewUrl()). The CP rule stays registered so that
+     * headless installs and any bookmarked URL keep working.
+     */
+    private function registerSiteRoutes(): void
+    {
+        Event::on(
+            UrlManager::class,
+            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
+            function (RegisterUrlRulesEvent $event): void {
+                $event->rules[self::PREVIEW_PATH . '/<componentId:[\w\-]+>/<storyId:[\w\-]+>']
+                    = 'component-guide/preview/render';
+            }
+        );
+    }
+
     private function registerCpRoutes(): void
     {
         Event::on(
@@ -284,7 +331,8 @@ class Plugin extends BasePlugin
                 $event->rules['component-guide'] = 'component-guide/components/index';
                 $event->rules['component-guide/components/<componentId:[\w\-]+>'] = 'component-guide/components/view';
                 $event->rules['component-guide/components/<componentId:[\w\-]+>/<storyId:[\w\-]+>'] = 'component-guide/components/view';
-                $event->rules['component-guide/preview/<componentId:[\w\-]+>/<storyId:[\w\-]+>'] = 'component-guide/preview/render';
+                $event->rules[self::PREVIEW_PATH . '/<componentId:[\w\-]+>/<storyId:[\w\-]+>']
+                    = 'component-guide/preview/render';
                 $event->rules['component-guide/picker-map'] = 'component-guide/picker/map';
             }
         );

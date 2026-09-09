@@ -23,7 +23,10 @@ class PreviewController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
-        $this->requireCpRequest();
+        // Deliberately no requireCpRequest(): the preview is served from a
+        // site route so that Twig extensions other plugins register for site
+        // requests are present when the component template compiles. Access is
+        // still gated — a session and the plugin's own permission.
         $this->requirePermission(Plugin::PERMISSION_ACCESS);
         return true;
     }

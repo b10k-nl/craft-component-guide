@@ -10,7 +10,6 @@
 
 {% do view.registerAssetBundle("b10k\\componentguide\\assetbundles\\ComponentGuideAsset") %}
 
-{% set previewUrl = story ? cpUrl('component-guide/preview/' ~ component.id ~ '/' ~ story.id) : null %}
 
 {% block content %}
     <div class="cg-detail">

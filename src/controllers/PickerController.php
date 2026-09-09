@@ -32,7 +32,17 @@ class PickerController extends Controller
     {
         $components = [];
 
+        $matcher = Plugin::getInstance()->getGalleryMatcher();
+
         foreach (Plugin::getInstance()->getRepository()->getAll() as $component) {
+            // Same rule the index reports, from the same place: no entry type
+            // to attach to, or no story to build a card from, and the gallery
+            // has nothing to show. An index that disagreed with the gallery
+            // would be worse than one that stayed quiet.
+            if (!$matcher->appearsInGallery($component)) {
+                continue;
+            }
+
             $firstStory = $component->stories[0] ?? null;
 
             // Scalar args of the first story become the picker's prefill: a
@@ -68,7 +78,7 @@ class PickerController extends Controller
                 'group' => $component->effectiveGroup(),
                 'prefill' => $prefill ?: null,
                 'previewUrl' => $firstStory !== null
-                    ? UrlHelper::cpUrl("component-guide/preview/{$component->id}/{$firstStory->id}")
+                    ? Plugin::previewUrl($component->id, $firstStory->id)
                     : null,
                 'detailUrl' => UrlHelper::cpUrl("component-guide/components/{$component->id}"),
             ];

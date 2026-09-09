@@ -358,4 +358,34 @@
         }
     }
 
+    // --- Render errors reported by preview frames ---------------------------
+
+    (function () {
+        var badges = document.querySelectorAll('[data-cg-render-badge]');
+        if (!badges.length) { return; }
+
+        window.addEventListener('message', function (event) {
+            var data = event.data;
+            if (!data || data.source !== 'component-guide' || data.state !== 'error') { return; }
+
+            // Trust our own frames only, whatever origin they were served from:
+            // matching the source window is exact, and needs no origin plumbing.
+            var frames = document.querySelectorAll('[data-cg-thumb] iframe');
+            var known = false;
+            for (var i = 0; i < frames.length; i++) {
+                if (frames[i].contentWindow === event.source) { known = true; break; }
+            }
+            if (!known) { return; }
+
+            var card = document.getElementById('cg-card-' + data.componentId);
+            var badge = card && card.querySelector('[data-cg-render-badge]');
+            if (!badge) { return; }
+
+            // The message is rendered by the server and passed through as-is;
+            // nothing is composed here (see the note on translations above).
+            badge.title = data.message || '';
+            badge.hidden = false;
+        });
+    })();
+
 })();

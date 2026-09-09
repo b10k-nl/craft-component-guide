@@ -3,6 +3,47 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Fixed
+- **Previews are served from a site route now, not a control-panel one.** A CP
+  request does not have the Twig extensions that other plugins register for site
+  requests only — Formie's filters, Sprig, and plenty of project modules. A
+  component template that used one of those did not merely misbehave: it failed
+  to compile, because Twig resolves filters when it parses, so even a branch that
+  never runs took the whole preview down with an “Unknown filter” error. The same
+  cause left Sprig-backed components rendering their chrome and nothing else.
+  The preview URL is now built in one place, so the index, the component page and
+  the blocks gallery cannot drift apart, and the control-panel route stays
+  registered for headless installs and for any URL somebody bookmarked. Found by
+  running the plugin on a real client project, where five of thirteen components
+  could not render at all.
+- **A component whose preview throws now says so on its card.** The index showed
+  nothing: a failed thumbnail was a pink rectangle and everything else about the
+  card — the description, the story count, the “Mark stable” button — looked
+  exactly like a healthy one. The error badge existed, but only for scan errors.
+  The index cannot know on its own, because it never renders a story (the
+  thumbnail frames do, in the browser, and rendering every story server-side
+  would cost a full render per card on each page load), so each preview now
+  reports its own outcome to the page that framed it and the card turns the
+  badge on, with the message in its tooltip.
+
+  Two things it deliberately does not do. It does not light up for a story that
+  rendered nothing — that is a legitimate state for a component whose guards are
+  doing their job, and a badge that cries wolf stops being read. And it does not
+  block “Mark stable”: a render error can come from the environment rather than
+  the story, and a gate that can be wrong is worse than silence.
+- **The index no longer calls a component ready for editors when it has nothing
+  to show them.** A story file that exists but fails to parse leaves the
+  component “documented” — the file is there, which is what stops the scaffolder
+  overwriting it — while holding no stories at all. Such a component was counted
+  in “ready for editors” and chipped “in gallery”, both of which were untrue:
+  the blocks gallery had no preview and no prefill for it and rendered it as a
+  bare title bar, the same as any block type the project never documented. The
+  developer was told the handoff had completed when it had not. Appearing in the
+  gallery now means a matched entry type **and** at least one story that actually
+  parsed, decided in one place so the index and the gallery cannot disagree.
+
 ## 1.2.1 - 2026-09-07
 
 ### Fixed

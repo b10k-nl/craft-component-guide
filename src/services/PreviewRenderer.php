@@ -7,6 +7,7 @@ use b10k\componentguide\models\RenderResult;
 use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\Plugin;
 use Craft;
+use craft\helpers\UrlHelper;
 use craft\web\View;
 use yii\base\Component;
 
@@ -87,7 +88,35 @@ class PreviewRenderer extends Component
             'previewJs' => $settings->previewJs,
             'previewHead' => $this->renderPreviewHead($settings->previewTemplate),
             'devMode' => Craft::$app->getConfig()->getGeneral()->devMode,
+            'parentOrigin' => $this->cpOrigin(),
         ], View::TEMPLATE_MODE_CP);
+    }
+
+    /**
+     * scheme://host[:port] of the control panel, so the preview can report its
+     * outcome to the page that framed it with a targeted postMessage. Since the
+     * preview moved to a site route the two can be different hosts, and '*'
+     * would hand the payload to whatever page happens to be the parent.
+     *
+     * An empty string when the CP URL cannot be parsed — the document then says
+     * nothing at all, which is the right way for this to fail.
+     */
+    private function cpOrigin(): string
+    {
+        // renderDocument() is shared with the CLI diagnostics, where there may
+        // be no base URL to build a CP URL from at all.
+        try {
+            $parts = parse_url(UrlHelper::cpUrl());
+        } catch (\Throwable) {
+            return '';
+        }
+
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            return '';
+        }
+
+        return $parts['scheme'] . '://' . $parts['host']
+            . (isset($parts['port']) ? ':' . $parts['port'] : '');
     }
 
     /**

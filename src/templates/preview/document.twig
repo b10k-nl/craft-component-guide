@@ -42,6 +42,7 @@
 </head>
 <body>
 {% endapply %}
+{% set renderState = result.success ? (result.html|trim is empty ? 'empty' : 'ok') : 'error' %}
 {% if result.success %}
     {% if result.html|trim is empty %}
         {# A blank iframe reads as “broken” — name the likely cause instead.
@@ -70,5 +71,25 @@
 {% for src in previewJs %}
     <script src="{{ src }}"></script>
 {% endfor %}
+{% if parentOrigin %}
+    {# The index never renders a story itself — these frames do, in the browser.
+       Rendering every story server-side just to find out which ones fail would
+       cost one full render per card on each page load, so the preview reports
+       its own outcome instead and the card decides what to show. #}
+    <script>
+        (function () {
+            if (window.parent === window) { return; }
+            try {
+                window.parent.postMessage({
+                    source: 'component-guide',
+                    componentId: {{ component.id|json_encode|raw }},
+                    storyId: {{ story.id|json_encode|raw }},
+                    state: {{ renderState|json_encode|raw }},
+                    message: {{ (result.success ? '' : result.error)|json_encode|raw }}
+                }, {{ parentOrigin|json_encode|raw }});
+            } catch (e) {}
+        })();
+    </script>
+{% endif %}
 </body>
 </html>

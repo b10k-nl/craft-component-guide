@@ -259,17 +259,25 @@ hero{{ settings.twigStorySuffix() }}</div>
                                             {% set errorText = component.errors|map(e => e.message ~ (e.recommendation() ? ' ' ~ e.recommendation() : ''))|join("\n") %}
                                             <span class="cg-badge cg-badge--error" title="{{ errorText }}">!</span>
                                         {% endif %}
+                                        {# A scan error is a broken story file; this one is a template that
+                                           threw while rendering, which the server cannot know here — the
+                                           thumbnail frame reports it. Always in the DOM so JS only flips
+                                           `hidden` and never composes a sentence. Only a hard error lights
+                                           it: “rendered nothing” is a legitimate state for a component
+                                           whose guards are doing their job, and a badge that cries wolf
+                                           stops being read. #}
+                                        <span class="cg-badge cg-badge--error" data-cg-render-badge hidden>!</span>
                                     </span>
                                     {% if component.description %}
                                         <span class="cg-card__desc light">{{ component.description }}</span>
                                     {% endif %}
-                                    {% set firstStory = component.stories|first %}
+                                    {% set previewUrl = previewUrls[component.id] ?? null %}
                                     <span class="cg-card__thumb" data-cg-thumb aria-hidden="true">
-                                        {% if firstStory %}
+                                        {% if previewUrl %}
                                             {# Live mini-preview of the first story: a real 1280px-viewport
                                                iframe scaled down by JS (fixed px on the iframe, scale on its
                                                transform — same technique as the device preview). #}
-                                            <iframe src="{{ cpUrl('component-guide/preview/' ~ component.id ~ '/' ~ firstStory.id) }}"
+                                            <iframe src="{{ previewUrl }}"
                                                     loading="lazy" tabindex="-1"
                                                     title=""></iframe>
                                         {% endif %}

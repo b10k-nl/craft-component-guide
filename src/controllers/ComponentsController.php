@@ -35,6 +35,16 @@ class ComponentsController extends Controller
         $matcher = Plugin::getInstance()->getGalleryMatcher();
         $components = $repository->getAll();
 
+        // One preview URL per documented component, built in the one place that
+        // decides site-vs-CP, so the cards and the picker cannot drift apart.
+        $previewUrls = [];
+        foreach ($components as $component) {
+            $firstStory = $component->stories[0] ?? null;
+            if ($firstStory !== null) {
+                $previewUrls[$component->id] = Plugin::previewUrl($component->id, $firstStory->id);
+            }
+        }
+
         return $this->renderTemplate('component-guide/components/index', [
             'title' => \Craft::t('component-guide', 'Component Guide'),
             'grouped' => $repository->getGrouped(),
@@ -59,6 +69,7 @@ class ComponentsController extends Controller
             // Files the CP itself changed and that are still, verifiably, in
             // that changed state — see WriteJournal. Relative paths only: the
             // CP never echoes absolute paths.
+            'previewUrls' => $previewUrls,
             'cpWrites' => $this->cpWrites(),
             // The status toggle writes into templates/ exactly like the
             // scaffolder, so it opens and closes with the same two gates.
@@ -96,6 +107,9 @@ class ComponentsController extends Controller
             'entryTypeName' => $matcher->matchedEntryType($component),
             'readyForEditors' => $matcher->isReadyForEditors($component),
             'story' => $story,
+            'previewUrl' => $story !== null
+                ? Plugin::previewUrl($component->id, $story->id)
+                : null,
             'snippet' => $snippet,
             // Same gate as the index toggle; the detail page is where a
             // reviewer actually looks at the preview before promoting.

@@ -44,6 +44,25 @@ class GalleryMatcher extends Component
     }
 
     /**
+     * Whether the gallery shows a card for this component at all — matched to
+     * an entry type, and carrying at least one story the card can be built
+     * from.
+     *
+     * The story requirement is not a nicety. A story *file* that fails to parse
+     * leaves the component documented (the file exists, which is what stops the
+     * scaffolder overwriting it) but with nothing in it, and a card built from
+     * nothing is an empty box with no preview and no prefill — the exact thing
+     * the gallery exists to replace. Silently offering one is worse than not
+     * offering the component at all, and the developer already has the scan
+     * error on the index telling them why.
+     */
+    public function appearsInGallery(ComponentDefinition $component): bool
+    {
+        return $component->storyCount() > 0
+            && $this->matchedEntryType($component) !== null;
+    }
+
+    /**
      * Whether an editor can add this component from the gallery *and* see what
      * they are adding: matched to an entry type (so it appears at all), stable
      * (so it is not disabled) and documented (so the card carries a preview
@@ -55,9 +74,8 @@ class GalleryMatcher extends Component
      */
     public function isReadyForEditors(ComponentDefinition $component): bool
     {
-        return $component->isDocumented
-            && $this->isAddable($component)
-            && $this->matchedEntryType($component) !== null;
+        return $this->appearsInGallery($component)
+            && $this->isAddable($component);
     }
 
     /**
@@ -81,8 +99,10 @@ class GalleryMatcher extends Component
 
     /**
      * Component ID => matched entry-type name, for every component the gallery
-     * knows about at all (disabled and story-less ones included — the index
-     * decides what to say about each).
+     * knows about at all — disabled ones included, since a non-stable status
+     * still renders a (disabled) card and the index decides what to say about
+     * it. Components the gallery skips entirely are absent, so the index cannot
+     * claim “in gallery” for something an editor will never see.
      *
      * @param ComponentDefinition[] $components
      * @return array<string, string>
@@ -91,10 +111,10 @@ class GalleryMatcher extends Component
     {
         $names = [];
         foreach ($components as $component) {
-            $name = $this->matchedEntryType($component);
-            if ($name !== null) {
-                $names[$component->id] = $name;
+            if (!$this->appearsInGallery($component)) {
+                continue;
             }
+            $names[$component->id] = (string)$this->matchedEntryType($component);
         }
 
         return $names;

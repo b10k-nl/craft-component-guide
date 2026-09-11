@@ -24,6 +24,7 @@ class ScanError
     public const UNKNOWN_STATUS = 'unknown_status';
     public const UNKNOWN_VIEWPORT = 'unknown_viewport';
     public const DUPLICATE_MARKER = 'duplicate_marker';
+    public const AMBIGUOUS_MATCH = 'ambiguous_match';
 
     public function __construct(
         public string $type,
@@ -54,6 +55,7 @@ class ScanError
             self::UNKNOWN_STATUS => 'Use one of: ' . implode(', ', \b10k\componentguide\services\StoryParser::STATUSES) . '.',
             self::UNKNOWN_VIEWPORT => 'Use one of: ' . implode(', ', \b10k\componentguide\services\StoryParser::VIEWPORTS) . '.',
             self::DUPLICATE_MARKER => 'Keep a single marker file (GUIDE.md, BLOCKS.md or COMPONENTS.md) per directory.',
+            self::AMBIGUOUS_MATCH => 'Rename one of them: entry-type matching ignores case and separators, so these two names are the same to it.',
             default => '',
         };
     }

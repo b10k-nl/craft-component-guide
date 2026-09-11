@@ -610,6 +610,25 @@
         document.addEventListener('keydown', onKey);
     };
 
+    // Components keyed by the entry-type handle they answer to. What "answers
+    // to" means — case and separators ignored — is decided on the server, which
+    // ships the resulting key on both the components and the entry types. So
+    // this file normalises nothing: one rule, in one language. A component the
+    // server left out of the map (no story, an ambiguous name) simply isn't
+    // here, and its card collapses to a bare title bar like any undocumented
+    // block type.
+    var componentsByHandle = function (data) {
+        var byKey = {};
+        (data.components || []).forEach(function (c) { byKey[c.matchKey] = c; });
+
+        var comps = {};
+        (data.entryTypes || []).forEach(function (t) {
+            if (byKey[t.matchKey]) { comps[t.handle] = byKey[t.matchKey]; }
+        });
+
+        return comps;
+    };
+
     // --- Field enhancement --------------------------------------------------
 
     var enhance = function (field) {
@@ -620,8 +639,7 @@
         if (!items.length) { return; }
 
         loadMap().then(function (data) {
-            var comps = {};
-            (data.components || []).forEach(function (c) { comps[c.name] = c; });
+            var comps = componentsByHandle(data);
 
             // Only offer the gallery where it adds value: at least one entry
             // type has a matching component.
@@ -661,8 +679,7 @@
         manager.cgPicker = true;
 
         loadMap().then(function (data) {
-            var comps = {};
-            (data.components || []).forEach(function (c) { comps[c.name] = c; });
+            var comps = componentsByHandle(data);
 
             var typesById = {};
             (data.entryTypes || []).forEach(function (t) { typesById[t.id] = t; });

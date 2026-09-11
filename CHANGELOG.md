@@ -3,7 +3,32 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 1.3.0 - 2026-09-11
+
+### Changed
+- **Entry-type matching ignores case and separators now.** It used to be exact,
+  and that was the wrong promise — not because projects are careless, but
+  because both sides follow their own convention and the conventions disagree.
+  Craft builds a handle from the block's name, so “Inline Donation Form” becomes
+  `inlineDonationForm`; a developer names the file `inline-donation-form.twig`,
+  because that is how files are named. Craft's own docs put an underscore on
+  templates that should not be routed to, so half a project is
+  `_featured-story.twig` while no handle can contain an underscore at all. Exact
+  matching only ever found the people who already knew the rule: on the first
+  real project this was tried on, ten templates paired one-to-one with a handle
+  and not one of them matched.
+
+  `hero-card.twig`, `hero_card.twig`, `_hero-card.twig` and `heroCard.twig` are
+  all the same name to the guide now, and all match the handle `heroCard`. The
+  rule is computed in one place in PHP and shipped to the blocks gallery with
+  both the components and the entry types, so the browser never normalises
+  anything of its own and the index cannot disagree with the gallery.
+
+  Two things it refuses rather than guesses. When two templates in the same
+  guide collapse to the same name, both are flagged on the index and **neither**
+  is offered to editors — quietly picking whichever the scan reached last is the
+  kind of answer this plugin exists to avoid. The same goes for two entry-type
+  handles that collide with each other.
 
 ### Fixed
 - **Previews are served from a site route now, not a control-panel one.** A CP

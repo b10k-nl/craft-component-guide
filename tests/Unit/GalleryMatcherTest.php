@@ -3,6 +3,7 @@
 namespace b10k\componentguide\tests\Unit;
 
 use b10k\componentguide\models\ComponentDefinition;
+use b10k\componentguide\models\ScanError;
 use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\services\GalleryMatcher;
 use PHPUnit\Framework\TestCase;
@@ -36,8 +37,13 @@ class GalleryMatcherTest extends TestCase
         };
     }
 
-    private function component(string $name, ?string $status, int $storyCount): ComponentDefinition
-    {
+    /** @param ScanError[] $errors */
+    private function component(
+        string $name,
+        ?string $status,
+        int $storyCount,
+        array $errors = [],
+    ): ComponentDefinition {
         $stories = [];
         for ($i = 0; $i < $storyCount; $i++) {
             $stories[] = new StoryDefinition(id: "s$i", name: "S$i", title: "S$i");
@@ -52,6 +58,7 @@ class GalleryMatcherTest extends TestCase
             status: $status,
             storyFilePath: "_blocks/$name.stories.twig",
             stories: $stories,
+            errors: $errors,
         );
     }
 
@@ -106,11 +113,49 @@ class GalleryMatcherTest extends TestCase
         self::assertFalse($matcher->isAddable($this->component('hero', 'deprecated', 1)));
     }
 
-    public function testMatchingIsCaseSensitive(): void
+    /**
+     * The pairing both sides arrive at on their own: Craft turns a block called
+     * “Inline Donation Form” into the handle `inlineDonationForm`, and a
+     * developer calls the file `inline-donation-form.twig`.
+     */
+    public function testMatchingIgnoresCaseAndSeparators(): void
     {
-        $matcher = $this->matcher('heroBanner');
-        self::assertNull($matcher->matchedEntryType($this->component('herobanner', 'stable', 1)));
-        self::assertSame('HeroBanner', $matcher->matchedEntryType($this->component('heroBanner', 'stable', 1)));
+        $matcher = $this->matcher('inlineDonationForm');
+
+        foreach (['inline-donation-form', 'inline_donation_form', 'InlineDonationForm',
+                  'inlinedonationform', '_inline-donation-form'] as $name) {
+            self::assertSame(
+                'InlineDonationForm',
+                $matcher->matchedEntryType($this->component($name, 'stable', 1)),
+                $name,
+            );
+        }
+
+        self::assertNull($matcher->matchedEntryType($this->component('donation-form', 'stable', 1)));
+    }
+
+    public function testAComponentFlaggedAsAmbiguousMatchesNothing(): void
+    {
+        $matcher = $this->matcher('heroCard');
+        $flagged = $this->component('hero-card', 'stable', 1, [
+            new ScanError(ScanError::AMBIGUOUS_MATCH, 'two templates share one name'),
+        ]);
+
+        self::assertNull($matcher->matchedEntryType($flagged));
+        self::assertFalse($matcher->appearsInGallery($flagged));
+        self::assertSame([], $matcher->entryTypeNames([$flagged]));
+    }
+
+    /**
+     * The mirror case: the collision is between two entry types, and no
+     * template can say which of them it meant.
+     */
+    public function testTwoEntryTypeHandlesThatCollideMatchNothing(): void
+    {
+        $matcher = $this->matcher('heroCard', 'herocard');
+
+        self::assertNull($matcher->matchedEntryType($this->component('hero-card', 'stable', 1)));
+        self::assertNull($matcher->matchedEntryType($this->component('heroCard', 'stable', 1)));
     }
 
     public function testCountsOnlyTheHandoffsThatCompleted(): void

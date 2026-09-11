@@ -3,6 +3,7 @@
 namespace b10k\componentguide\services;
 
 use b10k\componentguide\models\ComponentDefinition;
+use b10k\componentguide\models\ScanError;
 use Craft;
 use yii\base\Component;
 
@@ -20,7 +21,7 @@ use yii\base\Component;
  */
 class GalleryMatcher extends Component
 {
-    /** @var array<string, string>|null Entry-type handle => entry-type name. */
+    /** @var array<string, string>|null Match key => entry-type name. */
     private ?array $handles = null;
 
     /**
@@ -34,13 +35,45 @@ class GalleryMatcher extends Component
     }
 
     /**
+     * The comparable form of a template base name or an entry-type handle:
+     * lower case, separators removed.
+     *
+     * Matching used to be exact, and that was wrong — not because projects are
+     * careless but because both sides follow their own convention and the
+     * conventions disagree. Craft builds a handle from the block's name, so
+     * “Inline Donation Form” becomes `inlineDonationForm`; a developer names
+     * the file `inline-donation-form.twig`, because that is how files are
+     * named. Craft's own docs put an underscore on templates that should not be
+     * routed to, so half a project is `_featured-story.twig` while no handle
+     * can contain an underscore at all. Exact matching only ever found the
+     * people who already knew the rule.
+     *
+     * On the first real project this was tried on, ten templates paired
+     * one-to-one with a handle and not one of them matched.
+     */
+    public static function matchKey(string $name): string
+    {
+        return strtolower(str_replace(['-', '_'], '', $name));
+    }
+
+    /**
      * Name of the entry type this component becomes a gallery card for, or
-     * null when no entry type carries its handle. Matching is exact and
-     * case-sensitive, exactly as the picker does it (`comps[item.type]`).
+     * null when nothing carries its name.
+     *
+     * A component the scanner flagged as ambiguous matches nothing: two
+     * templates whose names are the same once normalised cannot both be the
+     * block, and guessing which one silently is exactly the kind of quiet wrong
+     * answer this plugin exists to avoid.
      */
     public function matchedEntryType(ComponentDefinition $component): ?string
     {
-        return $this->entryTypeHandles()[$component->name] ?? null;
+        foreach ($component->errors as $error) {
+            if ($error->type === ScanError::AMBIGUOUS_MATCH) {
+                return null;
+            }
+        }
+
+        return $this->entryTypeHandles()[self::matchKey($component->name)] ?? null;
     }
 
     /**
@@ -152,8 +185,21 @@ class GalleryMatcher extends Component
     {
         if ($this->handles === null) {
             $this->handles = [];
+            $seen = [];
+
             foreach ($this->entryTypes() as $type) {
-                $this->handles[$type['handle']] = $type['name'];
+                $key = self::matchKey($type['handle']);
+
+                // Two handles that differ only in case or separators. Nothing
+                // here can say which one a template meant, so neither is
+                // offered — the same rule as for two colliding templates.
+                if (isset($seen[$key])) {
+                    unset($this->handles[$key]);
+                    continue;
+                }
+
+                $seen[$key] = true;
+                $this->handles[$key] = $type['name'];
             }
         }
 

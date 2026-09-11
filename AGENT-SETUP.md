@@ -160,10 +160,21 @@ ones guarded with `?? null` or `?? []`. Those guards tell you which arguments
 are optional — useful when choosing which stories to write, so use it.
 
 Then check whether this component reaches editors. In
-`config/project/entryTypes/`, look for an entry type whose **handle** exactly
-matches the template's base name (`hero.twig` ↔ handle `hero`; matching is
-case-sensitive). If one exists, the component appears in the editors' blocks
-gallery, and its story is what fills the card.
+`config/project/entryTypes/`, look for an entry type whose **handle** matches
+the template's base name. Matching **ignores case and separators**, so all of
+these are the same name to the guide:
+
+    inline-donation-form.twig
+    inline_donation_form.twig
+    _inline-donation-form.twig   ↔   handle `inlineDonationForm`
+    inlineDonationForm.twig
+
+If one exists, the component appears in the editors' blocks gallery, and its
+story is what fills the card.
+
+If two templates in the same guide have names that are the same once normalised
+— `hero-card.twig` and `heroCard.twig` — neither is offered, and the guide says
+so on both cards. Report the pair; renaming one is a human's call.
 
 **Never rename a template or an entry type to make them match.** If a component
 looks like a page-builder block but has no matching handle, put it in your

@@ -3,6 +3,7 @@
 namespace b10k\componentguide\controllers;
 
 use b10k\componentguide\Plugin;
+use b10k\componentguide\services\GalleryMatcher;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
 use yii\web\Response;
@@ -70,8 +71,11 @@ class PickerController extends Controller
             }
 
             $components[] = [
-                // `name` is the template base name — the entry-type handle candidate.
+                // `name` is the template base name, kept for search and
+                // debugging; `matchKey` is what the gallery looks components up
+                // by, computed here so the rule lives in PHP only.
                 'name' => $component->name,
+                'matchKey' => GalleryMatcher::matchKey($component->name),
                 'title' => $component->title,
                 'description' => $component->description,
                 'status' => $component->status,
@@ -90,7 +94,10 @@ class PickerController extends Controller
             // (Craft.NestedElementManager settings.createAttributes.typeId),
             // never handles — so the gallery needs this lookup to match a
             // type to its component.
-            'entryTypes' => Plugin::getInstance()->getGalleryMatcher()->entryTypes(),
+            'entryTypes' => array_map(
+                static fn(array $type): array => $type + ['matchKey' => GalleryMatcher::matchKey($type['handle'])],
+                $matcher->entryTypes(),
+            ),
         ]);
     }
 }

@@ -597,7 +597,9 @@ not a sandbox.
 - **No "Add story" button** — scaffolding writes files, so it needs
   `allowAdminChanges`; the index says so where that's off.
 - **No "Blocks gallery" button** — the field's entry-type handles must match
-  component names; open `component-guide/picker-map` to compare.
+  component names. Matching ignores case and separators (`inline-donation-form`
+  ↔ `inlineDonationForm`), so the usual cause is a genuinely different name;
+  open `component-guide/picker-map` to compare.
 
 ## Development
 

@@ -214,12 +214,60 @@ class ComponentScanner extends Component
             }
         }
 
+        $this->flagAmbiguousMatches($components);
+
         usort($components, static function (ComponentDefinition $a, ComponentDefinition $b): int {
             return [strtolower($a->effectiveGroup()), strtolower($a->title)]
                 <=> [strtolower($b->effectiveGroup()), strtolower($b->title)];
         });
 
         return ['components' => $components, 'errors' => $errors, 'groupMeta' => $groupMeta];
+    }
+
+    /**
+     * Entry-type matching ignores case and separators, so `hero-card.twig` and
+     * `heroCard.twig` are the same name to it. When two components collide that
+     * way, nothing can say which one an editor's block meant — so both are
+     * flagged here and the matcher lets neither into the gallery.
+     *
+     * Flagged even when no entry type carries that name today: the collision is
+     * a fact about the two templates, and the day someone adds the block is not
+     * the day to discover it.
+     *
+     * Public because it is a rule in its own right — given components, flag
+     * the collisions — and worth testing without a filesystem behind it.
+     *
+     * @param ComponentDefinition[] $components
+     */
+    public function flagAmbiguousMatches(array $components): void
+    {
+        $byKey = [];
+        foreach ($components as $component) {
+            $byKey[GalleryMatcher::matchKey($component->name)][] = $component;
+        }
+
+        foreach ($byKey as $group) {
+            if (count($group) < 2) {
+                continue;
+            }
+
+            $paths = implode(', ', array_map(
+                static fn(ComponentDefinition $c): string => $c->templatePath,
+                $group,
+            ));
+
+            foreach ($group as $component) {
+                $component->errors[] = new ScanError(
+                    ScanError::AMBIGUOUS_MATCH,
+                    sprintf(
+                        'Entry-type matching ignores case and separators, so these templates share one name: %s.',
+                        $paths,
+                    ),
+                    $component->templatePath,
+                    componentId: $component->id,
+                );
+            }
+        }
     }
 
     /**

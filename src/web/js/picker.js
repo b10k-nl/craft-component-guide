@@ -190,6 +190,106 @@
     // new block's matching inputs (by field handle) so it renders with the
     // same content its gallery card previews. Rich/nested fields are left
     // alone: this is a head start, not a content import.
+    // Craft renders Dropdown fields through Selectize, which draws its own
+    // control and never looks at the underlying <select> again — so writing to
+    // that element changes nothing the editor can see, and the card offering
+    // the dark variant handed them the light one. Selectize also attaches
+    // after Matrix has inserted the block, so the value waits for it instead of
+    // racing it. The direct write happens once, on the first pass, for fields
+    // that turn out to be plain selects; after that only Selectize is watched,
+    // so a value the editor picks meanwhile is never overwritten.
+    // Craft attaches Selectize through jQuery and reads it back with
+    // `.data('selectize')`; the instance is not reliably mirrored onto the
+    // element, so looking only there finds nothing.
+    var selectizeOf = function (select) {
+        if (select.selectize) {
+            return select.selectize;
+        }
+        if (window.jQuery) {
+            return window.jQuery(select).data('selectize') || null;
+        }
+        return null;
+    };
+
+    // Craft stores Dropdown option values as `base64:<base64>`, so a story's
+    // plain `dark` matches nothing by string comparison. Decoding what the
+    // field offers is safer than encoding what we want: it works whether or
+    // not a particular field turns out to be encoded at all.
+    var optionMatches = function (optionValue, wanted) {
+        if (optionValue === wanted) {
+            return true;
+        }
+        if (String(optionValue).slice(0, 7) !== 'base64:') {
+            return false;
+        }
+        try {
+            return decodeURIComponent(escape(window.atob(String(optionValue).slice(7)))) === wanted;
+        } catch (e) {
+            return false;
+        }
+    };
+
+    // Once Selectize has attached it takes the options over, leaving only the
+    // selected one on the underlying <select> — so the element is not a
+    // trustworthy source for what the field actually offers.
+    var offeredValues = function (select, selectize) {
+        if (selectize && selectize.options) {
+            return Object.keys(selectize.options);
+        }
+        return Array.prototype.map.call(select.options, function (option) {
+            return option.value;
+        });
+    };
+
+    // Dropdowns were skipped entirely before, so a card previewing the dark
+    // hero handed the editor a light one. Selectize also attaches after Matrix
+    // inserts the block, so the value waits for it rather than racing it; the
+    // direct write happens once, for fields that turn out to be plain selects.
+    var setSelectValue = function (select, wanted) {
+        var attempts = 0;
+
+        var apply = function (first) {
+            var selectize = selectizeOf(select);
+            var offered = offeredValues(select, selectize);
+            var match = null;
+
+            for (var i = 0; i < offered.length; i++) {
+                if (optionMatches(offered[i], wanted)) {
+                    match = offered[i];
+                    break;
+                }
+            }
+
+            // A story naming a variant this project does not have leaves the
+            // field alone rather than blanking it. Keep looking only while
+            // Selectize might still be assembling its option list.
+            if (match === null) {
+                if (!selectize && ++attempts < 20) {
+                    setTimeout(function () { apply(false); }, 50);
+                }
+                return;
+            }
+
+            if (selectize) {
+                if (String(selectize.getValue()) !== match) {
+                    selectize.setValue(match, false);
+                }
+                return;
+            }
+
+            if (first && select.value !== match) {
+                select.value = match;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            if (++attempts < 20) {
+                setTimeout(function () { apply(false); }, 50);
+            }
+        };
+
+        apply(true);
+    };
+
     var fillBlock = function (blockEl, prefill) {
         // Keys are real field handles now: the server reads them off the
         // adapter's include site, which is the only place the mapping between
@@ -205,21 +305,15 @@
             if (!input) { return; }
 
             if (input.tagName === 'SELECT') {
-                // Dropdowns were skipped entirely before, so a card previewing
-                // the dark hero handed the editor a light one. A select always
-                // has a value, so "only fill the empty ones" cannot apply —
-                // instead only set an option the field actually offers.
-                var wanted = String(value);
-                var offered = Array.prototype.some.call(input.options, function (option) {
-                    return option.value === wanted;
-                });
-                if (!offered || input.value === wanted) { return; }
-                input.value = wanted;
-            } else {
-                if (input.value !== '') { return; }
-                input.value = typeof value === 'boolean' ? (value ? '1' : '') : String(value);
+                // A select always holds a value, so "only fill the empty ones"
+                // cannot apply. Whether the option exists is decided in there,
+                // against what the field really offers.
+                setSelectValue(input, String(value));
+                return;
             }
 
+            if (input.value !== '') { return; }
+            input.value = typeof value === 'boolean' ? (value ? '1' : '') : String(value);
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });

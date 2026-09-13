@@ -62,6 +62,7 @@
    carrying information. Both must be above the overlay. */
 .cg-card__link--interactive .cg-card__actions,
 .cg-card__link--interactive .cg-badge--error,
+.cg-card__link--interactive .cg-badge--contract,
 .cg-card__link--interactive .cg-chip--gallery { position: relative; z-index: 2; }
 /* An iframe would otherwise swallow the click before it reaches the overlay. */
 .cg-card__link--interactive .cg-card__thumb { pointer-events: none; }
@@ -127,6 +128,15 @@
     line-height: 1;
 }
 .cg-badge--error { background: #d0021b; color: #fff; }
+/* Not red: a contract mismatch renders perfectly well, it just promises
+   the editor something they cannot produce. A different problem deserves
+   a different colour, or the red one stops meaning "broken". */
+.cg-badge--contract { background: #f2a900; color: #2b2200; }
+/* A badge carrying a title is the only thing on the card with more to
+   say than it shows. Keyed off [title] rather than a variant class so a
+   future badge cannot forget: the tooltip is what earns the cursor.
+   The glyph is a signal, not content, so it is not selectable either. */
+.cg-badge[title] { cursor: help; user-select: none; }
 /* `.cg-badge` sets display, which outranks the browser's [hidden] rule
    (zero specificity) — without this the render badge would never hide. */
 .cg-badge[hidden] { display: none; }

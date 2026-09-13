@@ -66,4 +66,5 @@ return [
     'For a folder that already has dozens of templates: {file} in this plugin is a recipe any coding agent can follow to draft them all in one pass, for you to review here.' => 'For a folder that already has dozens of templates: {file} in this plugin is a recipe any coding agent can follow to draft them all in one pass, for you to review here.',
     '{count} components have no story yet.' => '{count} components have no story yet.',
     'Rather than one button at a time, {file} in this plugin is a recipe any coding agent can follow to draft them all at once — everything it writes is a draft for you to review here.' => 'Rather than one button at a time, {file} in this plugin is a recipe any coding agent can follow to draft them all at once — everything it writes is a draft for you to review here.',
+    'Variant' => 'Variant',
 ];

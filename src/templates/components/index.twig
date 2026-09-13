@@ -267,6 +267,15 @@ hero{{ settings.twigStorySuffix() }}</div>
                                            whose guards are doing their job, and a badge that cries wolf
                                            stops being read. #}
                                         <span class="cg-badge cg-badge--error" data-cg-render-badge hidden>!</span>
+                                        {% set contract = contractErrors[component.id] ?? [] %}
+                                        {% if contract %}
+                                            {# Deliberately not the error badge. Nothing here is broken: the
+                                               story renders, the names match, the page loads. What is wrong
+                                               is that the card promises something the editor has no field to
+                                               produce — so it reads as a mismatch, not a failure. #}
+                                            {% set contractText = contract|map(e => e.message ~ (e.recommendation() ? ' ' ~ e.recommendation() : ''))|join("\n") %}
+                                            <span class="cg-badge cg-badge--contract" title="{{ contractText }}">&ne;</span>
+                                        {% endif %}
                                     </span>
                                     {% if component.description %}
                                         <span class="cg-card__desc light">{{ component.description }}</span>

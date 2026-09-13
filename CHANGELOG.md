@@ -3,6 +3,69 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.4.0 - 2026-09-13
+
+### Added
+- **The guide checks that the story, the adapter and the entry type agree.**
+  Each of the three can be written correctly on its own and still combine into a
+  promise nobody can keep. A story shows a hero with a background photograph;
+  the adapter dutifully passes an image *if the block has one*; the entry type
+  has no image field. Nothing is broken, nothing fails to render, and the blocks
+  gallery shows an editor a card they can never reproduce.
+
+  Rendering cannot catch this — the preview is flawless. Name matching cannot
+  catch it — the names line up. Only reading the adapter's
+  `{% include … with { … } only %}` and comparing it with the entry type's
+  fields can, because that include site is the one place where “this argument
+  comes from that field” is actually written down.
+
+  Components with a mismatch get a badge on the index, deliberately not the red
+  error one: nothing here has failed, and if red stops meaning “broken” it stops
+  being read. Hovering it names the argument, the field behind it, and what to
+  do about it. It does **not** block promoting a component to `stable` — a
+  mismatch is a thing to tell you, not a thing to stop you.
+
+  What it does not do, stated plainly so the badge's silence can be trusted: it
+  compares presence, not quantity, so a story showing two buttons on a block
+  whose adapter builds one is not reported. Fields the adapter never reads are
+  listed as information rather than a problem. Nested entries are resolved for
+  the two shapes people actually write — `|map(row => { … })` and
+  `{% for row in block.cards %}` — and a repeater assembled some other way is
+  left alone rather than guessed at. An adapter that cannot be identified, or a
+  component included from two places that both read a block, produces no verdict
+  at all: refusing beats guessing, the same rule as for colliding handles.
+
+- **Editors can switch between a component's states in the blocks gallery.**
+  Writing four stories only ever served the developer before — the gallery card
+  showed the first one and the other three may as well not have existed. A
+  component with more than one reproducible state now carries a small dropdown
+  in its card header, the preview follows the choice, and adding the block fills
+  it from the state the editor was actually looking at.
+
+### Changed
+- **Gallery cards preview a state an editor can reach.** Previously always the
+  first story; now the first one whose arguments all have fields behind them. On
+  a site whose hero is built around a background image it has never had, the
+  card stops advertising the photograph and starts showing the text-only state —
+  which is what the page was always going to look like.
+
+### Fixed
+- **Prefill knew which field to fill from a convention we invented.** Adding a
+  block from the gallery copies the story's content into the new block, and the
+  code matched a story argument to a field by name, with one hard-coded alias:
+  an argument ending in `Html` would also try a field ending in `Text`. That is
+  the same defect as the old exact-name matching, one level down — it worked for
+  projects that happened to share our habit and failed silently for everyone
+  else, leaving an empty block and no explanation. The adapter states the real
+  mapping; the guide reads it there now, and the browser guesses nothing. An
+  argument assembled from two fields has no single destination, so it is left
+  alone rather than filled from whichever field came first.
+
+- **Dropdown fields were never prefilled at all.** The selector only ever looked
+  at text inputs and textareas, so a card previewing the dark variant of a
+  component handed the editor the light one. Dropdowns are filled now, and only
+  with an option the field actually offers.
+
 ## 1.3.0 - 2026-09-11
 
 ### Changed

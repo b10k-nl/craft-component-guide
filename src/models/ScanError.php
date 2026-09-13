@@ -26,6 +26,15 @@ class ScanError
     public const DUPLICATE_MARKER = 'duplicate_marker';
     public const AMBIGUOUS_MATCH = 'ambiguous_match';
 
+    /** A story shows something no editor can produce. */
+    public const CONTRACT_UNFILLABLE_ARG = 'contract_unfillable_arg';
+
+    /** The adapter reads a field the entry type does not have. */
+    public const CONTRACT_UNKNOWN_FIELD = 'contract_unknown_field';
+
+    /** The entry type has a field the adapter never reads. */
+    public const CONTRACT_UNUSED_FIELD = 'contract_unused_field';
+
     public function __construct(
         public string $type,
         public string $message,
@@ -56,6 +65,9 @@ class ScanError
             self::UNKNOWN_VIEWPORT => 'Use one of: ' . implode(', ', \b10k\componentguide\services\StoryParser::VIEWPORTS) . '.',
             self::DUPLICATE_MARKER => 'Keep a single marker file (GUIDE.md, BLOCKS.md or COMPONENTS.md) per directory.',
             self::AMBIGUOUS_MATCH => 'Rename one of them: entry-type matching ignores case and separators, so these two names are the same to it.',
+            self::CONTRACT_UNFILLABLE_ARG => 'The gallery card shows this, but no editor can produce it. Either add the field to the entry type, or drop it from the story so the preview stops promising it.',
+            self::CONTRACT_UNKNOWN_FIELD => 'The adapter reads a field handle this entry type does not have, so it always falls back. Fix the handle, or add the field.',
+            self::CONTRACT_UNUSED_FIELD => 'The editor can fill this field and nothing will render it. Pass it through the adapter, or remove it from the entry type.',
             default => '',
         };
     }

@@ -191,24 +191,37 @@
     // same content its gallery card previews. Rich/nested fields are left
     // alone: this is a head start, not a content import.
     var fillBlock = function (blockEl, prefill) {
-        Object.keys(prefill).forEach(function (key) {
-            var value = prefill[key];
-            // Story args are presentational names; the common convention maps
-            // e.g. bodyHtml → a bodyText field, so try that alias too.
-            var names = [key];
-            if (/Html$/.test(key)) { names.push(key.replace(/Html$/, 'Text')); }
+        // Keys are real field handles now: the server reads them off the
+        // adapter's include site, which is the only place the mapping between
+        // a presentational argument and a field is actually written down. The
+        // browser guesses nothing.
+        Object.keys(prefill).forEach(function (handle) {
+            var value = prefill[handle];
+            var input = blockEl.querySelector(
+                'input[type="text"][name$="[' + handle + ']"], '
+                + 'textarea[name$="[' + handle + ']"], '
+                + 'select[name$="[' + handle + ']"]'
+            );
+            if (!input) { return; }
 
-            for (var i = 0; i < names.length; i++) {
-                var input = blockEl.querySelector(
-                    'input[type="text"][name$="[' + names[i] + ']"], '
-                    + 'textarea[name$="[' + names[i] + ']"]'
-                );
-                if (!input || input.value !== '') { continue; }
+            if (input.tagName === 'SELECT') {
+                // Dropdowns were skipped entirely before, so a card previewing
+                // the dark hero handed the editor a light one. A select always
+                // has a value, so "only fill the empty ones" cannot apply —
+                // instead only set an option the field actually offers.
+                var wanted = String(value);
+                var offered = Array.prototype.some.call(input.options, function (option) {
+                    return option.value === wanted;
+                });
+                if (!offered || input.value === wanted) { return; }
+                input.value = wanted;
+            } else {
+                if (input.value !== '') { return; }
                 input.value = typeof value === 'boolean' ? (value ? '1' : '') : String(value);
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-                break;
             }
+
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         });
     };
 
@@ -386,6 +399,13 @@
                 card.title = blockReason;
             }
 
+            // Which state of this component the card is currently offering.
+            // Only reproducible ones reach the browser — the server decides
+            // that, because it is the same question the index badge answers.
+            var variants = (comp && comp.stories) ? comp.stories : [];
+            var active = variants[0] || null;
+            var frame = null;
+
             // Native card titlebar, same markup as Cp::elementCardHtml().
             var head = document.createElement('div');
             head.className = 'card-titlebar';
@@ -443,6 +463,7 @@
                     var thumb = document.createElement('span');
                     thumb.className = 'cg-picker-card__thumb';
                     var iframe = document.createElement('iframe');
+                    frame = iframe;
                     iframe.src = comp.previewUrl;
                     iframe.loading = 'lazy';
                     iframe.tabIndex = -1;
@@ -455,6 +476,47 @@
                 content.appendChild(body);
                 main.appendChild(content);
                 card.appendChild(main);
+            }
+
+            // A component with several reproducible states gets a switcher.
+            // Built after the body so it can point at the thumbnail, appended
+            // to the titlebar so it reads as part of the card's own header.
+            // A dropdown rather than a row of chips: titles are written by the
+            // developer and can be any length, and a wrapping row pushes the
+            // card's own title around.
+            if (variants.length > 1) {
+                var variantWrap = document.createElement('div');
+                variantWrap.className = 'select small cg-picker-card__variants';
+
+                var variantSelect = document.createElement('select');
+                variantSelect.setAttribute('aria-label', Craft.t('component-guide', 'Variant'));
+
+                variants.forEach(function (story, index) {
+                    var option = document.createElement('option');
+                    option.value = String(index);
+                    option.textContent = story.title;
+                    variantSelect.appendChild(option);
+                });
+
+                // The whole card is the add button, so every interaction with
+                // the dropdown — merely opening it included — has to stop here.
+                // Otherwise choosing a variant would silently add a block.
+                ['click', 'mousedown', 'keydown'].forEach(function (type) {
+                    variantSelect.addEventListener(type, function (event) {
+                        event.stopPropagation();
+                    });
+                });
+
+                variantSelect.addEventListener('change', function (event) {
+                    event.stopPropagation();
+                    active = variants[variantSelect.selectedIndex] || active;
+                    if (frame && active && active.previewUrl) {
+                        frame.src = active.previewUrl;
+                    }
+                });
+
+                variantWrap.appendChild(variantSelect);
+                head.appendChild(variantWrap);
             }
 
             if (blockReason) {
@@ -472,8 +534,11 @@
                 var target = source.add(item);
                 if (!target) { return; }
 
-                if (target.nodeType === 1 && comp && comp.prefill) {
-                    watchForNewBlock(target, item.type, comp.prefill);
+                // What the editor picked is what they get: the block starts
+                // from the state whose preview they were looking at.
+                var prefill = active ? active.prefill : (comp ? comp.prefill : null);
+                if (target.nodeType === 1 && prefill) {
+                    watchForNewBlock(target, item.type, prefill);
                 }
 
                 card.classList.remove('is-added');

@@ -24,6 +24,9 @@ class GalleryMatcher extends Component
     /** @var array<string, string>|null Match key => entry-type name. */
     private ?array $handles = null;
 
+    /** @var array<string, string>|null Match key => entry-type handle. */
+    private ?array $handlesByKey = null;
+
     /**
      * Mirrors the `addable` test in web/js/picker.js: an explicit non-stable
      * status is the developer's own “not ready for editors” marker, and the
@@ -179,12 +182,33 @@ class GalleryMatcher extends Component
     }
 
     /**
+     * The matched entry type's *handle*, for callers that need to look the type
+     * up in Craft. matchedEntryType() returns the display name — it exists to
+     * be shown to a human — and passing that to getEntryTypeByHandle() silently
+     * yields nothing, which is how every field on every component once looked
+     * as though it did not exist.
+     */
+    public function matchedEntryTypeHandle(ComponentDefinition $component): ?string
+    {
+        foreach ($component->errors as $error) {
+            if ($error->type === ScanError::AMBIGUOUS_MATCH) {
+                return null;
+            }
+        }
+
+        $this->entryTypeHandles();
+
+        return $this->handlesByKey[self::matchKey($component->name)] ?? null;
+    }
+
+    /**
      * @return array<string, string>
      */
     private function entryTypeHandles(): array
     {
         if ($this->handles === null) {
             $this->handles = [];
+            $this->handlesByKey = [];
             $seen = [];
 
             foreach ($this->entryTypes() as $type) {
@@ -194,12 +218,13 @@ class GalleryMatcher extends Component
                 // here can say which one a template meant, so neither is
                 // offered — the same rule as for two colliding templates.
                 if (isset($seen[$key])) {
-                    unset($this->handles[$key]);
+                    unset($this->handles[$key], $this->handlesByKey[$key]);
                     continue;
                 }
 
                 $seen[$key] = true;
                 $this->handles[$key] = $type['name'];
+                $this->handlesByKey[$key] = $type['handle'];
             }
         }
 

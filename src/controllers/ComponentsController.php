@@ -45,6 +45,16 @@ class ComponentsController extends Controller
             }
         }
 
+        // Three files can each be correct on their own and still combine into
+        // a card no editor can reproduce — the story shows it, the adapter
+        // passes it through, the entry type has no field for it. Computed here
+        // rather than during the scan because it depends on entry types, which
+        // change without any template changing.
+        $contractErrors = Plugin::getInstance()->getContractInspector()->inspect(
+            $components,
+            \Craft::$app->getPath()->getSiteTemplatesPath(),
+        );
+
         return $this->renderTemplate('component-guide/components/index', [
             'title' => \Craft::t('component-guide', 'Component Guide'),
             'grouped' => $repository->getGrouped(),
@@ -70,6 +80,7 @@ class ComponentsController extends Controller
             // that changed state — see WriteJournal. Relative paths only: the
             // CP never echoes absolute paths.
             'previewUrls' => $previewUrls,
+            'contractErrors' => $contractErrors,
             'cpWrites' => $this->cpWrites(),
             // The status toggle writes into templates/ exactly like the
             // scaffolder, so it opens and closes with the same two gates.

@@ -3,8 +3,11 @@
 namespace b10k\componentguide;
 
 use b10k\componentguide\models\Settings;
+use b10k\componentguide\services\AdapterResolver;
 use b10k\componentguide\services\ComponentRepository;
 use b10k\componentguide\services\ComponentScanner;
+use b10k\componentguide\services\ContractChecker;
+use b10k\componentguide\services\ContractInspector;
 use b10k\componentguide\services\GalleryMatcher;
 use b10k\componentguide\services\PlaceholderResolver;
 use b10k\componentguide\services\PreviewRenderer;
@@ -76,6 +79,16 @@ class Plugin extends BasePlugin
                     self::getInstance()->getScanner(),
                 ),
                 'galleryMatcher' => GalleryMatcher::class,
+                'adapterResolver' => AdapterResolver::class,
+                'contractChecker' => ContractChecker::class,
+                // Wired explicitly for the same reason as the scanner: the
+                // inspector must share the plugin's matcher, or the index
+                // and the gallery could answer differently.
+                'contractInspector' => static fn(): ContractInspector => new ContractInspector(
+                    self::getInstance()->getAdapterResolver(),
+                    self::getInstance()->getContractChecker(),
+                    self::getInstance()->getGalleryMatcher(),
+                ),
                 'previewRenderer' => PreviewRenderer::class,
                 'placeholderResolver' => PlaceholderResolver::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
@@ -173,6 +186,27 @@ class Plugin extends BasePlugin
         /** @var GalleryMatcher $matcher */
         $matcher = $this->get('galleryMatcher');
         return $matcher;
+    }
+
+    public function getAdapterResolver(): AdapterResolver
+    {
+        /** @var AdapterResolver $resolver */
+        $resolver = $this->get('adapterResolver');
+        return $resolver;
+    }
+
+    public function getContractChecker(): ContractChecker
+    {
+        /** @var ContractChecker $checker */
+        $checker = $this->get('contractChecker');
+        return $checker;
+    }
+
+    public function getContractInspector(): ContractInspector
+    {
+        /** @var ContractInspector $inspector */
+        $inspector = $this->get('contractInspector');
+        return $inspector;
     }
 
     public function getPreviewRenderer(): PreviewRenderer

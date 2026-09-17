@@ -3,6 +3,54 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.4.1 - 2026-09-17
+
+### Fixed
+- **The contract badge no longer fires on a healthy component.** An adapter can
+  be written two ways. One file per block type, handed the entry as `block` and
+  including the component with `block.heading`. Or one file for all of them,
+  handed the *parent* entry, looping its Matrix field and switching on
+  `block.type` — which is the shape this plugin's own setup guide recommends,
+  and the one it greps for to find adapters at all.
+
+  Only the first was modelled. In the second, `block` is a loop variable, and
+  loop variables were deliberately skipped when working out which variable holds
+  the block — so the root fell through to the parent entry, and every argument
+  looked as though it came from the parent's Matrix field, which no block entry
+  type has. Every argument was then reported as something no editor could
+  produce: a badge on a component where nothing was wrong, and a blocks gallery
+  offering the editor nothing at all.
+
+  The two shapes are told apart by the type switch itself: a loop variable
+  compared against a type handle is the block entry, not a row inside it. A
+  genuine repeater in the same adapter is still resolved as before.
+
+  Worth saying plainly, because it is the whole argument for the badge: a badge
+  that fires on healthy components is worse than no badge, since it teaches
+  people to ignore it on broken ones.
+
+- **A story holding a live element query no longer takes down the whole
+  section.** Story arguments are kept exactly as the story file produced them,
+  deliberately: a component built around an entry is only honestly previewed
+  with a real one, so the README allows an element or an element query in a
+  story you trust. But the scan result is cached, caching means serializing,
+  and an element query carries event handlers — a handler is a closure, and
+  `serialize()` refuses a closure. The cache write threw, nothing caught it, and
+  every request to the guide ended in an uncaught exception. Not one broken
+  preview, not one component with a badge: the entire control-panel section,
+  gone, for one argument in one story.
+
+  The cache is an optimization, and an optimization may not break the page. A
+  result that will not serialize is now simply not cached, and the scan runs
+  again on the next request.
+
+  It is not quiet about it. Something you wrote made the guide slower, so the
+  guide tells you which story, and that calling `.one()`, `.all()` or `.url()`
+  inside the story — passing the value rather than the query — restores the
+  cache. Found on a real client project, where the section died on the first
+  page load; it cannot happen on a story whose arguments are plain values,
+  which is why it survived four releases unseen.
+
 ## 1.4.0 - 2026-09-13
 
 ### Added

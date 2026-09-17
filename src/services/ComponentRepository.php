@@ -222,12 +222,7 @@ class ComponentRepository extends Component
             $result = $this->scanner->scan($templatesRoot, $settings->componentPath, $suffixes);
 
             if ($cacheKey !== null) {
-                Craft::$app->getCache()->set(
-                    $cacheKey,
-                    $result,
-                    self::CACHE_TTL,
-                    new TagDependency(['tags' => [self::CACHE_TAG]]),
-                );
+                $this->cacheResult($cacheKey, $result);
             }
         }
 
@@ -246,6 +241,82 @@ class ComponentRepository extends Component
      * Cheap token for "the code that produced this result" — see
      * {@see CACHE_SCHEMA_SOURCES}. Memoized per request; three stat() calls.
      */
+    /**
+     * Writes a scan result to the persistent cache, and never lets that write
+     * take the page down with it.
+     *
+     * A Twig story is rendered, and whatever it puts in `args` is kept as it
+     * is. That is deliberate — the README allows an element or an element query
+     * in a story the developer trusts, because a live element is often the only
+     * honest way to preview a component built around one. But an element query
+     * carries event handlers, and a handler is a closure: `serialize()` refuses
+     * it, and Yii's cache serializes without catching.
+     *
+     * Found on a real project: one story holding a query turned the whole
+     * Component Guide section into an uncaught exception on every request. The
+     * cache is an optimization, so the rule is simply that an optimization may
+     * not break the page — if the result will not serialize, the scan just runs
+     * again next request.
+     *
+     * It is not silent about it, though. Something the developer wrote made the
+     * guide slower, so the guide says which story and what to do about it.
+     *
+     * @param array{components: ComponentDefinition[], errors: ScanError[], groupMeta?: array<string, mixed>} $result
+     */
+    private function cacheResult(string $cacheKey, array &$result): void
+    {
+        try {
+            Craft::$app->getCache()->set(
+                $cacheKey,
+                $result,
+                self::CACHE_TTL,
+                new TagDependency(['tags' => [self::CACHE_TAG]]),
+            );
+        } catch (\Throwable $e) {
+            [$component, $story] = $this->firstUnserializableStory($result['components']);
+
+            $result['errors'][] = new ScanError(
+                ScanError::SCAN_CACHE_SKIPPED,
+                $story === null
+                    ? 'The scan cache is off: this scan result cannot be serialized.'
+                    // Concatenation and \u escapes, never interpolation: a curly
+                    // quote next to a variable puts its bytes inside the name.
+                    : 'The scan cache is off: story ' . "\u{201C}" . $story->title . "\u{201D}"
+                        . ' holds an argument that cannot be serialized.',
+                $component?->storyFilePath,
+                $component?->id,
+                $story?->id,
+                $e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Finds the story whose args refuse to serialize.
+     *
+     * Only ever called after a failed write, so the cost of serializing story
+     * by story is paid in the rare case and never on the happy path. Naming the
+     * story is the difference between an error the developer can act on and one
+     * that only says something somewhere is wrong.
+     *
+     * @param ComponentDefinition[] $components
+     * @return array{0: ComponentDefinition|null, 1: StoryDefinition|null}
+     */
+    private function firstUnserializableStory(array $components): array
+    {
+        foreach ($components as $component) {
+            foreach ($component->stories as $story) {
+                try {
+                    serialize($story->args);
+                } catch (\Throwable) {
+                    return [$component, $story];
+                }
+            }
+        }
+
+        return [null, null];
+    }
+
     private function schemaFingerprint(): string
     {
         static $token = null;

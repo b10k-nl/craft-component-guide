@@ -35,6 +35,9 @@ class ScanError
     /** The entry type has a field the adapter never reads. */
     public const CONTRACT_UNUSED_FIELD = 'contract_unused_field';
 
+    /** A story arg cannot be serialized, so the scan result was not cached. */
+    public const SCAN_CACHE_SKIPPED = 'scan_cache_skipped';
+
     public function __construct(
         public string $type,
         public string $message,
@@ -68,6 +71,7 @@ class ScanError
             self::CONTRACT_UNFILLABLE_ARG => 'The gallery card shows this, but no editor can produce it. Either add the field to the entry type, or drop it from the story so the preview stops promising it.',
             self::CONTRACT_UNKNOWN_FIELD => 'The adapter reads a field handle this entry type does not have, so it always falls back. Fix the handle, or add the field.',
             self::CONTRACT_UNUSED_FIELD => 'The editor can fill this field and nothing will render it. Pass it through the adapter, or remove it from the entry type.',
+            self::SCAN_CACHE_SKIPPED => 'Everything works, only slower: the scan runs on every request. Call “.one()”, “.all()” or “.url()” inside the story so the arg is the value rather than the query, or turn off enableScanCache to silence this.',
             default => '',
         };
     }

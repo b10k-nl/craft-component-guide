@@ -44,6 +44,32 @@ class AdapterResolverTest extends TestCase
         } only %}
         TWIG;
 
+    /**
+     * The other shape, taken from a real client project: one adapter for every
+     * block type, handed the *parent* entry, looping its Matrix field and
+     * switching on the type. Here `block` is the block entry itself — the thing
+     * the first shape receives ready-made.
+     */
+    private const DISPATCHER = <<<'TWIG'
+        {% for block in inlineComponentEntry.inlineComponents.site('*').all() %}
+            {% if block.type == 'inlineNewsletterForm' %}
+                {% include '_components/inline-components/inline-newsletter-form.twig' with {
+                    heading: block.heading ?? null,
+                    entryId: entry ? entry.id : null,
+                } only %}
+            {% elseif block.type == 'inlinePetitionForm' %}
+                {% include '_components/inline-components/inline-petition-form.twig' with {
+                    petitionQuery: block.petition ?? null,
+                    heading: block.heading ?? null,
+                    introText: block.introText ?? null,
+                    utm_campaign: block.utmCampaign|length ? block.utmCampaign : null,
+                    inlineComponentEntry: inlineComponentEntry,
+                    entryUid: entry ? entry.uid : null,
+                } only %}
+            {% endif %}
+        {% endfor %}
+        TWIG;
+
     public function testItRecoversTheArgumentToFieldMappingTheStoryCannotShow(): void
     {
         $binding = $this->resolver->parse(self::HERO, '_blocks/hero.twig', '_adapters/hero.twig');
@@ -214,5 +240,88 @@ class AdapterResolverTest extends TestCase
         // A story showing an `eyebrow` on a block whose adapter never passes one
         // is a card promising something no editor can produce.
         self::assertSame(['eyebrow'], $binding->argsNeverSupplied(['heading', 'items', 'eyebrow']));
+    }
+
+    public function testALoopVariableSwitchedOnByTypeIsTheBlockItself(): void
+    {
+        $binding = $this->resolver->parse(
+            self::DISPATCHER,
+            '_components/inline-components/inline-petition-form.twig',
+            '_components/_inline-component.twig',
+        );
+
+        self::assertNotNull($binding);
+
+        // Read as an ordinary loop variable, `block` would be skipped and the
+        // root would fall to `inlineComponentEntry` — making every field look
+        // like it lived on the parent's Matrix field instead.
+        self::assertSame('block', $binding->blockRoot);
+
+        self::assertSame('petition', $binding->fieldFor('petitionQuery'));
+        self::assertSame('heading', $binding->fieldFor('heading'));
+        self::assertSame('introText', $binding->fieldFor('introText'));
+        self::assertSame('utmCampaign', $binding->fieldFor('utm_campaign'));
+    }
+
+    public function testTheDispatcherShapeReportsNoNestedIteration(): void
+    {
+        $binding = $this->resolver->parse(
+            self::DISPATCHER,
+            '_components/inline-components/inline-petition-form.twig',
+        );
+
+        self::assertNotNull($binding);
+        // The loop reads the parent's Matrix field to get the blocks; it is not
+        // a repeater inside one. Reporting it as nested is what produced the
+        // false badge on the client project.
+        self::assertSame([], $binding->nested);
+    }
+
+    public function testArgumentsTheDispatcherFillsAreNotReportedAsUnsuppliable(): void
+    {
+        $binding = $this->resolver->parse(
+            self::DISPATCHER,
+            '_components/inline-components/inline-petition-form.twig',
+        );
+
+        self::assertNotNull($binding);
+        // The regression in one line: before the fix every one of these was
+        // called unproducible, and the gallery offered the editor nothing.
+        self::assertSame(
+            [],
+            $binding->argsNeverSupplied(['petitionQuery', 'heading', 'introText', 'utm_campaign']),
+        );
+    }
+
+    public function testAGenuineNestedLoopIsStillResolvedAlongsideADispatch(): void
+    {
+        // The same repeater as testAForLoopBindsItsVariableAndCollectsFieldsFromTheBody,
+        // only wrapped in a dispatcher. Two loop variables now, and they must be
+        // told apart: `block` is the entry, `row` is a row inside it.
+        $source = <<<'TWIG'
+            {% for block in entry.pageBlocks.all() %}
+                {% if block.type == 'cardsGrid' %}
+                    {% for row in block.gridCards.all() %}
+                        {{ row.cardText }} {{ row.cardIcon }}
+                    {% endfor %}
+                    {% include '_blocks/cardsGrid.twig' with {
+                        heading: block.heading,
+                        items: rows|map(r => { text: row.cardText }),
+                    } only %}
+                {% endif %}
+            {% endfor %}
+            TWIG;
+
+        $binding = $this->resolver->parse($source, '_blocks/cardsGrid.twig');
+
+        self::assertNotNull($binding);
+        self::assertSame('block', $binding->blockRoot);
+        self::assertSame('heading', $binding->fieldFor('heading'));
+
+        // Dropping `block` must not take `row` with it.
+        self::assertArrayHasKey('items', $binding->nested);
+        self::assertSame('row', $binding->nested['items']['var']);
+        self::assertSame('gridCards', $binding->nested['items']['sourceField']);
+        self::assertContains('cardIcon', $binding->nested['items']['fields']);
     }
 }

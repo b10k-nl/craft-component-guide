@@ -76,6 +76,14 @@ class AdapterResolver extends Component
         // loop body; an arrow function binds inside one argument and reads it
         // there. Both occur in the wild, so both are resolved.
         $forLoops = $this->forLoops($tags);
+
+        // …unless the loop variable is the block entry itself rather than a row
+        // inside it — see dispatchVars(). Dropping it here is what lets
+        // blockRoot() observe it, since that deliberately skips loop variables.
+        foreach ($this->dispatchVars($source) as $var) {
+            unset($forLoops[$var]);
+        }
+
         $forBodyFields = [];
         foreach (array_keys($forLoops) as $var) {
             $forBodyFields[$var] = $this->bodyReferences($source, $var);
@@ -476,6 +484,58 @@ class AdapterResolver extends Component
         }
 
         return $loops;
+    }
+
+    /**
+     * Loop variables the adapter dispatches on, as in `{% if block.type ==
+     * 'hero' %}`.
+     *
+     * This exists because an adapter can be written two ways, and telling them
+     * apart matters more than it looks.
+     *
+     * One file per block type: the adapter is handed the entry as `block` and
+     * includes the component with `block.heading`. A `{% for row in block.cards
+     * %}` inside it is then genuinely a nested Matrix on that entry.
+     *
+     * One file for all of them: the adapter is handed the *parent* entry, loops
+     * its Matrix field to get the blocks, and switches on the type. Here the
+     * loop variable is the block entry, and `block.heading` is its own field —
+     * not something nested under the Matrix field the loop reads.
+     *
+     * Read as a plain loop variable, the second shape makes every argument look
+     * like it comes from the Matrix field, which no block entry type has. The
+     * badge then fires on a component where nothing is wrong at all — the worst
+     * outcome there is, because a badge that fires on healthy components stops
+     * being read on broken ones.
+     *
+     * The type switch settles it: a variable compared against a type handle is
+     * the entry. It is the same signal the setup recipe greps for to find
+     * adapters in the first place.
+     *
+     * @return list<string>
+     */
+    private function dispatchVars(string $source): array
+    {
+        $stripped = $this->stripStrings($source);
+        $vars = [];
+
+        // `block.type == 'hero'`, `block.type != 'hero'`, `block.type in [...]`
+        preg_match_all(
+            '/(?<![\w.])([A-Za-z_]\w*)\.type\s*(?:==|!=|\bin\b)/',
+            $stripped,
+            $comparisons,
+        );
+        $vars = array_merge($vars, $comparisons[1]);
+
+        // `{% switch block.type %}` — Craft's own tag, common in dispatchers.
+        preg_match_all(
+            '/\bswitch\s+([A-Za-z_]\w*)\.type\b/',
+            $stripped,
+            $switches,
+        );
+        $vars = array_merge($vars, $switches[1]);
+
+        return $this->unique($vars);
     }
 
     /**

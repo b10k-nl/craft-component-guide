@@ -49,6 +49,20 @@ to [Semantic Versioning](https://semver.org).
 
 ### Added
 
+- **Undo, right after adding a block from the gallery.** Adding a block used to
+  be a one-way door: the panel stays open so an editor can compose a whole page
+  in a few clicks, which also means a wrong click costs a scroll down the page,
+  a menu and a delete. A notice now appears with the block's name and an Undo
+  link, and taking it back runs Craft's own delete — the same call behind the
+  block's action menu — so the result is exactly as if the block had never been
+  added.
+
+  This is offered in inline Matrix fields only. In Cards and Index mode Craft
+  creates the entry on the server and opens a slideout over it, where undoing
+  would mean deleting a saved element behind the editor's back; an Undo that
+  works in one of the two Matrix UIs and quietly does nothing in the other is
+  worse than no Undo at all, so nothing is shown there.
+
 - **A free Lite edition.** The line between Lite and Pro is not developer
   features versus editor features — it is *seeing* versus *acting*.
 

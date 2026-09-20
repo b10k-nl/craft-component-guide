@@ -330,24 +330,108 @@
 
     // Matrix inserts the new block asynchronously; poll the field for an
     // element of the added type that wasn't there before the click.
-    var watchForNewBlock = function (field, type, prefill) {
+    //
+    // Two things wait on that element and they become ready at different
+    // moments. The inputs exist as soon as the markup lands, so prefill can run
+    // then; Craft.MatrixInput.Entry — the object that knows how to take the
+    // block out again — is only constructed after the insert animation
+    // finishes. onReady is therefore held back until that object exists, so an
+    // Undo affordance is never drawn for a block it could not actually remove.
+    var watchForNewBlock = function (field, type, prefill, onReady) {
         var deadline = Date.now() + 4000;
         var existing = new Set(
             Array.prototype.slice.call(field.querySelectorAll('[data-type="' + type + '"]'))
         );
+        var found = null;
         var tick = function () {
-            var candidates = field.querySelectorAll('[data-type="' + type + '"]');
-            for (var i = candidates.length - 1; i >= 0; i--) {
-                var el = candidates[i];
-                // Menu buttons carry data-type too — a real block has inputs.
-                if (!existing.has(el) && el.tagName !== 'BUTTON' && el.querySelector('input, textarea')) {
-                    fillBlock(el, prefill);
+            if (!found) {
+                var candidates = field.querySelectorAll('[data-type="' + type + '"]');
+                for (var i = candidates.length - 1; i >= 0; i--) {
+                    var el = candidates[i];
+                    // Menu buttons carry data-type too — a real block has inputs.
+                    if (!existing.has(el) && el.tagName !== 'BUTTON' && el.querySelector('input, textarea')) {
+                        found = el;
+                        if (prefill) { fillBlock(el, prefill); }
+                        break;
+                    }
+                }
+            }
+
+            if (found) {
+                if (!onReady) { return; }
+                var entry = window.jQuery ? window.jQuery(found).data('entry') : null;
+                if (entry && typeof entry.selfDestruct === 'function') {
+                    onReady(found, entry);
                     return;
                 }
             }
+
             if (Date.now() < deadline) { requestAnimationFrame(tick); }
         };
         requestAnimationFrame(tick);
+    };
+
+    // --- Undo ---------------------------------------------------------------
+    // Craft has a notification of its own whose details area takes arbitrary
+    // markup, so there is no reason to build a snackbar. One detail of
+    // Notification.show() decides the markup: it moves focus into the
+    // notification as soon as the details contain a <button> or an <input>,
+    // which would pull the cursor out of the field Matrix had just focused in
+    // the new block. A link does the same job, stays keyboard-reachable, and
+    // leaves the focus where the editor expects it.
+    var undoNotification = null;
+
+    var offerUndo = function (label, field, uid) {
+        // One notice at a time: adding three blocks in a row should not leave
+        // three stacked Undos, only the last of which still means anything.
+        if (undoNotification) {
+            undoNotification.close();
+            undoNotification = null;
+        }
+
+        var details = document.createElement('div');
+        details.className = 'cg-undo';
+
+        var link = document.createElement('a');
+        link.className = 'cg-undo__btn';
+        link.href = '#';
+        link.textContent = Craft.t('component-guide', 'Undo');
+        details.appendChild(link);
+
+        var notification = Craft.cp.displayNotice(
+            Craft.t('component-guide', '“{block}” added.', { block: label }),
+            { details: details, class: 'cg-undo-notification' },
+        );
+        undoNotification = notification;
+
+        link.addEventListener('click', function (event) {
+            event.preventDefault();
+
+            // Resolve the block now, not at add time. Entering Live Preview
+            // re-renders the editor, and every node captured before that is
+            // detached — an Undo holding one would quietly remove nothing,
+            // which is exactly the failure this button must not have. The uid
+            // outlives the re-render, so the block is found through it.
+            var live = field.isConnected
+                ? field
+                : (field.id ? document.getElementById(field.id) : null);
+            var block = live
+                ? live.querySelector('.matrixblock[data-uid="' + uid + '"]')
+                : null;
+            var entry = (block && window.jQuery) ? window.jQuery(block).data('entry') : null;
+
+            // The editor may have deleted the block themselves in the meantime;
+            // undoing one that is already gone is a no-op, not an error.
+            // selfDestruct() is Craft's own delete — the same call behind the
+            // block's action menu — so nothing is reimplemented here.
+            if (entry && typeof entry.selfDestruct === 'function') {
+                entry.selfDestruct();
+                Craft.cp.announce(Craft.t('component-guide', 'Block removed.'));
+            }
+
+            if (undoNotification === notification) { undoNotification = null; }
+            notification.close();
+        });
     };
 
     // --- Gallery panel ------------------------------------------------------
@@ -696,8 +780,24 @@
                 // What the editor picked is what they get: the block starts
                 // from the state whose preview they were looking at.
                 var prefill = active ? active.prefill : (comp ? comp.prefill : null);
-                if (target.nodeType === 1 && prefill) {
-                    watchForNewBlock(target, item.type, prefill);
+
+                // Inline fields hand back the live field element, so the new
+                // block can be found — and taken back out if the editor changes
+                // their mind. Cards/Index mode returns true instead: there the
+                // entry was created on the server and Craft opened a slideout
+                // over it, so undo would mean a real delete behind the editor's
+                // back. Nothing is offered there rather than an Undo that only
+                // works in one of the two Matrix UIs.
+                if (target.nodeType === 1) {
+                    watchForNewBlock(target, item.type, prefill, function (blockEl) {
+                        // Name it the way the card did. item.label is the
+                        // native button's text, which for a single-entry-type
+                        // field is the field's create-button label — “New
+                        // entry”, not the block's name.
+                        var name = (comp ? comp.title : item.label) || item.type;
+                        var uid = blockEl.getAttribute('data-uid');
+                        if (uid) { offerUndo(name, target, uid); }
+                    });
                 }
 
                 card.classList.remove('is-added');

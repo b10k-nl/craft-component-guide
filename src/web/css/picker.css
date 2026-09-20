@@ -251,3 +251,16 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
 .cg-picker-note.is-flashing {
     animation: cg-note-flash 900ms ease-out;
 }
+
+/* Undo lives inside Craft's own notification, so it inherits the surface and
+   only has to read as an action rather than as a second line of body text. */
+.cg-undo-notification .cg-undo {
+    margin-top: 4px;
+}
+
+.cg-undo-notification .cg-undo__btn {
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}

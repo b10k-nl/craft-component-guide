@@ -22,6 +22,7 @@ use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterUrlRulesEvent;
 use craft\helpers\Console;
+use craft\helpers\Json;
 use craft\helpers\UrlHelper;
 use craft\services\UserPermissions;
 use craft\utilities\ClearCaches;
@@ -51,12 +52,56 @@ class Plugin extends BasePlugin
 {
     public const PERMISSION_ACCESS = 'component-guide:access';
 
+    /**
+     * Editions.
+     *
+     * The line between them is not "developer features" versus "editor
+     * features" — it is *seeing* versus *acting*. Everything that tells you the
+     * truth about your own project is free: the component index, previews, the
+     * contract badge, loud render errors. What costs money is the plugin doing
+     * something on your behalf — writing a filled-in block into an entry, or
+     * running unattended in CI.
+     *
+     * Lite therefore still opens the blocks gallery and still renders every
+     * thumbnail. Only the insertion is held back, so an editor sees exactly
+     * what the paid edition would give them.
+     */
+    public const EDITION_LITE = 'lite';
+    public const EDITION_PRO = 'pro';
+
     /** Base path of the story preview route, on the site and in the CP. */
     public const PREVIEW_PATH = 'component-guide/preview';
 
     public string $schemaVersion = '0.1.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
+
+    /**
+     * Later editions are "greater than" earlier ones, so `is(EDITION_LITE, '>')`
+     * means Pro. Order is therefore significant.
+     */
+    public static function editions(): array
+    {
+        return [
+            self::EDITION_LITE,
+            self::EDITION_PRO,
+        ];
+    }
+
+    /**
+     * Whether the paid edition is active.
+     *
+     * Wrapped rather than calling `is()` at each site so the comparison lives
+     * in one place — the same rule as `argFailure()`: an index and a gallery
+     * that answer from different functions eventually disagree.
+     *
+     * Craft only allows edition comparisons once `init()` has run, which is
+     * true for every caller here (controllers, event handlers, Twig).
+     */
+    public function isPro(): bool
+    {
+        return $this->is(self::EDITION_PRO);
+    }
 
     public static function config(): array
     {
@@ -388,9 +433,22 @@ class Plugin extends BasePlugin
             View::class,
             View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             function (): void {
-                if (Craft::$app->getUser()->checkPermission(self::PERMISSION_ACCESS)) {
-                    Craft::$app->getView()->registerAssetBundle(assetbundles\PickerAsset::class);
+                if (!Craft::$app->getUser()->checkPermission(self::PERMISSION_ACCESS)) {
+                    return;
                 }
+
+                $view = Craft::$app->getView();
+                $view->registerAssetBundle(assetbundles\PickerAsset::class);
+
+                // The gallery opens in both editions; only inserting a block is
+                // held back. The flag rides along so the panel can say so in
+                // place of the add action, rather than the button vanishing and
+                // leaving the editor to wonder what they are missing.
+                $view->registerJs(
+                    'window.CraftComponentGuide = Object.assign(window.CraftComponentGuide || {}, '
+                    . Json::encode(['pro' => $this->isPro()]) . ');',
+                    View::POS_HEAD,
+                );
             }
         );
     }

@@ -3,6 +3,110 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.5.0 - 2026-09-19
+
+### Fixed
+
+- **Marking a story stable could rewrite the wrong line and silently fail.**
+  The writer looked for `status` with a regular expression and took the first
+  occurrence in the meta block, without checking it was a key. A description
+  that merely mentioned the word won: clicking “mark stable” rewrote the
+  developer's own sentence, left the real status at `draft`, and reported
+  success. It now walks the meta block instead — skipping string literals,
+  comments and anything nested — and only accepts `status` in key position.
+
+  This is a file the plugin did not create and promises not to damage, so the
+  write itself was hardened at the same time: contents go to a sibling temp
+  file and are renamed over the original, which means the story file is either
+  the old bytes or the new ones and never half of either. Short writes are
+  detected too; previously a truncated write counted as success.
+
+- **Adapters written with whitespace control were invisible.** `{%- include … %}`
+  — ordinary Twig, and how most adapters are actually written — was never
+  recognised as an include, in two separate places: the tag scanner kept the
+  leading `-` as the tag name, and a cheap pre-filter tested for the literal
+  string `{% include`. The effect was not a wrong answer but no answer: the
+  component had no adapter, so the contract check passed everything and the
+  badge stayed dark. Silence is the failure this plugin exists to remove, and
+  it had learned to produce it.
+
+- **`block.type.handle == '…'` was not recognised as a type switch.** Only the
+  shorter `block.type == '…'` was, although `.handle` is the idiomatic Craft 5
+  spelling. Same consequence as above: the binding was dropped and every story
+  counted as reproducible.
+
+### Changed
+
+- **A story with no status is now treated as a draft, not as stable.** It used
+  to be addable from the blocks gallery, which read silence as a promise: a
+  story nobody had reviewed was offered to editors as ready. Absence of a claim
+  is not a claim.
+
+  If you have hand-written stories with no `status` in their meta block, they
+  will stop appearing as addable cards until you mark them stable — the gallery
+  says so on the card rather than leaving you to guess. Scaffolded stories are
+  unaffected: they have always been written with an explicit `status`.
+
+### Added
+
+- **A free Lite edition.** The line between Lite and Pro is not developer
+  features versus editor features — it is *seeing* versus *acting*.
+
+  Everything that tells you the truth about your own project is free, and that
+  is the whole of it: the component index, marker files, live previews rendered
+  with your site's CSS, the contract badge that catches a story promising a
+  field the entry type does not have, loud render errors instead of a silent
+  pink rectangle, the write journal, and the story scaffolder. A component
+  library you cannot see is the problem this plugin exists for, and putting a
+  price on seeing it would be a strange way to solve that.
+
+  Pro is the plugin doing something on your behalf: writing a filled-in block
+  into an entry from the blocks gallery, and running unattended in CI.
+
+  The blocks gallery still **opens** in Lite. Editors browse the real rendered
+  cards for the blocks a field accepts — hiding them would hide the very thing
+  being offered — and only the click that inserts a filled-in block is held
+  back. Craft's own "New Block" menu is untouched, so nothing an editor already
+  had is taken away.
+
+- **`stories/check`, a contract check for CI.**
+
+  ```
+  php craft component-guide/stories/check
+  ```
+
+  Pro only. The edition is read from your committed `project.yaml`, so a CI
+  runner needs no licence key of its own; under Lite the command says what it
+  is and exits 0 rather than failing a build to advertise.
+
+  Exits 0 when the stories, the adapters and the entry types still agree, and
+  non-zero (65, Yii’s `DATAERR`) when they do not — so a CI job can simply run
+  it. `--format=json` for machine reading; `--fail-on` to choose
+  which findings break the build (by default, the two that mean the gallery is
+  lying to an editor — a field the adapter never fills, and a handle the entry
+  type does not have). An unknown `--fail-on` or `--format` stops the command
+  rather than being ignored — a gate that cannot be made to fail is worse than
+  no gate.
+
+  This is the failure that outlives the people who caused it. A field gets
+  renamed during a content-model cleanup, a field is dropped from an entry type,
+  an adapter is rewritten. Nothing throws, every preview still renders, and the
+  gallery goes on offering editors a state they can no longer produce — usually
+  discovered months later by someone who did not build the library.
+
+  **It deliberately renders nothing, and that is a correctness decision rather
+  than a shortcut.** A console request is not a site request, so Twig extensions
+  that plugins register only for site requests may not be loaded there — the
+  same trap that broke control-panel previews on real projects until 1.3.0, and
+  it fails at compile time, where even an unreachable branch kills the template.
+  A pass rate produced in the wrong request context is worse than no pass rate,
+  because it reads as verification. Comparing three lists of names has none of
+  that exposure.
+
+  Components with no matching entry type are not checked, and the command says
+  so — without a block behind it there is no contract, and a clean run should
+  not be mistaken for full coverage.
+
 ## 1.4.1 - 2026-09-17
 
 ### Fixed

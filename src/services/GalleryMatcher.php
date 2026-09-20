@@ -28,13 +28,17 @@ class GalleryMatcher extends Component
     private ?array $handlesByKey = null;
 
     /**
-     * Mirrors the `addable` test in web/js/picker.js: an explicit non-stable
-     * status is the developer's own “not ready for editors” marker, and the
-     * gallery renders those as disabled cards.
+     * Mirrors the `addable` test in web/js/picker.js — the two must agree, or
+     * the index and the gallery answer differently about the same component.
+     *
+     * Only an explicit `stable` counts. A missing status used to pass this
+     * test, which read silence as a promise: a story nobody had reviewed was
+     * offered to editors as ready. Absence of a claim is not a claim, and this
+     * plugin exists to stop exactly that reading.
      */
     public function isAddable(ComponentDefinition $component): bool
     {
-        return in_array($component->status, [null, '', 'stable'], true);
+        return $component->status === 'stable';
     }
 
     /**

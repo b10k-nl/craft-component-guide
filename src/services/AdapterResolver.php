@@ -39,6 +39,9 @@ class AdapterResolver extends Component
         'type', 'uid', 'uri', 'url',
     ];
 
+    /** @var array<string, list<array{name: string, inner: string}>> Scanned tags by source hash. */
+    private array $tagCache = [];
+
     /** Roots that are never the block variable. */
     private const GLOBAL_ROOTS = ['craft', 'loop', 'now', 'app', '_self', '_context', 'this'];
 
@@ -51,7 +54,7 @@ class AdapterResolver extends Component
      */
     public function parse(string $source, string $componentTemplate, string $adapterPath = ''): ?AdapterBinding
     {
-        $tags = $this->tags($source);
+        $tags = $this->cachedTags($source);
         $include = null;
 
         foreach ($tags as $tag) {
@@ -144,6 +147,24 @@ class AdapterResolver extends Component
         return !in_array($property, self::ELEMENT_ATTRIBUTES, true);
     }
 
+    /**
+     * Tag scanning, memoised per source for the life of the request.
+     *
+     * The adapter hunt parses the same file once per component, so a project
+     * with thirty components scanned every candidate template thirty times —
+     * and the scan runs before the parser can tell there is no matching include
+     * in it. The result is identical either way; only the count of scans
+     * changes.
+     *
+     * @return list<array{name: string, inner: string}>
+     */
+    private function cachedTags(string $source): array
+    {
+        $key = md5($source);
+
+        return $this->tagCache[$key] ??= $this->tags($source);
+    }
+
     // --- Tag scanning -------------------------------------------------------
 
     /**
@@ -194,7 +215,13 @@ class AdapterResolver extends Component
                 break;
             }
 
-            $inner = trim(rtrim(trim(substr($source, $start + 2, $j - $start - 2)), '-'));
+            // Whitespace control trims both ends: `{%- … -%}`. Only the
+            // trailing dash was stripped at first, so a leading one became the
+            // tag name and no tag was ever an `include` — the contract check
+            // then went quiet on every adapter written that way, which in Twig
+            // is most of them. Silence is the failure mode this plugin is
+            // supposed to remove, so it has no business producing it.
+            $inner = trim(trim(trim(substr($source, $start + 2, $j - $start - 2)), '-'));
             $name = strtolower((string)(preg_split('/\s+/', $inner)[0] ?? ''));
 
             $tags[] = ['name' => $name, 'inner' => $inner];
@@ -519,17 +546,22 @@ class AdapterResolver extends Component
         $stripped = $this->stripStrings($source);
         $vars = [];
 
-        // `block.type == 'hero'`, `block.type != 'hero'`, `block.type in [...]`
+        // `block.type == 'hero'`, `!=`, `in [...]` — and `.type.handle ==`,
+        // which is how Craft 5 is normally written and which the first version
+        // of this missed entirely. Missing it did not produce a wrong answer,
+        // it produced no answer: the root stayed empty, the binding was
+        // dropped, and every story was called reproducible.
         preg_match_all(
-            '/(?<![\w.])([A-Za-z_]\w*)\.type\s*(?:==|!=|\bin\b)/',
+            '/(?<![\w.])([A-Za-z_]\w*)\.type(?:\.handle)?\s*(?:==|!=|\bin\b)/',
             $stripped,
             $comparisons,
         );
         $vars = array_merge($vars, $comparisons[1]);
 
-        // `{% switch block.type %}` — Craft's own tag, common in dispatchers.
+        // `{% switch block.type %}` / `{% switch block.type.handle %}` —
+        // Craft's own tag, common in dispatchers.
         preg_match_all(
-            '/\bswitch\s+([A-Za-z_]\w*)\.type\b/',
+            '/\bswitch\s+([A-Za-z_]\w*)\.type(?:\.handle)?\b/',
             $stripped,
             $switches,
         );

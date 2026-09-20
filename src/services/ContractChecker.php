@@ -203,13 +203,23 @@ class ContractChecker extends Component
                 $arg,
                 $quoted,
             ),
-            default => sprintf(
-                'Stories set “%s”, but the %s it comes from (%s) %s on this entry type.',
-                $arg,
-                count($failure['handles']) === 1 ? 'field' : 'fields',
-                $quoted,
-                count($failure['handles']) === 1 ? 'does not exist' : 'do not exist',
-            ),
+            // When the argument and the field share a name — the common case,
+            // since most adapters pass a field straight through — naming both
+            // produces “heading comes from heading”, which reads as a typo
+            // rather than as a diagnosis. Seen first on a real run; the unit
+            // tests all used arguments deliberately renamed from their fields.
+            default => count($failure['handles']) === 1 && $failure['handles'][0] === $arg
+                ? sprintf(
+                    'Stories set “%s”, but this entry type has no such field.',
+                    $arg,
+                )
+                : sprintf(
+                    'Stories set “%s”, but the %s it comes from (%s) %s on this entry type.',
+                    $arg,
+                    count($failure['handles']) === 1 ? 'field' : 'fields',
+                    $quoted,
+                    count($failure['handles']) === 1 ? 'does not exist' : 'do not exist',
+                ),
         };
 
         return $this->error($component, ScanError::CONTRACT_UNFILLABLE_ARG, $message);

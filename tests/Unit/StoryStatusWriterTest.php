@@ -176,4 +176,105 @@ class StoryStatusWriterTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->writer->setStatus('/nonexistent.stories.twig', 'shipped');
     }
+
+    /**
+     * The bug this guards: the writer matched the first occurrence of the word
+     * anywhere in the meta block, so a description that merely mentioned a
+     * status won the race. Clicking “mark stable” rewrote the developer's own
+     * sentence, left the real status alone, and reported success.
+     */
+    public function testAStatusMentionedInsideADescriptionIsNotTheKey(): void
+    {
+        $source = <<<'TWIG'
+            {% set meta = {
+                title: 'Hero',
+                description: 'Set status: "draft" while you are still iterating.',
+                status: 'draft',
+            } %}
+            TWIG;
+
+        $out = $this->writer->rewrite($source, 'stable', true);
+
+        self::assertStringContainsString(
+            'description: \'Set status: "draft" while you are still iterating.\',',
+            $out,
+            'the description must come through byte for byte',
+        );
+        self::assertStringContainsString("status: 'stable',", $out);
+        self::assertStringNotContainsString("status: 'draft',", $out);
+    }
+
+    public function testTheSameHoldsForThePhpFormat(): void
+    {
+        $source = <<<'PHP'
+            <?php return [
+                'meta' => [
+                    'description' => "use 'status' => 'draft' to hide it",
+                    'status' => 'draft',
+                ],
+                'stories' => [],
+            ];
+            PHP;
+
+        $out = $this->writer->rewrite($source, 'stable', false);
+
+        self::assertStringContainsString('"use \'status\' => \'draft\' to hide it"', $out);
+        self::assertStringContainsString("'status' => 'stable',", $out);
+    }
+
+    /**
+     * A key is a fresh identifier, not the tail of a longer one.
+     */
+    public function testALongerKeyEndingInStatusIsNotTheKey(): void
+    {
+        $source = <<<'TWIG'
+            {% set meta = {
+                pageStatus: 'legacy',
+                status: 'draft',
+            } %}
+            TWIG;
+
+        $out = $this->writer->rewrite($source, 'stable', true);
+
+        self::assertStringContainsString("pageStatus: 'legacy',", $out);
+        self::assertStringContainsString("status: 'stable',", $out);
+    }
+
+    /**
+     * A `status` inside a nested value belongs to that value, not to meta.
+     */
+    public function testANestedStatusIsNotTheKey(): void
+    {
+        $source = <<<'TWIG'
+            {% set meta = {
+                title: 'Hero',
+                tags: { status: 'internal' },
+                status: 'draft',
+            } %}
+            TWIG;
+
+        $out = $this->writer->rewrite($source, 'stable', true);
+
+        self::assertStringContainsString("tags: { status: 'internal' },", $out);
+        self::assertStringContainsString("status: 'stable',", $out);
+    }
+
+    /**
+     * With a missing status now meaning “draft”, inserting the key is the only
+     * way to mark such a story stable — refusing would make the button a
+     * button that always fails.
+     */
+    public function testAMissingStatusKeyIsInserted(): void
+    {
+        $source = <<<'TWIG'
+            {% set meta = {
+                title: 'Hero',
+            } %}
+            TWIG;
+
+        $out = $this->writer->rewrite($source, 'stable', true);
+
+        self::assertStringContainsString("status: 'stable',", $out);
+        self::assertStringContainsString("title: 'Hero',", $out);
+    }
 }

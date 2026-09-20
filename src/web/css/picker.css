@@ -203,3 +203,51 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
    pseudo-element, so overriding `transform` to centre it destroys the
    rotation and leaves a bare corner mark — vertical nudges here have to be
    margins, never transforms. */
+
+/* Lite edition ------------------------------------------------------------
+   The gallery is a catalogue in Lite and a tool in Pro. Cards stay fully
+   legible — the whole point is that an editor sees exactly what the paid
+   edition would give them — so the locked state is a cursor and a hairline,
+   not a dimming. Greying the cards out would hide the thing being sold. */
+.cg-picker-card--locked {
+    cursor: default;
+}
+
+.cg-picker-card--locked:hover {
+    border-color: var(--hairline-color);
+}
+
+/* A refused click has to answer for itself, or it reads as a broken button. */
+@keyframes cg-denied {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-3px); }
+    75%      { transform: translateX(3px); }
+}
+
+.cg-picker-card.is-denied {
+    animation: cg-denied 180ms ease-in-out;
+}
+
+.cg-picker-note {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    border-top: 1px solid var(--hairline-color);
+    background: var(--gray-050, #f3f7fc);
+    font-size: 12px;
+    color: var(--medium-text-color);
+}
+
+@keyframes cg-note-flash {
+    0%   { background: var(--gray-050, #f3f7fc); }
+    30%  { background: var(--yellow-100, #fdf3c9); }
+    100% { background: var(--gray-050, #f3f7fc); }
+}
+
+.cg-picker-note.is-flashing {
+    animation: cg-note-flash 900ms ease-out;
+}

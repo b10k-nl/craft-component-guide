@@ -53,10 +53,46 @@ Nothing configured yet? The guide starts by explaining how to get there:
 - Persistent scan cache keyed by a filesystem fingerprint — invalidates itself
   the moment a story, template or marker changes.
 
+## Editions
+
+**Lite is free.** Everything that tells you the truth about your own project is
+in it:
+
+- the component index, marker files and groups
+- live previews rendered with your site's own CSS
+- the contract check and its badge — a story promising a field the entry type
+  does not have
+- loud render errors, rather than a silent broken thumbnail
+- the story scaffolder, including the whole-library pass
+- the write journal
+
+**Pro adds the things the plugin does on your behalf:**
+
+- **inserting a block from the gallery** — an editor picks a card and the block
+  lands filled in, from the state whose preview they were looking at
+- **`stories/check`** — the contract check as a console command with an exit
+  code, for CI. The edition comes from your committed `project.yaml`, so a CI
+  runner reads Pro without needing a licence key of its own; under Lite the
+  command explains itself and exits 0 rather than breaking your build
+
+The blocks gallery opens in Lite too. Editors browse the real rendered cards for
+the blocks a field accepts; only the click that inserts a filled-in block is
+held back, and Craft's own “New Block” menu works exactly as it always did.
+
+The split is *seeing* versus *acting*, not developer versus editor. A component
+library you cannot see is the problem this plugin exists to solve, so seeing it
+is not the part with a price on it.
+
+In PHP and Twig:
+
+```php
+if (\b10k\componentguide\Plugin::getInstance()->isPro()) { … }
+```
+
 ## Installation
 
 From the [Craft Plugin Store](https://plugins.craftcms.com/component-guide):
-open **Settings → Plugins** in your control panel and search for
+open **Plugin Store** in your control-panel sidebar and search for
 “Component Guide”.
 
 Or with Composer:

@@ -41,6 +41,7 @@ class PickerController extends Controller
     public function actionMap(): Response
     {
         $plugin = Plugin::getInstance();
+        $pro = $plugin->isPro();
         $matcher = $plugin->getGalleryMatcher();
         $components = $plugin->getRepository()->getAll();
         $templatesRoot = Craft::$app->getPath()->getSiteTemplatesPath();
@@ -64,6 +65,7 @@ class PickerController extends Controller
                 $component,
                 $bindings[$component->id] ?? null,
                 $producible[$component->id] ?? [],
+                $pro,
             );
 
             if ($stories === []) {
@@ -90,6 +92,7 @@ class PickerController extends Controller
         }
 
         return $this->asJson([
+            'pro' => $pro,
             'components' => $catalog,
             // Cards/Index-mode Matrix fields expose entry types as numeric IDs
             // (Craft.NestedElementManager settings.createAttributes.typeId),
@@ -106,12 +109,14 @@ class PickerController extends Controller
      * The states worth offering an editor, in story order.
      *
      * @param string[] $producibleIds
+     * @param bool $pro Whether to include the field values a click would apply.
      * @return list<array{id: string, title: string, previewUrl: string, prefill: array<string, mixed>|null}>
      */
     private function stories(
         ComponentDefinition $component,
         ?AdapterBinding $binding,
         array $producibleIds,
+        bool $pro,
     ): array {
         $stories = [];
 
@@ -124,7 +129,10 @@ class PickerController extends Controller
                 'id' => $story->id,
                 'title' => $story->title,
                 'previewUrl' => Plugin::previewUrl($component->id, $story->id),
-                'prefill' => $this->prefill($component, $story, $binding) ?: null,
+                // Lite sees the card and the preview; it does not receive the
+                // field values, because filling the block in is the paid half.
+                // Held back on the server, never merely hidden in the browser.
+                'prefill' => $pro ? ($this->prefill($component, $story, $binding) ?: null) : null,
             ];
         }
 
@@ -137,7 +145,7 @@ class PickerController extends Controller
                 'id' => $first->id,
                 'title' => $first->title,
                 'previewUrl' => Plugin::previewUrl($component->id, $first->id),
-                'prefill' => $this->prefill($component, $first, $binding) ?: null,
+                'prefill' => $pro ? ($this->prefill($component, $first, $binding) ?: null) : null,
             ];
         }
 

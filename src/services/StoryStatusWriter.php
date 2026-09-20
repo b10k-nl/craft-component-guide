@@ -62,7 +62,35 @@ class StoryStatusWriter extends Component
             ));
         }
 
-        if (@file_put_contents($absolutePath, $updated, LOCK_EX) === false) {
+        $this->writeAtomically($absolutePath, $updated);
+
+        return sha1($updated);
+    }
+
+    /**
+     * Replaces a file's contents without ever leaving it half-written.
+     *
+     * `file_put_contents()` truncates the file when it opens it, and the LOCK_EX
+     * flag is applied only afterwards. A killed worker, a full disk or a quota
+     * between those two moments leaves the developer's story file empty — and
+     * this is a file we did not create and promised not to damage. Writing a
+     * sibling temp file and renaming it over the original means the file is
+     * either the old bytes or the new ones, never nothing.
+     *
+     * Short writes are caught too: `file_put_contents()` returns a byte count,
+     * so checking only for `false` accepts a truncated result as success — and
+     * the caller would then journal a SHA-1 for contents that are not on disk.
+     *
+     * @throws \RuntimeException
+     */
+    private function writeAtomically(string $absolutePath, string $contents): void
+    {
+        $temp = $absolutePath . '.cg-' . bin2hex(random_bytes(6)) . '.tmp';
+
+        $written = @file_put_contents($temp, $contents);
+
+        if ($written === false || $written !== strlen($contents)) {
+            @unlink($temp);
             $error = error_get_last()['message'] ?? null;
             throw new \RuntimeException(sprintf(
                 'Could not write %s.%s',
@@ -71,7 +99,23 @@ class StoryStatusWriter extends Component
             ));
         }
 
-        return sha1($updated);
+        // The temp file is born with the default mask; the story file may have
+        // been given wider or narrower permissions deliberately. Carry them
+        // over, so a rename does not quietly change who can edit it.
+        $mode = @fileperms($absolutePath);
+        if ($mode !== false) {
+            @chmod($temp, $mode & 0777);
+        }
+
+        if (!@rename($temp, $absolutePath)) {
+            @unlink($temp);
+            $error = error_get_last()['message'] ?? null;
+            throw new \RuntimeException(sprintf(
+                'Could not replace %s.%s',
+                basename($absolutePath),
+                $error !== null ? ' ' . $error : '',
+            ));
+        }
     }
 
     /**
@@ -86,30 +130,136 @@ class StoryStatusWriter extends Component
 
         $region = substr($source, $start, $end - $start);
 
-        $pattern = $isTwig
-            ? '/(\bstatus\s*:\s*)([\'"])[^\'"]*\2/'
-            : '/([\'"]status[\'"]\s*=>\s*)([\'"])[^\'"]*\2/';
+        $found = $this->findStatusValue($region, $isTwig);
 
-        $count = 0;
-        $newRegion = preg_replace_callback(
-            $pattern,
-            static fn(array $m): string => $m[1] . $m[2] . $status . $m[2],
-            $region,
-            1,
-            $count,
-        );
-
-        if ($newRegion === null) {
-            throw new \RuntimeException('Could not parse the story file’s meta block.');
-        }
-
-        if ($count === 0) {
+        if ($found === null) {
             // No status yet: add one as the first entry, in the file's own
             // indentation and quote style, so the result looks hand-written.
             $newRegion = $this->insertStatus($region, $status, $isTwig);
+        } else {
+            [$valueStart, $valueEnd, $quote] = $found;
+            $newRegion = substr($region, 0, $valueStart)
+                . $quote . $status . $quote
+                . substr($region, $valueEnd);
         }
 
         return substr($source, 0, $start) . $newRegion . substr($source, $end);
+    }
+
+    /**
+     * Locates the `status` **key** inside a meta region and returns the bounds
+     * of its quoted value.
+     *
+     * A regular expression cannot do this job, and the first version of this
+     * class proved it in the worst way: it matched the first occurrence of
+     * `status` anywhere in the region, so a meta description that merely
+     * mentioned the word won the race. Clicking "mark stable" then rewrote the
+     * developer's own sentence, left the real status untouched, and reported
+     * success. Corrupting the file we promise never to corrupt, silently.
+     *
+     * So this walks the region instead, tracking string literals, comments and
+     * nesting, and only accepts `status` when it sits at the top level of the
+     * meta hash in key position. Anything inside a value, a nested structure or
+     * a comment is invisible to it.
+     *
+     * @return array{int, int, string}|null [value start, value end, quote char]
+     * as offsets into `$region`, or null when the key is absent.
+     */
+    private function findStatusValue(string $region, bool $isTwig): ?array
+    {
+        // Twig keys are bare identifiers; PHP keys are themselves quoted, so
+        // the key has to be tried BEFORE a quote is treated as a string to skip
+        // — otherwise every PHP key is swallowed as a literal and the scan
+        // finds nothing.
+        $key = $isTwig
+            ? '/status\s*:\s*/A'
+            : '/([\'"])status\1\s*=>\s*/A';
+
+        $length = strlen($region);
+        $depth = 0;
+        $i = 0;
+
+        while ($i < $length) {
+            $char = $region[$i];
+
+            // PHP story files may carry comments between entries.
+            if (!$isTwig && ($char === '#' || ($char === '/' && ($region[$i + 1] ?? '') === '/'))) {
+                $newline = strpos($region, "\n", $i);
+                $i = $newline === false ? $length : $newline + 1;
+                continue;
+            }
+
+            if (!$isTwig && $char === '/' && ($region[$i + 1] ?? '') === '*') {
+                $close = strpos($region, '*/', $i + 2);
+                $i = $close === false ? $length : $close + 2;
+                continue;
+            }
+
+            if ($char === '{' || $char === '[' || $char === '(') {
+                $depth++;
+                $i++;
+                continue;
+            }
+
+            if ($char === '}' || $char === ']' || $char === ')') {
+                $depth--;
+                $i++;
+                continue;
+            }
+
+            if ($depth === 0 && preg_match($key, $region, $m, 0, $i) === 1) {
+                // A key is a fresh identifier, not the tail of a longer one:
+                // `pageStatus:` and `block.status:` are not our key.
+                $before = $i > 0 ? $region[$i - 1] : ',';
+
+                if (preg_match('/[\w.]/', $before) !== 1) {
+                    $valueStart = $i + strlen($m[0]);
+                    $quote = $region[$valueStart] ?? '';
+
+                    if ($quote !== "'" && $quote !== '"') {
+                        // A non-literal value (a variable, a concatenation) is
+                        // not ours to rewrite.
+                        return null;
+                    }
+
+                    return [$valueStart, $this->skipString($region, $valueStart), $quote];
+                }
+            }
+
+            // Only now is a quote a string literal to step over — this is what
+            // keeps a description that mentions the word out of the way.
+            if ($char === "'" || $char === '"') {
+                $i = $this->skipString($region, $i);
+                continue;
+            }
+
+            $i++;
+        }
+
+        return null;
+    }
+
+    /**
+     * Index just past the string literal that starts at `$from`.
+     */
+    private function skipString(string $region, int $from): int
+    {
+        $quote = $region[$from];
+        $length = strlen($region);
+        $i = $from + 1;
+
+        while ($i < $length) {
+            if ($region[$i] === '\\') {
+                $i += 2;
+                continue;
+            }
+            if ($region[$i] === $quote) {
+                return $i + 1;
+            }
+            $i++;
+        }
+
+        return $length;
     }
 
     /**

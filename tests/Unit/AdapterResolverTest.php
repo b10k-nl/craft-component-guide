@@ -293,6 +293,75 @@ class AdapterResolverTest extends TestCase
         );
     }
 
+    /**
+     * Whitespace control is ordinary Twig, not an edge case — and getting it
+     * wrong did not produce a wrong answer, it produced none at all: no tag was
+     * ever recognised as an include, so the component had no adapter and every
+     * story silently counted as reproducible.
+     */
+    public function testWhitespaceControlDoesNotHideTheInclude(): void
+    {
+        $forms = [
+            'both'     => "{%- include '_blocks/hero.twig' with { heading: block.title } only -%}",
+            'leading'  => "{%- include '_blocks/hero.twig' with { heading: block.title } only %}",
+            'trailing' => "{% include '_blocks/hero.twig' with { heading: block.title } only -%}",
+            'neither'  => "{% include '_blocks/hero.twig' with { heading: block.title } only %}",
+        ];
+
+        foreach ($forms as $label => $source) {
+            $binding = $this->resolver->parse($source, '_blocks/hero.twig');
+
+            self::assertNotNull($binding, $label);
+            self::assertSame('block', $binding->blockRoot, $label);
+            self::assertSame('title', $binding->fieldFor('heading'), $label);
+        }
+    }
+
+    /**
+     * `block.type.handle == 'hero'` is how Craft 5 is normally written. Reading
+     * only `block.type ==` left the root empty, which drops the binding — the
+     * check then passes everything rather than reporting anything.
+     */
+    public function testATypeSwitchIsRecognisedThroughHandle(): void
+    {
+        $source = <<<'TWIG'
+            {% for block in entry.pageBlocks.all() %}
+                {% if block.type.handle == 'hero' %}
+                    {% include '_blocks/hero.twig' with {
+                        heading: block.heading,
+                        bodyHtml: block.bodyText,
+                    } only %}
+                {% endif %}
+            {% endfor %}
+            TWIG;
+
+        $binding = $this->resolver->parse($source, '_blocks/hero.twig');
+
+        self::assertNotNull($binding);
+        self::assertSame('block', $binding->blockRoot);
+        self::assertSame('heading', $binding->fieldFor('heading'));
+        self::assertSame('bodyText', $binding->fieldFor('bodyHtml'));
+        self::assertSame([], $binding->nested);
+    }
+
+    public function testASwitchTagIsRecognisedThroughHandleToo(): void
+    {
+        $source = <<<'TWIG'
+            {% for block in entry.pageBlocks.all() %}
+                {% switch block.type.handle %}
+                    {% case 'hero' %}
+                        {% include '_blocks/hero.twig' with { heading: block.heading } only %}
+                {% endswitch %}
+            {% endfor %}
+            TWIG;
+
+        $binding = $this->resolver->parse($source, '_blocks/hero.twig');
+
+        self::assertNotNull($binding);
+        self::assertSame('block', $binding->blockRoot);
+        self::assertSame('heading', $binding->fieldFor('heading'));
+    }
+
     public function testAGenuineNestedLoopIsStillResolvedAlongsideADispatch(): void
     {
         // The same repeater as testAForLoopBindsItsVariableAndCollectsFieldsFromTheBody,

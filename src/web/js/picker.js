@@ -14,6 +14,12 @@
     var GROUP_COOKIE = 'cg-picker-grouped';
     var mapPromise = null;
 
+    // Which edition is running. Seeded from the page so the flag exists before
+    // the map arrives, then overwritten by the map, which is the authority —
+    // the server decides this, not the browser. Withholding the prefill is done
+    // server-side regardless; this only chooses what the panel says.
+    var isPro = !!(window.CraftComponentGuide && window.CraftComponentGuide.pro);
+
     var isGroupingEnabled = function () {
         var m = document.cookie.match(/(?:^|;\s*)cg-picker-grouped=([^;]*)/);
         return m ? m[1] === '1' : true; // grouped by default
@@ -53,6 +59,9 @@
                 headers: { 'Accept': 'application/json' },
             }).then(function (r) {
                 return r.ok ? r.json() : { components: [] };
+            }).then(function (data) {
+                if (typeof data.pro === 'boolean') { isPro = data.pro; }
+                return data;
             }).catch(function () {
                 return { components: [] };
             });
@@ -356,6 +365,43 @@
         }
     };
 
+    /**
+     * Draws the Lite footer once per panel: what a click would do, and where to
+     * change that. Craft's own plugin-store page is the destination — the buy
+     * flow belongs to the host, not to us.
+     */
+    var buildUpgradeNote = function () {
+        var note = document.createElement('div');
+        note.className = 'cg-picker-note';
+
+        var text = document.createElement('span');
+        text.textContent = Craft.t(
+            'component-guide',
+            'Adding a block from the gallery is a Pro feature.',
+        );
+        note.appendChild(text);
+
+        var link = document.createElement('a');
+        link.href = Craft.getCpUrl('plugin-store/component-guide');
+        link.textContent = Craft.t('component-guide', 'See the Pro edition');
+        note.appendChild(link);
+
+        return note;
+    };
+
+    // Answering a blocked click by doing nothing reads as a bug. The note is
+    // already on screen, so the click points at it rather than adding noise.
+    var flashUpgradeNote = function (card) {
+        var note = activePanel && activePanel.el.querySelector('.cg-picker-note');
+        if (!note) { return; }
+        note.classList.remove('is-flashing');
+        void note.offsetWidth; // restart the animation
+        note.classList.add('is-flashing');
+        card.classList.remove('is-denied');
+        void card.offsetWidth;
+        card.classList.add('is-denied');
+    };
+
     var openPanel = function (source, comps) {
         closePanel();
 
@@ -367,7 +413,9 @@
         var head = document.createElement('div');
         head.className = 'cg-picker-panel__head';
         head.innerHTML = '<strong>' + Craft.t('component-guide', 'Blocks gallery') + '</strong>'
-            + '<span class="cg-picker-panel__hint">' + Craft.t('component-guide', 'Click a block to add it') + '</span>';
+            + '<span class="cg-picker-panel__hint">' + (isPro
+                ? Craft.t('component-guide', 'Click a block to add it')
+                : Craft.t('component-guide', 'Browse the blocks this field accepts')) + '</span>';
         var closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'cg-picker-panel__close';
@@ -478,16 +526,18 @@
                 comp && comp.description ? comp.description : '',
             ].join(' ').toLowerCase();
 
-            // Blocks with an EXPLICIT non-stable status (draft, deprecated, …)
-            // are not addable from the gallery — that status is a developer's
-            // deliberate signal. No story / no matching component is NOT a
-            // signal: those blocks stay addable (empty), so the gallery never
-            // blocks a content manager's normal work. The native “New Block”
-            // menu is untouched either way.
-            var addable = !comp || !comp.status || comp.status === 'stable';
+            // Only an explicit `stable` opens the card. A missing status used
+            // to count as stable, which read silence as a promise — the one
+            // reading this plugin exists to stop. No story and no matching
+            // component are still NOT signals: those blocks stay addable
+            // (empty), so the gallery never blocks normal work, and the native
+            // “New Block” menu is untouched either way.
+            var addable = !comp || comp.status === 'stable';
             var blockReason = null;
             if (!addable) {
-                blockReason = Craft.t('component-guide', 'Marked “{status}” — not ready for editors yet.', { status: comp.status });
+                blockReason = comp.status
+                    ? Craft.t('component-guide', 'Marked “{status}” — not ready for editors yet.', { status: comp.status })
+                    : Craft.t('component-guide', 'No status yet — mark it stable to offer it to editors.');
                 card.disabled = true;
                 card.classList.add('cg-picker-card--disabled');
                 card.title = blockReason;
@@ -620,7 +670,22 @@
                 card.appendChild(reason);
             }
 
+            if (!isPro) {
+                card.classList.add('cg-picker-card--locked');
+            }
+
             card.addEventListener('click', function () {
+                // Lite browses; it does not add. Giving away the click would
+                // give away the gallery itself and leave only the prefill
+                // behind the paywall — and choosing a block by looking at it is
+                // most of what an editor is paying for. Craft's own “New
+                // Block” menu is untouched, so nothing an editor already had
+                // is taken away.
+                if (!isPro) {
+                    flashUpgradeNote(card);
+                    return;
+                }
+
                 // The source knows how its Matrix UI adds entries: inline
                 // fields hand back the live field element (prefillable),
                 // Cards/Index mode just returns true — Craft opens its own
@@ -751,6 +816,7 @@
         panel.appendChild(head);
         panel.appendChild(searchWrap);
         panel.appendChild(grid);
+        if (!isPro) { panel.appendChild(buildUpgradeNote()); }
         document.body.appendChild(panel);
         search.focus();
         activePanel = { el: panel, onKey: onKey };

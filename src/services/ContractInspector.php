@@ -25,6 +25,9 @@ class ContractInspector extends Component
     /** @var array<string, string[]>|null Entry-type handle => field handles. */
     private ?array $fieldCache = null;
 
+    /** @var array<string, array<string, AdapterBinding>> Adapter hunt results, per request. */
+    private array $adapterCache = [];
+
     public function __construct(
         private readonly AdapterResolver $resolver,
         private readonly ContractChecker $checker,
@@ -118,11 +121,30 @@ class ContractInspector extends Component
      */
     private function findAdapters(array $components, string $templatesRoot): array
     {
+        // `bindings()` and `producibleStories()` are both called while building
+        // one picker map, and each used to walk the whole templates tree and
+        // re-parse every file against every component. Memoising is not an
+        // optimisation the answers can disagree about: same inputs, same
+        // result — and that matters here, because the index and the gallery
+        // must never answer differently about one component.
+        $key = md5($templatesRoot . '|' . implode(',', array_map(
+            static fn(ComponentDefinition $component): string => $component->id,
+            $components,
+        )));
+
+        if (isset($this->adapterCache[$key])) {
+            return $this->adapterCache[$key];
+        }
+
         $candidates = [];
 
         foreach ($this->twigFiles($templatesRoot) as $absolute) {
             $source = @file_get_contents($absolute);
-            if ($source === false || !str_contains($source, '{% include')) {
+            // Cheap reject before the parser, but it has to allow whitespace
+            // control (`{%- include`) and any spacing the author chose. The
+            // literal '{% include' missed both, and a file rejected here is
+            // never reported — it simply has no adapter, silently.
+            if ($source === false || preg_match('/\{%-?\s*include\b/', $source) !== 1) {
                 continue;
             }
 
@@ -151,7 +173,7 @@ class ContractInspector extends Component
             }
         }
 
-        return $bindings;
+        return $this->adapterCache[$key] = $bindings;
     }
 
     /**
@@ -231,7 +253,11 @@ class ContractInspector extends Component
         $nested = [];
 
         foreach ($this->customFields($entryTypeHandle) as $field) {
-            if (!$field instanceof Matrix || !method_exists($field, 'getEntryTypes')) {
+            // No method_exists() guard: `getEntryTypes()` has been on Matrix
+            // since Craft 5.0, and composer.json requires ^5.0.0 — so the check
+            // could never fail, and a guard that cannot fire only suggests a
+            // doubt that does not exist.
+            if (!$field instanceof Matrix) {
                 continue;
             }
 

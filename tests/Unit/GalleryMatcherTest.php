@@ -103,12 +103,19 @@ class GalleryMatcherTest extends TestCase
         self::assertSame(['c-hero' => 'Hero'], $matcher->entryTypeNames([$draft]));
     }
 
-    public function testNullAndEmptyStatusesAreAddable(): void
+    /**
+     * Only an explicit `stable` opens a card to editors.
+     *
+     * A missing status used to count as addable. That read silence as a
+     * promise — a story nobody had marked reviewed was offered as ready — and
+     * reading silence as a promise is the defect this whole plugin is about.
+     */
+    public function testOnlyAnExplicitStableStatusIsAddable(): void
     {
         $matcher = $this->matcher('hero');
-        self::assertTrue($matcher->isAddable($this->component('hero', null, 1)));
-        self::assertTrue($matcher->isAddable($this->component('hero', '', 1)));
         self::assertTrue($matcher->isAddable($this->component('hero', 'stable', 1)));
+        self::assertFalse($matcher->isAddable($this->component('hero', null, 1)));
+        self::assertFalse($matcher->isAddable($this->component('hero', '', 1)));
         self::assertFalse($matcher->isAddable($this->component('hero', 'beta', 1)));
         self::assertFalse($matcher->isAddable($this->component('hero', 'deprecated', 1)));
     }

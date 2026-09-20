@@ -37,8 +37,8 @@
         "craftcms/cms": "^5.0.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^10.5",
-        "phpstan/phpstan": "^1.11"
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^10.5"
     },
     "autoload": {
         "psr-4": {

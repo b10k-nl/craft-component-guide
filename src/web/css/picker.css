@@ -161,6 +161,10 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
     user-select: none;
 }
 .cg-picker-group-toggle input { cursor: pointer; }
+/* The toggle is dropped with the `hidden` attribute when there is only one
+   group. The UA's [hidden] rule has zero specificity, so the display above
+   would beat it — the third element in this plugin to need this restated. */
+.cg-picker-group-toggle[hidden] { display: none; }
 
 .cg-picker-card__desc { font-size: 12px; color: var(--light-text-color, #7a8794); line-height: 1.5; }
 

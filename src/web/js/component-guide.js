@@ -2,19 +2,35 @@
 (function () {
     'use strict';
 
-    // --- Index: client-side search filter ---
+    // --- Index: client-side search and filters ---
+    // Three controls, one pass: a card is visible when it survives all of them.
+    // Each control is optional — the group select is not drawn on a one-group
+    // project, the status select on a project where every component is in the
+    // same state — so every read is guarded rather than assumed.
     var search = document.getElementById('cg-search');
-    if (search) {
+    var groupFilter = document.getElementById('cg-filter-group');
+    var statusFilter = document.getElementById('cg-filter-status');
+
+    // Assigned below when the index is on screen; the status toggle calls it
+    // after a component changes state, from further down this file.
+    var refreshStatusFilter = null;
+
+    if (search || groupFilter || statusFilter) {
         var cards = Array.prototype.slice.call(document.querySelectorAll('[data-card]'));
         var groups = Array.prototype.slice.call(document.querySelectorAll('[data-group]'));
         var noResults = document.getElementById('cg-no-results');
 
         var filter = function () {
-            var term = search.value.trim().toLowerCase();
+            var term = search ? search.value.trim().toLowerCase() : '';
+            var wantGroup = groupFilter ? groupFilter.value : '';
+            var wantStatus = statusFilter ? statusFilter.value : '';
             var anyVisible = false;
 
             cards.forEach(function (card) {
-                var match = term === '' || (card.getAttribute('data-search') || '').indexOf(term) !== -1;
+                var section = card.closest('[data-group]');
+                var match = (term === '' || (card.getAttribute('data-search') || '').indexOf(term) !== -1)
+                    && (wantGroup === '' || (section && section.getAttribute('data-group') === wantGroup))
+                    && (wantStatus === '' || card.getAttribute('data-card-status') === wantStatus);
                 card.classList.toggle('hidden', !match);
                 if (match) { anyVisible = true; }
             });
@@ -28,7 +44,52 @@
             if (noResults) { noResults.classList.toggle('hidden', anyVisible); }
         };
 
-        search.addEventListener('input', filter);
+        if (search) { search.addEventListener('input', filter); }
+        if (groupFilter) { groupFilter.addEventListener('change', filter); }
+        if (statusFilter) { statusFilter.addEventListener('change', filter); }
+
+        if (statusFilter) {
+            // The statuses on offer are the statuses on the page — never a list
+            // the plugin invents, and never one fixed at render time, because
+            // “Mark stable” moves a component between them without a reload.
+            var labels = statusFilter.closest('.cg-filters');
+            var allLabel = statusFilter.options.length ? statusFilter.options[0].textContent : '';
+            var labelFor = function (bucket) {
+                if (bucket === '__nostory') { return (labels && labels.getAttribute('data-label-nostory')) || bucket; }
+                if (bucket === '__nostatus') { return (labels && labels.getAttribute('data-label-nostatus')) || bucket; }
+                return bucket;
+            };
+
+            refreshStatusFilter = function () {
+                var seen = {};
+                cards.forEach(function (card) {
+                    seen[card.getAttribute('data-card-status') || '__nostatus'] = true;
+                });
+                // Written statuses first, alphabetically; the two buckets that
+                // stand for something missing belong at the end of the list.
+                var values = Object.keys(seen).sort(function (a, b) {
+                    var sa = a.indexOf('__') === 0 ? 1 : 0;
+                    var sb = b.indexOf('__') === 0 ? 1 : 0;
+                    return sa !== sb ? sa - sb : (a < b ? -1 : (a > b ? 1 : 0));
+                });
+
+                var wanted = statusFilter.value;
+                statusFilter.textContent = '';
+                statusFilter.appendChild(new Option(allLabel, ''));
+                values.forEach(function (value) {
+                    statusFilter.appendChild(new Option(labelFor(value), value));
+                });
+                // A selection whose status no longer exists anywhere would
+                // leave the page filtered to nothing, with no way to read why.
+                statusFilter.value = values.indexOf(wanted) !== -1 ? wanted : '';
+
+                // One status is not a choice.
+                var control = statusFilter.parentNode;
+                if (control) { control.classList.toggle('hidden', values.length < 2); }
+            };
+
+            refreshStatusFilter();
+        }
     }
 
     // --- Index: scale card thumbnails ---
@@ -297,6 +358,12 @@
 
             var gallery = scope.querySelector('[data-cg-gallery-chip]');
             if (gallery) { gallery.hidden = !data.inGallery; }
+
+            // The status filter reads this attribute, so it has to move with
+            // the status — otherwise filtering right after a toggle answers
+            // from the page as it was rendered, not as it is.
+            var card = scope.closest ? scope.closest('[data-card]') : null;
+            if (card && data.status) { card.setAttribute('data-card-status', data.status); }
         };
 
         statusToggles.forEach(function (button) {
@@ -329,6 +396,11 @@
                     var readyCount = document.querySelector('[data-cg-ready-count]');
                     if (readyCount && typeof data.galleryReadyCount === 'number') {
                         readyCount.textContent = data.galleryReadyCount;
+                    }
+
+                    if (refreshStatusFilter) {
+                        refreshStatusFilter();
+                        filter();
                     }
 
                     if (data.writes) { repaintWrites(data.writes); }

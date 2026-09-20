@@ -1,6 +1,6 @@
 /* Component Guide — CP styles. Scoped to .cg-* classes. */
 
-.cg-intro { margin-bottom: 20px; max-width: 60ch; }
+.cg-intro { margin-bottom: 20px; }
 
 .cg-toolbar {
     display: flex;
@@ -15,7 +15,9 @@
 .cg-stat strong { color: #3f4d5a; font-size: 18px; }
 .cg-stat--editors { cursor: help; }
 .cg-stat--editors strong { color: #5334a8; }
-.cg-search { min-width: 240px; flex: 1; max-width: 360px; }
+.cg-toolbar__tools { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; }
+.cg-filters { display: flex; align-items: center; gap: 8px; }
+.cg-search { min-width: 200px; flex: 1; max-width: 360px; }
 
 /* Grid + cards */
 .cg-group { margin-bottom: 28px; }

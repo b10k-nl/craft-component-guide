@@ -10,10 +10,16 @@
     <p class="cg-intro light">
         {{ "A browser for reusable Twig components and their story states, discovered from your templates directory."|t('component-guide') }}
         {# The editor half is invisible from this page, so the page has to name
-           it: a component the developer documents here is a component an editor
-           can add there. Addressed to the developer about the editor — an
-           editor reading it still learns where to go. #}
-        {{ "Components with a story can also become cards in the blocks gallery — the picker editors use on every page-builder field."|t('component-guide') }}
+           it — and name what the editor actually gets, not just that a gallery
+           exists. Without that, this reads as an index the developer could have
+           generated themselves, while the half worth paying for happens
+           somewhere they never look. In Lite the gallery opens but the click
+           does not insert, so “adds it with one click” would be a lie there. #}
+        {% if pro %}
+            {{ "A component with a story also becomes a card in the blocks gallery — where an editor, on any entry with a matching page-builder field, adds it with one click, prefilled from the story."|t('component-guide') }}
+        {% else %}
+            {{ "A component with a story also becomes a card in the blocks gallery — where an editor, on any entry with a matching page-builder field, sees it with the same preview you see here. Adding from the gallery is a Pro feature."|t('component-guide') }}
+        {% endif %}
     </p>
 
     {% include "component-guide/components/_errors" with { errors: scanErrors } only %}
@@ -47,12 +53,67 @@
         </div>
 
         {% if componentCount > 0 %}
-            <div class="cg-search">
-                {{ forms.text({
-                    id: 'cg-search',
-                    placeholder: "Search components…"|t('component-guide'),
-                    autofocus: true,
-                }) }}
+            {# Filter options are built from what is actually on the page, not
+               from a taxonomy we invent: a status is whatever the story file
+               says, and the two synthetic buckets cover the states a story
+               cannot express — no status written, and no story at all. Each
+               select is drawn only when it has something to choose between; a
+               lone “All groups” on a one-group project is a control that does
+               nothing. #}
+            {% set statusBuckets = [] %}
+            {% for groupComponents in grouped %}
+                {% for component in groupComponents %}
+                    {% set bucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
+                    {% if bucket not in statusBuckets %}
+                        {% set statusBuckets = statusBuckets|merge([bucket]) %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+
+            <div class="cg-toolbar__tools">
+                {% if grouped|length > 1 or statusBuckets is not empty %}
+                    <div class="cg-filters"
+                         data-label-nostory="{{ "No story"|t('component-guide') }}"
+                         data-label-nostatus="{{ "No status"|t('component-guide') }}">
+                        {% if grouped|length > 1 %}
+                            {% set groupOptions = [{ label: "All groups"|t('component-guide'), value: '' }] %}
+                            {% for groupName in grouped|keys %}
+                                {% set groupOptions = groupOptions|merge([{ label: groupName, value: groupName }]) %}
+                            {% endfor %}
+                            {{ forms.select({
+                                id: 'cg-filter-group',
+                                options: groupOptions,
+                                label: "Group"|t('component-guide'),
+                                labelHidden: true,
+                            }) }}
+                        {% endif %}
+
+                        {# Only the “all” option is rendered here. The rest are built in
+                           the browser from the cards actually on the page, and rebuilt
+                           after every status toggle — the toggle moves a component
+                           between statuses over AJAX, so a list fixed at render time
+                           would either go stale or, if we pre-empted it with every
+                           status the plugin can write, offer choices that match nothing.
+                           The whole control hides itself when there is only one status
+                           to choose between. #}
+                        {% if statusBuckets is not empty %}
+                            {{ forms.select({
+                                id: 'cg-filter-status',
+                                options: [{ label: "All statuses"|t('component-guide'), value: '' }],
+                                label: "Status"|t('component-guide'),
+                                labelHidden: true,
+                            }) }}
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <div class="cg-search">
+                    {{ forms.text({
+                        id: 'cg-search',
+                        placeholder: "Search components…"|t('component-guide'),
+                        autofocus: true,
+                    }) }}
+                </div>
             </div>
         {% endif %}
     </div>
@@ -193,7 +254,7 @@ hero{{ settings.twigStorySuffix() }}</div>
         <div id="cg-results">
             {% for group, components in grouped %}
                 {% set meta = groupMeta[group] ?? null %}
-                <section class="cg-group" data-group>
+                <section class="cg-group" data-group="{{ group }}">
                     <h2 class="cg-group__title">{{ group }}</h2>
                     {% if meta and meta.description %}
                         <p class="cg-group__desc light">{{ meta.description }}</p>
@@ -201,7 +262,9 @@ hero{{ settings.twigStorySuffix() }}</div>
                     <ul class="cg-grid">
                         {% for component in components %}
                             {% set search = [component.title, component.name, group, component.templatePath, component.status, component.description, component.isDocumented ? '' : 'undocumented']|join(' ')|lower %}
-                            <li class="cg-card" id="cg-card-{{ component.id }}" data-card data-search="{{ search }}">
+                            {% set statusBucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
+                            <li class="cg-card" id="cg-card-{{ component.id }}" data-card data-search="{{ search }}"
+                                data-card-status="{{ statusBucket }}">
                                 {% if not component.isDocumented %}
                                     {# Story-less template discovered via a marker file: no detail
                                        page or preview yet — an inert card with a hint instead. #}
@@ -340,7 +403,7 @@ hero{{ settings.twigStorySuffix() }}</div>
             {% endfor %}
 
             <div id="cg-no-results" class="cg-empty zilch hidden">
-                <p>{{ "No components match your search."|t('component-guide') }}</p>
+                <p>{{ "No components match the current filters."|t('component-guide') }}</p>
             </div>
         </div>
     {% endif %}

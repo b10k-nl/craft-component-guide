@@ -63,6 +63,31 @@ to [Semantic Versioning](https://semver.org).
   works in one of the two Matrix UIs and quietly does nothing in the other is
   worse than no Undo at all, so nothing is shown there.
 
+- **Filter the guide by group and by status.** Search alone answers “where is
+  X”; it does not answer “what is still draft” or “show me only this group”,
+  which is the question on a project with forty components. Two selects next to
+  the search do, and they compose with search rather than replacing it.
+
+  Neither is drawn unless it has something to choose between: a lone “All
+  groups” on a one-group project, or a status select on a project where
+  everything is stable, are controls that do nothing. Statuses are read off the
+  page rather than from a list the plugin invents, with two buckets a story
+  cannot express — no status written, and no story at all — and the list is
+  rebuilt after every “Mark stable”, so it never offers a status that matches
+  nothing and never misses one that just appeared.
+
+  The blocks gallery's own **Group** checkbox now follows the same rule: on a
+  project with one group it grouped nothing — the heading was already suppressed
+  — so it is no longer drawn.
+
+- **The guide page now says what the guide is for.** The intro described a
+  browser over your templates — which is a list a developer could have generated
+  themselves. The half worth paying for happens somewhere they never look: the
+  gallery an editor opens on an entry. The intro now names what the editor
+  actually gets there, in the same paragraph rather than a second one, and says
+  something different in Lite, where the gallery opens but the click does not
+  insert.
+
 - **A free Lite edition.** The line between Lite and Pro is not developer
   features versus editor features — it is *seeing* versus *acting*.
 

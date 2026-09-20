@@ -815,6 +815,15 @@
             return { comp: comp, card: buildCard(item, comp) };
         });
 
+        // Grouping one group is grouping nothing: renderGrid() already leaves
+        // the heading off in that case, so the checkbox would change the layout
+        // in no visible way. A control that does nothing reads as a broken one.
+        var groupLabels = {};
+        entries.forEach(function (entry) {
+            groupLabels[(entry.comp && entry.comp.group) ? entry.comp.group : 'Other'] = true;
+        });
+        if (Object.keys(groupLabels).length < 2) { groupToggle.hidden = true; }
+
         // Re-parent without reloading: appendChild on a connected iframe
         // resets its document (and the load event can catch it mid-reload,
         // mis-measuring the thumb), while moveBefore() moves it atomically.

@@ -76,6 +76,10 @@ class ComponentsController extends Controller
             'entryTypeNames' => $matcher->entryTypeNames($components),
             'galleryReadyCount' => $matcher->countReadyForEditors($components),
             'galleryMatchedCount' => $matcher->countMatched($components),
+            // What the sentence under the counts is allowed to promise: in Lite
+            // the gallery opens but the click does not insert, so “add with a
+            // click” would be a lie there.
+            'pro' => Plugin::getInstance()->isPro(),
             // Files the CP itself changed and that are still, verifiably, in
             // that changed state — see WriteJournal. Relative paths only: the
             // CP never echoes absolute paths.

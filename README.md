@@ -2,21 +2,23 @@
 
 [![CI](https://github.com/b10k-nl/craft-component-guide/actions/workflows/ci.yml/badge.svg)](https://github.com/b10k-nl/craft-component-guide/actions/workflows/ci.yml)
 
-A Storybook-style component browser inside the Craft CMS 5 control panel — live previews for developers, a visual blocks gallery for editors.
+**Editors cannot tell which Matrix block is which.** They pick “Cards Grid” from a dropdown of names, hope it is the right one, and ask a developer when it is not. Component Guide shows them a rendered preview of every block a page-builder field accepts, inside the Craft control panel, and lets them add the one they picked.
 
-Component Guide scans a configurable templates directory, discovers Twig components and their story definitions, and renders isolated previews inside the Craft control panel — so content editors and developers can see what each component looks like and how to use it, without setting up a separate Storybook/Twig environment.
+For developers it is a **component library for Craft CMS** — a living style guide of every Twig component in the project, rendered with your site's own CSS and discovered from the templates you already have. No separate Storybook, no second environment to keep alive, no screenshots to maintain.
 
-![The component index: groups with descriptions, live preview cards, and story-less components listed as “undocumented”](docs/images/index.png)
+It also catches previews that lie: a story can promise a field the entry type does not have, and the guide says so before an editor meets a card they can never reproduce.
 
-![A component page: stories, viewport switcher and an isolated preview rendered with the site's own CSS](docs/images/component.png)
+![The component index: live preview cards with status and gallery chips, a status filter, and a count of blocks ready for editors](docs/images/index.png)
 
-![The blocks gallery on a page-builder field: real previews and descriptions where editors add blocks](docs/images/picker.png)
+![A component page: three stories with Dark selected, the viewport switcher, and an isolated preview rendered with the site's own CSS](docs/images/component.png)
+
+![The blocks gallery open over an entry in Live Preview: real rendered previews where editors pick the block they add](docs/images/picker.png)
 
 Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.0.0` — stable. Sold per site through the Craft Plugin Store; free to trial in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.5.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -52,6 +54,21 @@ Nothing configured yet? The guide starts by explaining how to get there:
   nothing is written behind git's back.
 - Persistent scan cache keyed by a filesystem fingerprint — invalidates itself
   the moment a story, template or marker changes.
+
+## When not to use this
+
+- **Your components query Craft themselves.** A component that runs its own
+  element queries needs a story that passes plain arrays instead; presentational
+  components work as they are.
+- **You have no page-builder field.** The editor half is built around Matrix.
+  Without one the guide is still a component browser, but the half that earns
+  its keep sits idle.
+- **You want screenshots you art-direct.** Previews are re-rendered from the
+  template every time, so they cannot go stale — and cannot be posed either.
+- **Your previews need CSS the guide cannot reach.** They are exactly as
+  accurate as the stylesheet you point them at.
+- **You need a verdict on every component.** The contract check gives none when
+  it cannot identify a single adapter. Refusing beats guessing.
 
 ## Editions
 

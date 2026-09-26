@@ -1,6 +1,6 @@
 {
     "name": "b10k/craft-component-guide",
-    "description": "A Storybook-style component browser inside the control panel — live previews for developers, a visual blocks gallery for editors.",
+    "description": "Let editors see and add page blocks without asking a dev — a component library and block previews for Craft CMS, inside the control panel.",
     "type": "craft-plugin",
     "keywords": [
         "craft",

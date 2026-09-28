@@ -299,6 +299,35 @@
         apply(true);
     };
 
+    // Craft renders a Lightswitch field as a <button class="lightswitch">
+    // holding a hidden input. There is no text box or select to find, so until
+    // 1.5.1 a boolean arg — a "reversed" variant, a dark-theme toggle — was
+    // dropped without a word, and the editor who picked that variant in the
+    // gallery got the default block. The preview showed one thing and the
+    // click added another.
+    var setLightswitch = function (hidden, value) {
+        var sw = hidden.closest('.lightswitch');
+        if (!sw) { return; }
+        var on = value === true || value === 1 || value === '1' || value === 'true';
+
+        var instance = window.jQuery ? window.jQuery(sw).data('lightswitch') : null;
+        if (instance && typeof instance.turnOn === 'function') {
+            // Craft's own API: moves the handle, updates the hidden input and
+            // fires the change the element editor listens for.
+            if (on) { instance.turnOn(); } else { instance.turnOff(); }
+            return;
+        }
+
+        // Not initialised yet — Matrix attaches its UI after the markup lands.
+        // Craft.LightSwitch reads its state from the `on` class when it is
+        // constructed, so leaving the markup exactly as the server renders an
+        // "on" switch is all it takes; the instance picks it up from there.
+        sw.classList.toggle('on', on);
+        sw.setAttribute('aria-checked', on ? 'true' : 'false');
+        hidden.value = on ? (sw.getAttribute('data-value') || '1') : '';
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
     var fillBlock = function (blockEl, prefill) {
         // Keys are real field handles now: the server reads them off the
         // adapter's include site, which is the only place the mapping between
@@ -306,10 +335,40 @@
         // browser guesses nothing.
         Object.keys(prefill).forEach(function (handle) {
             var value = prefill[handle];
+            var tail = '[name$="[' + handle + ']"]';
+
+            // A switch always holds a value, like a select, so it is set
+            // whichever way the story says — a variant that turns it off must
+            // be able to turn it off.
+            var hidden = blockEl.querySelector('.lightswitch input[type="hidden"]' + tail);
+            if (hidden) {
+                setLightswitch(hidden, value);
+                return;
+            }
+
+            // Radio Buttons store option values the way Dropdown does — encoded
+            // — so the match goes through the same function.
+            var radios = blockEl.querySelectorAll('input[type="radio"]' + tail);
+            if (radios.length) {
+                for (var r = 0; r < radios.length; r++) {
+                    if (optionMatches(radios[r].value, String(value))) {
+                        if (!radios[r].checked) { radios[r].click(); }
+                        break;
+                    }
+                }
+                return;
+            }
+
+            // Number, URL, Email and Phone fields are text boxes of another
+            // type, and were skipped for the same reason the switch was.
             var input = blockEl.querySelector(
-                'input[type="text"][name$="[' + handle + ']"], '
-                + 'textarea[name$="[' + handle + ']"], '
-                + 'select[name$="[' + handle + ']"]'
+                'input[type="text"]' + tail + ', '
+                + 'input[type="number"]' + tail + ', '
+                + 'input[type="url"]' + tail + ', '
+                + 'input[type="email"]' + tail + ', '
+                + 'input[type="tel"]' + tail + ', '
+                + 'textarea' + tail + ', '
+                + 'select' + tail
             );
             if (!input) { return; }
 

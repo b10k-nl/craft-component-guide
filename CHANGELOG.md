@@ -3,6 +3,30 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.5.1 - 2026-09-28
+
+### Fixed
+
+- **Picking a variant in the blocks gallery could add a different one.** The
+  gallery lets an editor choose between a component's stories and inserts the
+  one they chose — but only its text boxes and dropdowns. A Lightswitch field,
+  the natural way to build a "reversed" or "dark" variant, keeps its value in a
+  hidden input inside the switch, and there was nothing there to find: the arg
+  was dropped without a word. The card previewed "Image + Text"; the click added
+  "Text + Image". Reported by a customer the day after they started using it on
+  a live project.
+
+  Switches are now set whichever way the story says — through Craft's own
+  LightSwitch API when it has attached, and by leaving the markup exactly as the
+  server renders an "on" switch when it has not yet. Radio Buttons are matched
+  the way Dropdowns are, encoded option values included, and Number, URL, Email
+  and Phone fields are filled like any other text box; they were skipped for the
+  same reason. Checkboxes, which hold several values, are still left alone.
+
+  It went unnoticed because the plugin's own test project switches its hero
+  theme with a Dropdown, which always worked. The fixture was ours; the field a
+  real agency reaches for was not.
+
 ## 1.5.0 - 2026-09-21
 
 ### Fixed

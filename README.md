@@ -18,7 +18,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.5.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.5.2` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 

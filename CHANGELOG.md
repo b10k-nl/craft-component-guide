@@ -3,7 +3,7 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## Unreleased
+## 1.5.2 - 2026-10-03
 
 ### Changed
 

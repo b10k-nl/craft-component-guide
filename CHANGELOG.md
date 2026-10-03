@@ -3,6 +3,37 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## Unreleased
+
+### Changed
+
+- **The preview on a component's page is cropped to the component.** It used to
+  show every story on a full device screen — a 1920×1080 monitor, a whole tablet
+  or phone — in a fixed 640px box, so a short strip such as a stats bar or a
+  call to action sat at the top of a mostly empty white screen. The device stays
+  as it was; the box is now cropped to the component, top and bottom, so it
+  reads as a slice of a page — on desktop, tablet and phone, in either
+  orientation. Tall components and anything sized to the full viewport keep the
+  whole device, and the box no longer runs on empty below a landscape phone or a
+  monitor scaled to the width. The size label shows the width on desktop
+  (`1920px`) and width × height on tablet and phone (`375×753`), so Rotate
+  visibly swaps them. Like the blocks gallery's thumbnails, this needs the
+  preview on the same origin as the control panel — on another origin the box
+  stays full size.
+
+### Fixed
+
+- **Rotate showed on the desktop preview**, where it does nothing. It was meant
+  to hide there, but Craft's button styles overrode the `hidden` attribute.
+
+### Development
+
+- **Tests for the blocks gallery's prefill.** `npm test` runs `picker.js` in
+  jsdom against the markup Craft renders for Lightswitch, Radio Buttons,
+  Dropdown, Number/URL/Email/Phone, text and Checkboxes. Against 1.5.0 five of
+  the nine fail — the bug 1.5.1 fixed. CI runs them next to PHPUnit and
+  PHPStan. Development-only: `package.json` is not in the Composer package.
+
 ## 1.5.1 - 2026-09-28
 
 ### Fixed

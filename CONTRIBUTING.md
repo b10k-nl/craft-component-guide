@@ -23,11 +23,16 @@ checks, path/XSS leaks).
 ```bash
 composer install
 composer check   # PHPUnit + PHPStan
+
+npm install
+npm test         # control panel JS, in jsdom (Node 22+)
 ```
 
 - Target PHP 8.2+, Craft 5, PSR-12.
 - Keep controllers thin; put logic in `src/services`.
 - Add/extend unit tests for scanner, parser and snippet-generator changes.
+- Changing how the blocks gallery fills a block? Extend `tests/js/fill-block.test.js`
+  with the markup Craft renders for that field type.
 - Update `CHANGELOG.md` under the unreleased heading.
 
 ## Pull requests

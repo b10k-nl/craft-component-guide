@@ -1206,6 +1206,13 @@
         }).observe(document.body, { childList: true, subtree: true });
     };
 
+    // Seam for tests/js. Filling a block is where a field type Craft renders
+    // its own way goes missing without a word (1.5.1: Lightswitch), so it is
+    // tested against Craft's markup. Inert unless a test asks for it.
+    if (window.__componentGuideTest) {
+        window.__componentGuideTest.fillBlock = fillBlock;
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

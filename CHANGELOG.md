@@ -3,6 +3,14 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.5.3 - 2026-10-03
+
+### Fixed
+
+- **1.5.2 was published without its release notes.** No code changes: 1.5.3
+  is the same code as 1.5.2, released so the notes below reach the Plugin Store
+  and the control panel's update screen.
+
 ## 1.5.2 - 2026-10-03
 
 ### Changed

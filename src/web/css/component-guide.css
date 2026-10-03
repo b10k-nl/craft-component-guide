@@ -176,6 +176,9 @@
     padding: 8px 12px; background: #f3f5f7; border-bottom: 1px solid #cdd8e4;
 }
 .cg-preview__actions { display: flex; align-items: center; gap: 8px; }
+/* Craft's .btn sets display, which beats the hidden attribute — without this
+   Rotate showed on desktop, where it does nothing. */
+.cg-preview__actions [hidden] { display: none; }
 .cg-preview__width { font-size: 12px; min-width: 52px; text-align: right; }
 
 /* Device switcher (icon buttons, à la Craft Live Preview) */

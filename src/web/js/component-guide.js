@@ -171,12 +171,25 @@
         var mask = null;      // .cg-device-mask (SVG bezel)
         var iframe = null;
 
+        // A 300px strip shouldn't sit at the top of a 1080px white screen. The
+        // device stays whole — same size, same scale — and the stage is cropped
+        // to the component, so the screen runs on past both edges. The
+        // height is measured in device px (it holds across window resizes) and
+        // re-measured whenever the device or orientation changes. null = no
+        // crop: a tall component, or a frame we can't read.
+        var contentH = null;
+        var MIN_CROP_H = 200;
+        var FRAME_H = frame.clientHeight || 640;
+
+        // Desktop: width only — it is what the breakpoints answer to, and the
+        // monitor's height is never the point. Phone and tablet: width × height,
+        // so Rotate visibly swaps the two.
         var showWidth = function () {
             if (!widthLabel) { return; }
             var d = DEVICES[currentDevice];
             var w = orientation === 'landscape' ? d.height : d.width;
             var h = orientation === 'landscape' ? d.width : d.height;
-            widthLabel.textContent = w + '×' + h;
+            widthLabel.textContent = currentDevice === 'desktop' ? w + 'px' : w + '×' + h;
         };
 
         // Port of Craft's updateDevicePreview(): fit the device into the stage with
@@ -190,7 +203,7 @@
 
             var d = DEVICES[currentDevice];
             var hasMask = currentDevice !== 'desktop';
-            var availH = stage.clientHeight - 32;
+            var availH = FRAME_H - 32;
             var availW = stage.clientWidth - 32;
 
             var t = 1, e = 1;
@@ -211,6 +224,17 @@
             var visualH = n * (orientation === 'landscape' ? d.width : d.height);
             var centerY = 16 + visualH / 2;
 
+            // The 12px offset re-centres the screen inside the bezel (top chrome
+            // is 31px, bottom 55px) — desktop has no bezel, so no offset.
+            var off = hasMask ? 12 * n : 0;
+
+            // Cropped to a short component: the screen starts at the stage's top
+            // edge and ends at its bottom one, so the component reads as a slice
+            // of a page rather than the section that opens it.
+            if (contentH !== null) {
+                centerY -= 16 - (orientation === 'landscape' ? 0 : off);
+            }
+
             // Mask always uses portrait dims; landscape is achieved by rotating it.
             if (hasMask) {
                 mask.style.top = centerY + 'px';
@@ -221,9 +245,6 @@
 
             // The screen holder swaps its dims for landscape (so the iframe's own
             // viewport is landscape) but is NOT rotated — content stays upright.
-            // The 12px offset re-centres the screen inside the bezel (top chrome is
-            // 31px, bottom 55px) — desktop has no bezel, so no offset.
-            var off = hasMask ? 12 * n : 0;
             container.style.top = centerY + 'px';
             container.style.width = (orientation === 'landscape' ? d.height : d.width) + 'px';
             container.style.height = (orientation === 'landscape' ? d.width : d.height) + 'px';
@@ -231,7 +252,35 @@
             container.style.marginTop = orientation === 'landscape' ? '0' : ('-' + off + 'px');
             container.style.marginLeft = orientation === 'landscape' ? ('-' + off + 'px') : '0';
 
+            // Exactly the component's height when cropped. Otherwise the whole
+            // device plus 16px above and below — a landscape phone or a monitor
+            // scaled by width is shorter than the stylesheet's stage, and the
+            // rest of it was empty.
+            frame.style.height = Math.min(FRAME_H, Math.ceil(
+                contentH === null ? visualH + 32 : n * contentH
+            )) + 'px';
+
             showWidth();
+        };
+
+        // Measure the component on the device as it is, then crop the stage to
+        // it. The device itself never changes size, so content sized by the
+        // viewport is measured honestly. Same-origin only (as the gallery's
+        // thumbnails): a control panel on another origin can't read the frame
+        // and keeps the full stage.
+        var fitDevice = function () {
+            if (!iframe) { return; }
+            contentH = null;
+            try {
+                var doc = iframe.contentDocument;
+                if (doc && doc.body && doc.location.href !== 'about:blank') {
+                    var d = DEVICES[currentDevice];
+                    var full = orientation === 'landscape' ? d.width : d.height;
+                    var h = Math.ceil(doc.body.scrollHeight);
+                    if (h && h < full) { contentH = Math.max(h, MIN_CROP_H); }
+                }
+            } catch (e) { /* cross-origin — no crop */ }
+            layout();
         };
 
         var build = function () {
@@ -245,7 +294,10 @@
 
             iframe = document.createElement('iframe');
             iframe.setAttribute('title', title);
-            iframe.addEventListener('load', function () { frame.classList.add('is-loaded'); });
+            iframe.addEventListener('load', function () {
+                frame.classList.add('is-loaded');
+                fitDevice();
+            });
             container.appendChild(iframe);
 
             // Attach to the DOM first, THEN set src — setting src on a detached
@@ -266,6 +318,7 @@
             devButtons.forEach(function (b) { b.classList.toggle('is-active', b === btn); });
             if (rotateBtn) { rotateBtn.hidden = currentDevice === 'desktop'; }
             layout();
+            fitDevice();
         };
 
         devButtons.forEach(function (b) {
@@ -279,6 +332,7 @@
                 if (currentDevice === 'desktop') { return; }
                 orientation = orientation === 'portrait' ? 'landscape' : 'portrait';
                 layout();
+                fitDevice();
             });
         }
         if (refreshBtn) {

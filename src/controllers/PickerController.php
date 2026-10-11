@@ -110,7 +110,7 @@ class PickerController extends Controller
      *
      * @param string[] $producibleIds
      * @param bool $pro Whether to include the field values a click would apply.
-     * @return list<array{id: string, title: string, previewUrl: string, prefill: array<string, mixed>|null}>
+     * @return list<array{id: string, title: string, description: string|null, previewUrl: string, prefill: array<string, mixed>|null}>
      */
     private function stories(
         ComponentDefinition $component,
@@ -128,6 +128,9 @@ class PickerController extends Controller
             $stories[] = [
                 'id' => $story->id,
                 'title' => $story->title,
+                // Shown on the story's own card when the gallery splits
+                // variants into cards.
+                'description' => $story->description,
                 'previewUrl' => Plugin::previewUrl($component->id, $story->id),
                 // Lite sees the card and the preview; it does not receive the
                 // field values, because filling the block in is the paid half.
@@ -144,6 +147,7 @@ class PickerController extends Controller
             $stories[] = [
                 'id' => $first->id,
                 'title' => $first->title,
+                'description' => $first->description,
                 'previewUrl' => Plugin::previewUrl($component->id, $first->id),
                 'prefill' => $pro ? ($this->prefill($component, $first, $binding) ?: null) : null,
             ];

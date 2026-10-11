@@ -24,6 +24,7 @@ return [
     'Click a block to add it' => 'Click a block to add it',
     'Search blocks…' => 'Search blocks…',
     'Group' => 'Group',
+    'Variants as cards' => 'Variants as cards',
     'Marked “{status}” — not ready for editors yet.' => 'Marked “{status}” — not ready for editors yet.',
     'Adding a block from the gallery is a Pro feature.' => 'Adding a block from the gallery is a Pro feature.',
     'See the Pro edition' => 'See the Pro edition',

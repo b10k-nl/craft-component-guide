@@ -1,6 +1,6 @@
 {
     "name": "b10k/craft-component-guide",
-    "description": "Let editors see and add page blocks without asking a dev — a component library and block previews for Craft CMS, inside the control panel.",
+    "description": "Visual Matrix block picker with live previews rendered from your own Twig templates — and a component library in the control panel.",
     "type": "craft-plugin",
     "keywords": [
         "craft",

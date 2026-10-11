@@ -18,7 +18,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.5.3` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.6.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -44,7 +44,10 @@ Nothing configured yet? The guide starts by explaining how to get there:
   page-builder field (all view modes — blocks, cards, index) opens a panel of
   real component previews with descriptions; clicking one adds that block. In
   "Inline-editable blocks" mode the new block is prefilled with the story's
-  own content, so it is visible on the page immediately.
+  own content, so it is visible on the page immediately. A block with several
+  stories shows them in a dropdown on its card, or — with **Variants as cards**
+  ticked — as one card per story, for stories that change the layout rather
+  than a colour.
 - **Bulk setup with a coding agent:** a recipe in `AGENT-SETUP.md` any agent
   can follow to document an existing library in one pass — marker file, one
   draft story per component, and a report of the blocks that do not match an

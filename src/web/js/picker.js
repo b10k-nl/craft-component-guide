@@ -30,6 +30,23 @@
             + '; path=/; max-age=31536000; samesite=lax';
     };
 
+    // "Variants as cards": every reproducible story of a block gets its own
+    // card instead of a dropdown on one card. A story's args can change the
+    // whole layout — a split hero is not a recoloured centred one — and an
+    // editor choosing by looking should not have to open a menu to find it.
+    // Off by default; remembered per browser like grouping.
+    var SPLIT_COOKIE = 'cg-picker-split';
+
+    var isSplitEnabled = function () {
+        var m = document.cookie.match(/(?:^|;\s*)cg-picker-split=([^;]*)/);
+        return m ? m[1] === '1' : false;
+    };
+
+    var setSplitEnabled = function (on) {
+        document.cookie = SPLIT_COOKIE + '=' + (on ? '1' : '0')
+            + '; path=/; max-age=31536000; samesite=lax';
+    };
+
     // Collapsed group labels, persisted as a JSON array in a cookie.
     var COLLAPSED_COOKIE = 'cg-picker-collapsed';
 
@@ -545,6 +562,26 @@
         card.classList.add('is-denied');
     };
 
+    // Which cards the gallery shows, in native menu order. One card per entry
+    // type, with its stories behind a dropdown — or, when split, one card per
+    // story, kept together in story order. A block with a single story is one
+    // card either way. `story: null` means "the block's card, with switcher".
+    var galleryCards = function (items, comps, split) {
+        var out = [];
+        items.forEach(function (item) {
+            var comp = comps[item.type];
+            var stories = (comp && comp.stories) ? comp.stories : [];
+            if (split && stories.length > 1) {
+                stories.forEach(function (story) {
+                    out.push({ item: item, comp: comp, story: story });
+                });
+            } else {
+                out.push({ item: item, comp: comp, story: null });
+            }
+        });
+        return out;
+    };
+
     var openPanel = function (source, comps) {
         closePanel();
 
@@ -582,6 +619,23 @@
         groupToggle.appendChild(groupCheckbox);
         groupToggle.appendChild(document.createTextNode(Craft.t('component-guide', 'Group')));
         searchWrap.appendChild(groupToggle);
+
+        var items = source.items();
+
+        var splitToggle = document.createElement('label');
+        splitToggle.className = 'cg-picker-group-toggle cg-picker-split-toggle';
+        var splitCheckbox = document.createElement('input');
+        splitCheckbox.type = 'checkbox';
+        splitCheckbox.checked = isSplitEnabled();
+        splitToggle.appendChild(splitCheckbox);
+        splitToggle.appendChild(document.createTextNode(Craft.t('component-guide', 'Variants as cards')));
+        // Same rule as the Group checkbox: a control that would change nothing
+        // in this field is not offered.
+        splitToggle.hidden = !items.some(function (item) {
+            var comp = comps[item.type];
+            return !!(comp && comp.stories && comp.stories.length > 1);
+        });
+        searchWrap.appendChild(splitToggle);
 
         var grid = document.createElement('div');
         grid.className = 'cg-picker-grid';
@@ -656,7 +710,7 @@
             });
         };
 
-        var buildCard = function (item, comp) {
+        var buildCard = function (item, comp, story) {
             // Craft's own card classes do the styling (border, titlebar,
             // radius); cg-* classes only add picker behavior on top.
             var card = document.createElement('button');
@@ -667,6 +721,8 @@
                 item.label,
                 comp ? comp.title : '',
                 comp && comp.description ? comp.description : '',
+                story ? story.title : '',
+                story && story.description ? story.description : '',
             ].join(' ').toLowerCase();
 
             // Only an explicit `stable` opens the card. A missing status used
@@ -689,9 +745,14 @@
             // Which state of this component the card is currently offering.
             // Only reproducible ones reach the browser — the server decides
             // that, because it is the same question the index badge answers.
-            var variants = (comp && comp.stories) ? comp.stories : [];
+            // A per-story card (split mode) offers exactly that story.
+            var variants = story ? [story] : ((comp && comp.stories) ? comp.stories : []);
             var active = variants[0] || null;
             var frame = null;
+            var previewUrl = (active && active.previewUrl) || (comp ? comp.previewUrl : null);
+            // A story's own description says what makes it different, which is
+            // the point of giving it a card; the block's covers the rest.
+            var description = (story && story.description) || (comp ? comp.description : null);
 
             // Native card titlebar, same markup as Cp::elementCardHtml().
             var head = document.createElement('div');
@@ -727,11 +788,20 @@
                 headFlex.appendChild(chip);
             }
             head.appendChild(headFlex);
+            if (story) {
+                // Where the dropdown sits on a block's card: the state this
+                // card is, named the way the story file names it.
+                var storyLabel = document.createElement('span');
+                storyLabel.className = 'cg-picker-card__story';
+                storyLabel.textContent = story.title;
+                storyLabel.title = story.title;
+                head.appendChild(storyLabel);
+            }
             card.appendChild(head);
 
             // Description + thumbnail in a native card body under the titlebar.
             // Bare entry types (no matching component) collapse to the bar.
-            if (comp && (comp.description || comp.previewUrl)) {
+            if (comp && (description || previewUrl)) {
                 var main = document.createElement('div');
                 main.className = 'card-main';
                 var content = document.createElement('div');
@@ -739,19 +809,19 @@
                 var body = document.createElement('div');
                 body.className = 'card-body';
 
-                if (comp.description) {
+                if (description) {
                     var desc = document.createElement('div');
                     desc.className = 'cg-picker-card__desc';
-                    desc.textContent = comp.description;
+                    desc.textContent = description;
                     body.appendChild(desc);
                 }
 
-                if (comp.previewUrl) {
+                if (previewUrl) {
                     var thumb = document.createElement('span');
                     thumb.className = 'cg-picker-card__thumb';
                     var iframe = document.createElement('iframe');
                     frame = iframe;
-                    iframe.src = comp.previewUrl;
+                    iframe.src = previewUrl;
                     iframe.loading = 'lazy';
                     iframe.tabIndex = -1;
                     iframe.setAttribute('title', '');
@@ -853,7 +923,8 @@
                         // native button's text, which for a single-entry-type
                         // field is the field's create-button label — “New
                         // entry”, not the block's name.
-                        var name = (comp ? comp.title : item.label) || item.type;
+                        var name = ((comp ? comp.title : item.label) || item.type)
+                            + (story ? ' — ' + story.title : '');
                         var uid = blockEl.getAttribute('data-uid');
                         if (uid) { offerUndo(name, target, uid); }
                     });
@@ -867,12 +938,15 @@
             return card;
         };
 
-        // Build every card once, in native menu order — grouping only decides
-        // the layout, so toggling re-parents the same nodes.
-        var entries = source.items().map(function (item) {
-            var comp = comps[item.type];
-            return { comp: comp, card: buildCard(item, comp) };
-        });
+        // Build the cards in native menu order — grouping only decides the
+        // layout, so toggling it re-parents the same nodes. Splitting changes
+        // which cards exist, so that toggle builds a fresh set.
+        var buildEntries = function (split) {
+            return galleryCards(items, comps, split).map(function (c) {
+                return { comp: c.comp, card: buildCard(c.item, c.comp, c.story) };
+            });
+        };
+        var entries = buildEntries(splitCheckbox.checked && !splitToggle.hidden);
 
         // Grouping one group is grouping nothing: renderGrid() already leaves
         // the heading off in that case, so the checkbox would change the layout
@@ -978,6 +1052,14 @@
 
         groupCheckbox.addEventListener('change', function () {
             setGroupingEnabled(groupCheckbox.checked);
+            renderGrid(groupCheckbox.checked);
+        });
+
+        // renderGrid() moves the new cards in and drops the old group wrappers
+        // with the old cards still inside them, so nothing is left behind.
+        splitCheckbox.addEventListener('change', function () {
+            setSplitEnabled(splitCheckbox.checked);
+            entries = buildEntries(splitCheckbox.checked);
             renderGrid(groupCheckbox.checked);
         });
 
@@ -1211,6 +1293,7 @@
     // tested against Craft's markup. Inert unless a test asks for it.
     if (window.__componentGuideTest) {
         window.__componentGuideTest.fillBlock = fillBlock;
+        window.__componentGuideTest.galleryCards = galleryCards;
     }
 
     if (document.readyState === 'loading') {

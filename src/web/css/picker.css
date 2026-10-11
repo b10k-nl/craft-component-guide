@@ -208,6 +208,23 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
    rotation and leaves a bare corner mark — vertical nudges here have to be
    margins, never transforms. */
 
+/* Per-story card label --------------------------------------------------
+   With "Variants as cards" on, a story's card shows its name where a block's
+   card shows the dropdown: same place, same weight, so a row of a block's
+   states reads as one block in several versions. */
+.cg-picker-card__story {
+    margin-left: auto;
+    padding-left: 8px;
+    flex: 0 1 auto;
+    max-width: 45%;
+    font-size: 12px;
+    line-height: 24px;
+    color: var(--light-text-color, #7a8794);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Lite edition ------------------------------------------------------------
    The gallery is a catalogue in Lite and a tool in Pro. Cards stay fully
    legible — the whole point is that an editor sees exactly what the paid

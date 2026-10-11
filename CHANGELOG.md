@@ -3,6 +3,27 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.6.0 - 2026-10-11
+
+### Added
+
+- **“Variants as cards” in the blocks gallery.** A block with several stories
+  used to get one card with a dropdown of its states. That works when a story
+  only changes a colour, but a story's args can change the whole layout — a
+  split hero is a different block to an editor than a centred one, and they had
+  to open a menu to find out it existed. A new checkbox next to “Group” shows
+  every reproducible story as its own card, kept together in story order, with
+  the story's name in the card header and its own description when it has one.
+  Clicking a card adds the block in exactly that state. Off by default and
+  remembered per browser; it only appears when a block in the field has more
+  than one story.
+
+### Changed
+
+- The package description now leads with what editors get: a visual Matrix
+  block picker with live previews from your own Twig templates, and a component
+  library in the control panel.
+
 ## 1.5.3 - 2026-10-03
 
 ### Fixed

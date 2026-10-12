@@ -35,7 +35,8 @@ Nothing configured yet? The guide starts by explaining how to get there:
 - Two story languages (Twig and PHP) and two shapes (simple + rich),
   normalized to one internal model.
 - Groups, lists and client-side-searches components in the CP.
-- Renders each story in a sandboxed **iframe** with your front-end CSS.
+- Renders each story in an isolated **iframe** with your front-end CSS, on a
+  desktop, tablet or phone frame, cropped to the component's own height.
 - Generates a copy-pasteable Twig `{% include … with {…} only %}` snippet.
 - Surfaces per-component errors without breaking the rest of the guide.
 - Lists story-less templates via **marker files** (`GUIDE.md` / `BLOCKS.md` /
@@ -606,9 +607,10 @@ git rm 'templates/**/GUIDE.md' 'templates/**/BLOCKS.md' 'templates/**/COMPONENTS
 ### What was never touched
 
 Your content, your Matrix fields, your entry types, your templates. The guide
-only ever *reads* them. The single exception is the **Add story** button (and
-its CLI equivalent), which writes a story file you explicitly asked for — and
-never overwrites an existing one.
+only ever *reads* them. The exceptions are story files, and only when you ask:
+the **Add story** button (and its CLI equivalent) writes a new one and never
+overwrites an existing one, and **Mark stable** / **Back to draft** rewrite the
+single `status` line of one.
 
 The scan cache can also be cleared on its own at any time, without uninstalling
 anything: **Utilities → Caches → Component Guide scan cache**.
@@ -630,9 +632,12 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   rewrites exactly one line. Every such write is recorded and surfaced on the
   index (see *What the guide changed*), because a control panel that edits
   project files silently is worse than one that cannot.
-- Previews are isolated in a `sandbox`ed iframe; metadata is escaped; error
-  messages appear where `allowAdminChanges` is on, absolute paths and stack
-  traces only in `devMode`.
+- Previews render in a separate iframe document, so project CSS and JS never
+  mix with the control panel's. It is not a `sandbox`ed iframe: it shares the
+  control panel's origin, which is how the gallery and the component page
+  measure a preview's height. Metadata is escaped; error messages appear where
+  `allowAdminChanges` is on, absolute paths and stack traces only in
+  `devMode`.
 
 Do **not** expose the plugin to untrusted users — story files are project code,
 not a sandbox.
@@ -664,6 +669,9 @@ composer install
 composer test       # PHPUnit (scanner, story parser, scaffolder, placeholders)
 composer analyse    # PHPStan (level 5)
 composer check      # both
+
+npm install         # once (Node 22+)
+npm test            # control-panel JavaScript: gallery prefill and cards (jsdom)
 ```
 
 ### CLI diagnostics
@@ -679,10 +687,11 @@ ddev exec php craft component-guide/components/scan
 
 ## Roadmap
 
-- Viewport presets, more preview controls
+- **Page presets** — a developer-defined set of blocks (“service page”,
+  “campaign landing”) an editor adds in one go, filled from the stories
+- **Craft 6** — a 6.x release as soon as Craft 6 is stable
 - Seeding scaffolded args from the matched entry type's field layout, so the
   draft comes from the schema instead of a guess
-- Additional story formats
 
 ## Feedback
 
@@ -698,5 +707,5 @@ that file) rather than via public issues.
 ## License
 
 [The Craft License](LICENSE.md) — the standard licence for commercial Craft
-plugins: source-available, one licensed copy per production environment, free
-to trial in development and staging.
+plugins: source-available, one licence per production environment. Lite is
+free everywhere; Pro is free to run in development and staging.

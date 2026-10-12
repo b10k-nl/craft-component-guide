@@ -4,8 +4,10 @@ A Storybook-style component browser that lives inside Craft's control panel: it
 scans your `templates/` folder, lists your reusable Twig components and renders
 live previews of them.
 
-Licensed under [the Craft License](LICENSE.md): free to trial in development and
-staging, a paid per-site licence once it runs on a production site.
+Licensed under [the Craft License](LICENSE.md). **Lite is free**, on any site
+including production. Pro — inserting blocks from the gallery and the
+`stories/check` CI command — is free in development and staging and a paid
+per-site licence on production. See *Editions* in the README.
 
 ## Requirements
 
@@ -28,7 +30,8 @@ To remove it: `php craft plugin/uninstall component-guide`, then
 `composer remove b10k/craft-component-guide`. Your story and marker
 files stay in `templates/` — they're plain project files and do nothing without
 the plugin. Nothing in your content or field layouts is touched, and the plugin
-only ever writes files when you press “Add story”.
+only ever writes story files when you press “Add story”, “Mark stable” or
+“Back to draft”.
 
 ## First five minutes
 
@@ -81,7 +84,6 @@ all settings in more detail.
   need manual fixing.
 - Components that query Craft or use Sprig internally may render partially in
   previews.
-- A single edition with everything in it — no paid/free feature split.
 
 ## Feedback
 

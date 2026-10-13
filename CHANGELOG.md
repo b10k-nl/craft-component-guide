@@ -3,6 +3,41 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.7.0 - 2026-10-13
+
+### Added
+
+- **Editors' own variants.** "Save as my variant…" in a block's action menu
+  keeps the block as the editor filled it, under a name of their choosing, as a
+  ★ card in the blocks gallery — previewed live and added filled in, like the
+  developer's stories. Only the fields the gallery can fill back in are kept
+  (one field per template argument: text, number, URL, email, dropdown, radio
+  buttons, lightswitch); the save panel names any that are not, such as rich
+  text, so a card never previews a value its click would not put back.
+  Variants are personal and live in the editor's Craft user preferences: no
+  table, no migration, nothing in the repository. **Share with a developer**
+  copies one as a ready-to-paste Twig story; **Delete** removes it. Pro; inline
+  Matrix blocks only.
+
+- **The gallery remembers where the editor left it.** Open, it stays open
+  across a reload or a save until it is closed with × or Escape; and each
+  block's card shows the story last chosen for it rather than the first. Kept
+  in the browser's localStorage — the server never needs it, so it is not sent
+  with every request the way a cookie would be.
+
+### Fixed
+
+- **Rich text now arrives in blocks added from the gallery.** A story's text for
+  a CKEditor field was written into the hidden textarea behind the editor, which
+  CKEditor reads only once, on creation — so the block looked empty, and the
+  text it did not show could still be saved. It now goes through the editor
+  itself, once the editor exists, and never over text already in it.
+
+### Changed
+
+- The story scaffolder and the shared-variant snippet write Twig through one
+  helper, so the two can never quote or indent differently.
+
 ## 1.6.0 - 2026-10-11
 
 ### Added

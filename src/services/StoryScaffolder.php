@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\services;
 
+use b10k\componentguide\helpers\TwigLiteral;
 use b10k\componentguide\models\ComponentDefinition;
 use yii\base\Component;
 
@@ -748,48 +749,21 @@ class StoryScaffolder extends Component
     }
 
     /**
-     * Twig-literal output: `{ key: value }` hashes, `[…]` lists, single-quoted
-     * strings.
+     * Twig-literal output — see TwigLiteral, which the shared-variant snippet
+     * uses too.
      */
     private function exportTwig(mixed $value, int $depth): string
     {
-        if (is_array($value)) {
-            if ($value === []) {
-                return '[]';
-            }
-
-            $pad = str_repeat('    ', $depth);
-            $isList = array_is_list($value);
-            $lines = [$isList ? '[' : '{'];
-            foreach ($value as $key => $item) {
-                $prefix = $isList ? '' : $this->twigKey((string)$key) . ': ';
-                $lines[] = $pad . '    ' . $prefix . $this->exportTwig($item, $depth + 1) . ',';
-            }
-            $lines[] = $pad . ($isList ? ']' : '}');
-
-            return implode("\n", $lines);
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-        if ($value === null) {
-            return 'null';
-        }
-        if (is_int($value) || is_float($value)) {
-            return (string)$value;
-        }
-
-        return $this->twigString((string)$value);
+        return TwigLiteral::value($value, $depth);
     }
 
     private function twigString(string $value): string
     {
-        return "'" . str_replace(['\\', "'"], ['\\\\', "\\'"], $value) . "'";
+        return TwigLiteral::string($value);
     }
 
     private function twigKey(string $key): string
     {
-        return preg_match('/^[a-zA-Z_]\w*$/', $key) === 1 ? $key : $this->twigString($key);
+        return TwigLiteral::key($key);
     }
 }

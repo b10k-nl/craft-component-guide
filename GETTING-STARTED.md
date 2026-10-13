@@ -77,6 +77,9 @@ all settings in more detail.
   but adding a block follows Craft's own flow: the entry is created and its
   slideout opens, so the story-args prefill doesn't apply there. Prefill
   currently works in **“Inline-editable blocks”** mode only.
+- "Save as my variant…" is offered on inline-editable Matrix blocks only, and
+  keeps simple fields (text, number, dropdown, radio, lightswitch); rich text,
+  assets and nested blocks start from the block's first story.
 - Components without a story file are listed but not clickable (no detail page
   or preview yet).
 - The story scaffolder is heuristic: it reads the template with regexes, so

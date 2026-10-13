@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\controllers;
 
+use b10k\componentguide\helpers\UserStoryBuilder;
 use b10k\componentguide\models\AdapterBinding;
 use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\StoryDefinition;
@@ -72,7 +73,14 @@ class PickerController extends Controller
                 continue;
             }
 
+            $binding = $bindings[$component->id] ?? null;
+            $editable = $binding !== null
+                ? UserStoryBuilder::editableFields($binding, $component->stories)
+                : [];
+
             $catalog[] = [
+                // What the variant endpoints are asked about.
+                'id' => $component->id,
                 // `name` is the template base name, kept for search and
                 // debugging; `matchKey` is what the gallery looks components up
                 // by, computed here so the rule lives in PHP only.
@@ -82,7 +90,13 @@ class PickerController extends Controller
                 'description' => $component->description,
                 'status' => $component->status,
                 'group' => $component->effectiveGroup(),
-                'stories' => $stories,
+                // The signed-in editor's own variants follow the developer's
+                // stories, so a card's default state is never one of them.
+                'stories' => array_merge($stories, $this->mine($component, $binding, $editable, $pro)),
+                // Saving a variant from a block: what it is based on, and which
+                // fields of the block it can keep (field handle => argument).
+                'baseStoryId' => $stories[0]['id'],
+                'editableFields' => (object)$editable,
                 // The first reproducible state is the default: what the card
                 // shows, and what a plain click adds.
                 'prefill' => $stories[0]['prefill'],
@@ -154,6 +168,50 @@ class PickerController extends Controller
         }
 
         return $stories;
+    }
+
+    /**
+     * The signed-in user's own variants of a component, shaped like stories.
+     * Their values are field handles already, so they are the prefill as they
+     * stand — what the editor typed into the block is what a click puts back.
+     *
+     * @param array<string, string> $editable
+     * @return list<array<string, mixed>>
+     */
+    private function mine(ComponentDefinition $component, ?AdapterBinding $binding, array $editable, bool $pro): array
+    {
+        $userStories = Plugin::getInstance()->getUserStories();
+        $mine = [];
+
+        foreach ($userStories->forComponent($component->id) as $record) {
+            if ($userStories->story($component, $record, $binding) === null) {
+                continue;
+            }
+
+            // A variant keeps only simple fields; rich text and the like come
+            // from the story it was based on — in the preview, and so also in
+            // the block a click adds. Left out of the prefill, the card would
+            // show the base story's body text and the block arrive without it.
+            $base = $component->getStory($record['baseStoryId']) ?? $component->stories[0];
+            $prefill = $pro
+                ? array_merge(
+                    $this->prefill($component, $base, $binding),
+                    UserStoryBuilder::cleanValues($record['values'], $editable),
+                )
+                : [];
+
+            $mine[] = [
+                'id' => 'mine-' . $record['id'],
+                'userStoryId' => $record['id'],
+                'title' => $record['title'],
+                'description' => null,
+                'previewUrl' => Plugin::userStoryPreviewUrl($component->id, $record['id']),
+                'prefill' => $prefill ?: null,
+                'mine' => true,
+            ];
+        }
+
+        return $mine;
     }
 
     /**

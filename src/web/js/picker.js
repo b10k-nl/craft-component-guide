@@ -47,6 +47,30 @@
             + '; path=/; max-age=31536000; samesite=lax';
     };
 
+    // What the gallery should still look like after a reload: open or not, and
+    // which story each block's card was showing. Kept in localStorage rather
+    // than a cookie — the server never reads it, so it has no business riding
+    // along on every request. Storage can be unavailable (private windows,
+    // blocked site data); then the gallery simply starts fresh.
+    var STATE_KEY = 'componentGuide.picker';
+
+    var readState = function () {
+        try {
+            var state = JSON.parse(window.localStorage.getItem(STATE_KEY) || '{}');
+            return state && typeof state === 'object' ? state : {};
+        } catch (e) {
+            return {};
+        }
+    };
+
+    var writeState = function (update) {
+        try {
+            var state = readState();
+            update(state);
+            window.localStorage.setItem(STATE_KEY, JSON.stringify(state));
+        } catch (e) { /* not remembered, nothing else lost */ }
+    };
+
     // Collapsed group labels, persisted as a JSON array in a cookie.
     var COLLAPSED_COOKIE = 'cg-picker-collapsed';
 
@@ -345,6 +369,30 @@
         hidden.dispatchEvent(new Event('change', { bubbles: true }));
     };
 
+    // Craft's CKEditor field is a `<textarea class="hidden">` with the editor
+    // drawn after it; the editor reads the textarea once, on creation, and
+    // never again. Writing the textarea alone therefore saves text the editor
+    // does not show — so the content goes through the editor itself. CKEditor
+    // puts its instance on the editable element as `ckeditorInstance`. It is
+    // created after Matrix inserts the block, so it is waited for, and an
+    // editor that already holds text is left alone, like any other field.
+    var setRichText = function (textarea, html) {
+        var attempts = 0;
+        var apply = function () {
+            var holder = textarea.parentElement;
+            var editable = holder ? holder.querySelector('.ck-editor__editable') : null;
+            var editor = editable ? editable.ckeditorInstance : null;
+            if (editor && typeof editor.setData === 'function') {
+                if (typeof editor.getData !== 'function' || editor.getData() === '') {
+                    editor.setData(html);
+                }
+                return;
+            }
+            if (++attempts < 60) { setTimeout(apply, 50); }
+        };
+        apply();
+    };
+
     var fillBlock = function (blockEl, prefill) {
         // Keys are real field handles now: the server reads them off the
         // adapter's include site, which is the only place the mapping between
@@ -360,6 +408,12 @@
             var hidden = blockEl.querySelector('.lightswitch input[type="hidden"]' + tail);
             if (hidden) {
                 setLightswitch(hidden, value);
+                return;
+            }
+
+            var rich = blockEl.querySelector('textarea.hidden' + tail);
+            if (rich) {
+                setRichText(rich, String(value));
                 return;
             }
 
@@ -403,6 +457,244 @@
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
     };
+
+    // --- Reading a block back -------------------------------------------------
+    // The inverse of fillBlock(): what an editor has typed into a block, for the
+    // fields a variant can keep. Same field types, same decoding, so a value
+    // read here is one fillBlock() can put back.
+    var decodeOption = function (value) {
+        value = String(value);
+        if (value.slice(0, 7) !== 'base64:') { return value; }
+        try {
+            return decodeURIComponent(escape(window.atob(value.slice(7))));
+        } catch (e) {
+            return value;
+        }
+    };
+
+    var fieldLabel = function (input, handle) {
+        var field = input && input.closest('.field');
+        var label = field && field.querySelector('.heading label, legend');
+        return label ? label.textContent.trim() : handle;
+    };
+
+    var readBlock = function (blockEl, handles) {
+        var values = {};
+        var kept = [];
+        var skipped = [];
+
+        handles.forEach(function (handle) {
+            // Only the block's own inputs: a nested Matrix inside it has fields
+            // of its own whose names end the same way.
+            var own = Array.prototype.filter.call(
+                blockEl.querySelectorAll('[name$="[fields][' + handle + ']"]'),
+                function (el) { return el.closest('.matrixblock') === blockEl; }
+            );
+            if (!own.length) { return; }
+
+            var hidden = own.filter(function (el) {
+                return el.type === 'hidden' && el.closest('.lightswitch');
+            })[0];
+            if (hidden) {
+                values[handle] = hidden.value !== '';
+                kept.push(fieldLabel(hidden, handle));
+                return;
+            }
+
+            var radios = own.filter(function (el) { return el.type === 'radio'; });
+            if (radios.length) {
+                var checked = radios.filter(function (el) { return el.checked; })[0];
+                if (checked) {
+                    values[handle] = decodeOption(checked.value);
+                    kept.push(fieldLabel(checked, handle));
+                }
+                return;
+            }
+
+            var input = own.filter(function (el) {
+                return el.tagName === 'SELECT'
+                    || el.tagName === 'TEXTAREA'
+                    || ['text', 'number', 'url', 'email', 'tel'].indexOf(el.type) !== -1;
+            })[0];
+            if (!input) { return; }
+
+            // A rich-text field keeps its real value in its editor, not in the
+            // textarea it hides, and fillBlock() cannot write into it either —
+            // so it is named as not kept rather than saved half-right.
+            // (Craft's CKEditor field renders it as `<textarea class="hidden">`;
+            // a collapsed block hides everything, so visibility is no test.)
+            if (input.tagName === 'TEXTAREA'
+                && (input.classList.contains('hidden') || (input.parentElement && input.parentElement.querySelector('.ck-editor')))) {
+                skipped.push(fieldLabel(input, handle));
+                return;
+            }
+
+            var value = input.tagName === 'SELECT' ? decodeOption(input.value) : input.value;
+            if (value.length > 500) {
+                skipped.push(fieldLabel(input, handle));
+                return;
+            }
+            values[handle] = value;
+            kept.push(fieldLabel(input, handle));
+        });
+
+        return { values: values, kept: kept, skipped: skipped };
+    };
+
+    // --- An editor's own variants ------------------------------------------
+    // "Save as my variant…" in a block's own action menu: the block as the
+    // editor filled it becomes a card in the blocks gallery, theirs only. It is
+    // kept in their Craft user preferences, never in a file and never in a
+    // table of ours (see UserStories.php).
+    var VARIANT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" aria-hidden="true"><path fill="currentColor" d="M287.9 0c9.2 0 17.6 5.2 21.6 13.5l68.6 141.3 153.2 22.6c9 1.3 16.5 7.6 19.3 16.3s.5 18.1-5.9 24.5L433.6 328.4l26.2 155.6c1.5 9-2.2 18.1-9.7 23.5s-17.3 6-25.3 1.7l-137-73.2L151 509.1c-8.1 4.3-17.9 3.7-25.3-1.7s-11.2-14.5-9.7-23.5l26.2-155.6L31.1 218.2c-6.5-6.4-8.7-15.9-5.9-24.5s10.3-14.9 19.3-16.3l153.2-22.6L266.3 13.5C270.4 5.2 278.7 0 287.9 0z"/></svg>';
+
+    var hideActionMenu = function (trigger) {
+        var menu = window.jQuery ? window.jQuery(trigger).data('disclosureMenu') : null;
+        if (menu && typeof menu.hide === 'function') { menu.hide(); }
+    };
+
+    var saveVariant = function (block, comp, trigger) {
+        if (!isPro) {
+            Craft.cp.displayNotice(Craft.t('component-guide', 'Saving your own variants is a Pro feature.'));
+            return;
+        }
+
+        var read = readBlock(block, Object.keys(comp.editableFields || {}));
+        if (!Object.keys(read.values).length) {
+            Craft.cp.displayError(Craft.t('component-guide', 'None of this block’s fields can be saved in a variant yet.'));
+            return;
+        }
+
+        var form = document.createElement('form');
+        form.className = 'cg-variant-form';
+
+        var label = document.createElement('label');
+        label.className = 'cg-variant-form__label';
+        label.textContent = Craft.t('component-guide', 'Name this variant');
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'text fullwidth';
+        input.maxLength = 80;
+        input.required = true;
+        input.value = Craft.t('component-guide', '{block} — my variant', { block: comp.title });
+        label.appendChild(input);
+        form.appendChild(label);
+
+        // Saying what is kept before it is saved: a rich-text field the variant
+        // leaves out would otherwise come back as the default and look lost.
+        var kept = document.createElement('p');
+        kept.className = 'cg-variant-form__note';
+        kept.textContent = Craft.t('component-guide', 'Keeps: {fields}.', { fields: read.kept.join(', ') });
+        form.appendChild(kept);
+        if (read.skipped.length) {
+            var skipped = document.createElement('p');
+            skipped.className = 'cg-variant-form__note';
+            skipped.textContent = Craft.t('component-guide', 'Not kept: {fields} — these start from the block’s default.', { fields: read.skipped.join(', ') });
+            form.appendChild(skipped);
+        }
+
+        var submit = document.createElement('button');
+        submit.type = 'submit';
+        submit.className = 'btn submit';
+        submit.textContent = Craft.t('component-guide', 'Save');
+        form.appendChild(submit);
+
+        var anchor = block.querySelector('.actions') || block;
+        var hud = new Garnish.HUD(window.jQuery(anchor), window.jQuery(form), { hudClass: 'hud cg-variant-hud' });
+        setTimeout(function () { input.focus(); input.select(); }, 50);
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            submit.disabled = true;
+            Craft.sendActionRequest('POST', 'component-guide/user-stories/save', {
+                data: {
+                    componentId: comp.id,
+                    baseStoryId: comp.baseStoryId,
+                    title: input.value,
+                    values: read.values,
+                },
+            }).then(function (response) {
+                hud.hide();
+                // The new variant becomes this block's chosen state, and a
+                // gallery that is already open is redrawn with it — saving with
+                // the panel open and not seeing the card reads as a failure.
+                writeState(function (state) {
+                    state.stories = state.stories || {};
+                    state.stories[comp.id] = 'mine-' + response.data.id;
+                });
+                mapPromise = null;
+                refreshPanel(comp.id);
+                Craft.cp.displaySuccess(Craft.t('component-guide', 'Saved “{title}”. You’ll find it in the blocks gallery.', { title: response.data.title }));
+            }).catch(function (error) {
+                submit.disabled = false;
+                var message = error && error.response && error.response.data && error.response.data.message;
+                Craft.cp.displayError(message || Craft.t('component-guide', 'Could not save the variant.'));
+            });
+        });
+    };
+
+    // Craft draws a block's action menu itself, with no hook for plugins, so
+    // the item is added the moment the menu is about to open: on the click
+    // that opens it, in the capture phase, before Craft's own handler runs.
+    //
+    // The trigger is found by where it sits — the block's own `.actions` row —
+    // not by its menu's id: Craft computes a `matrixblock-action-menu--<uid>`
+    // id in the block template but never passes it on, so the menu gets a
+    // random one.
+    var blockOfTrigger = function (trigger) {
+        var actions = trigger.closest('.actions');
+        var block = actions ? actions.parentElement : null;
+        return block && block.classList.contains('matrixblock') ? block : null;
+    };
+
+    var ensureVariantItem = function (trigger) {
+        var menuId = trigger.getAttribute('aria-controls') || '';
+        var block = blockOfTrigger(trigger);
+        if (!menuId || !block) { return; }
+
+        loadMap().then(function (data) {
+            var comp = componentsByHandle(data)[block.getAttribute('data-type')];
+            if (!comp || !comp.baseStoryId || !Object.keys(comp.editableFields || {}).length) { return; }
+
+            var menu = document.getElementById(menuId);
+            if (!menu || menu.querySelector('[data-cg-variant]')) { return; }
+
+            var li = document.createElement('li');
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'menu-item';
+            button.setAttribute('data-cg-variant', '');
+            button.innerHTML = '<span class="icon">' + VARIANT_ICON + '</span>';
+            var text = document.createElement('span');
+            text.className = 'menu-item-label';
+            text.textContent = Craft.t('component-guide', 'Save as my variant…');
+            button.appendChild(text);
+            li.appendChild(button);
+
+            // Next to Craft's own "Copy": both take what the block holds now.
+            var copy = menu.querySelector('[data-action="copy"]');
+            var after = copy ? copy.closest('li') : null;
+            if (after && after.parentNode) {
+                after.parentNode.insertBefore(li, after.nextSibling);
+            } else {
+                var list = menu.querySelector('ul');
+                if (!list) { return; }
+                list.appendChild(li);
+            }
+
+            button.addEventListener('click', function () {
+                hideActionMenu(trigger);
+                saveVariant(block, comp, trigger);
+            });
+        });
+    };
+
+    document.addEventListener('click', function (event) {
+        var trigger = event.target && event.target.closest
+            ? event.target.closest('.matrixblock > .actions [aria-controls]')
+            : null;
+        if (trigger) { ensureVariantItem(trigger); }
+    }, true);
 
     // Matrix inserts the new block asynchronously; poll the field for an
     // element of the added type that wasn't there before the click.
@@ -517,6 +809,58 @@
 
     var activePanel = null;
 
+    // Closed on purpose — the × or Escape — is the only close that is
+    // remembered. A panel that goes because the field went away (Live Preview
+    // re-rendering) should come back with it.
+    var closeByEditor = function () {
+        writeState(function (state) { state.open = null; });
+        closePanel();
+    };
+
+    var reopenIfRemembered = function (key, open) {
+        var remembered = readState().open;
+        if (!activePanel && remembered && remembered.key === key
+            && remembered.path === window.location.pathname) {
+            open();
+        }
+    };
+
+    // Redraws an open gallery from a fresh map — after a variant is saved —
+    // keeping the search term and bringing the changed block's card into view.
+    // The thumbnails reload, so the old scroll offset would point at the wrong
+    // card; the block is what the editor is looking for.
+    var refreshPanel = function (componentId) {
+        if (!activePanel) { return; }
+        var previous = activePanel;
+        var search = previous.el.querySelector('.cg-picker-search input[type="search"]');
+        var term = search ? search.value : '';
+
+        loadMap().then(function (fresh) {
+            if (activePanel !== previous) { return; }
+            openPanel(previous.source, componentsByHandle(fresh), previous.key);
+
+            var panel = activePanel.el;
+            var input = panel.querySelector('.cg-picker-search input[type="search"]');
+            if (input && term) {
+                input.value = term;
+                input.dispatchEvent(new Event('input'));
+            }
+
+            var card = componentId
+                ? panel.querySelector('.cg-picker-card[data-component="' + componentId + '"]')
+                : null;
+            if (card) {
+                card.scrollIntoView({ block: 'center' });
+                // Again once the thumbnails have their real heights.
+                setTimeout(function () {
+                    if (activePanel && activePanel.el === panel && card.isConnected) {
+                        card.scrollIntoView({ block: 'center' });
+                    }
+                }, 600);
+            }
+        });
+    };
+
     var closePanel = function () {
         if (activePanel) {
             activePanel.el.remove();
@@ -582,8 +926,16 @@
         return out;
     };
 
-    var openPanel = function (source, comps) {
+    var openPanel = function (source, comps, key) {
         closePanel();
+
+        // Open until the editor closes it: a reload, or saving the entry,
+        // brings the gallery back on the same page and field.
+        if (key) {
+            writeState(function (state) {
+                state.open = { path: window.location.pathname, key: key };
+            });
+        }
 
         var panel = document.createElement('div');
         panel.className = 'cg-picker-panel';
@@ -661,7 +1013,7 @@
             // Garnish will close it; closing the hidden panel too would be
             // surprising.
             if (e.key === 'Escape' && !document.body.classList.contains('cg-overlay-open')) {
-                closePanel();
+                closeByEditor();
             }
         };
 
@@ -716,6 +1068,7 @@
             var card = document.createElement('button');
             card.type = 'button';
             card.className = 'card cg-picker-card';
+            if (comp) { card.dataset.component = comp.id; }
             card.dataset.search = [
                 item.type,
                 item.label,
@@ -747,7 +1100,12 @@
             // that, because it is the same question the index badge answers.
             // A per-story card (split mode) offers exactly that story.
             var variants = story ? [story] : ((comp && comp.stories) ? comp.stories : []);
-            var active = variants[0] || null;
+            // The state the editor last chose for this block, if it still
+            // exists — a deleted variant or a renamed story falls back to the
+            // first.
+            var remembered = (!story && comp) ? (readState().stories || {})[comp.id] : null;
+            var active = (remembered && variants.filter(function (v) { return v.id === remembered; })[0])
+                || variants[0] || null;
             var frame = null;
             var previewUrl = (active && active.previewUrl) || (comp ? comp.previewUrl : null);
             // A story's own description says what makes it different, which is
@@ -793,7 +1151,7 @@
                 // card is, named the way the story file names it.
                 var storyLabel = document.createElement('span');
                 storyLabel.className = 'cg-picker-card__story';
-                storyLabel.textContent = story.title;
+                storyLabel.textContent = (story.mine ? '★ ' : '') + story.title;
                 storyLabel.title = story.title;
                 head.appendChild(storyLabel);
             }
@@ -851,9 +1209,10 @@
                 variants.forEach(function (story, index) {
                     var option = document.createElement('option');
                     option.value = String(index);
-                    option.textContent = story.title;
+                    option.textContent = (story.mine ? '★ ' : '') + story.title;
                     variantSelect.appendChild(option);
                 });
+                variantSelect.selectedIndex = Math.max(0, variants.indexOf(active));
 
                 // The whole card is the add button, so every interaction with
                 // the dropdown — merely opening it included — has to stop here.
@@ -870,10 +1229,97 @@
                     if (frame && active && active.previewUrl) {
                         frame.src = active.previewUrl;
                     }
+                    if (comp && active) {
+                        writeState(function (state) {
+                            state.stories = state.stories || {};
+                            state.stories[comp.id] = active.id;
+                        });
+                    }
+                    card.dispatchEvent(new CustomEvent('cg-variant-change'));
                 });
 
                 variantWrap.appendChild(variantSelect);
                 head.appendChild(variantWrap);
+            }
+
+            // An editor's own variant can be handed to a developer or removed,
+            // right where it is shown. The row follows whichever state the card
+            // is offering, so the dropdown and the split cards behave alike.
+            if (variants.some(function (v) { return v.mine; })) {
+                var mineRow = document.createElement('div');
+                mineRow.className = 'cg-picker-card__mine';
+
+                var mineAction = function (labelText, handler) {
+                    var a = document.createElement('a');
+                    a.href = '#';
+                    a.setAttribute('role', 'button');
+                    a.textContent = labelText;
+                    a.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (active && active.mine) { handler(active); }
+                    });
+                    mineRow.appendChild(a);
+                };
+
+                mineAction(Craft.t('component-guide', 'Share with a developer'), function (mine) {
+                    Craft.sendActionRequest('POST', 'component-guide/user-stories/share', {
+                        data: { id: mine.userStoryId },
+                    }).then(function (response) {
+                        var snippet = response.data.snippet;
+                        var file = response.data.file;
+                        var shown = function () {
+                            var pre = document.createElement('pre');
+                            pre.className = 'cg-variant-snippet';
+                            pre.textContent = snippet;
+                            Craft.cp.displayNotice(
+                                Craft.t('component-guide', 'Send this to your developer — it goes into {file}:', { file: file }),
+                                { details: pre },
+                            );
+                        };
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(snippet).then(function () {
+                                Craft.cp.displayNotice(Craft.t('component-guide', 'Copied. Send it to your developer — it goes into {file}.', { file: file }));
+                            }, shown);
+                        } else {
+                            shown();
+                        }
+                    }).catch(function () {
+                        Craft.cp.displayError(Craft.t('component-guide', 'Could not prepare the variant to share.'));
+                    });
+                });
+
+                mineAction(Craft.t('component-guide', 'Delete'), function (mine) {
+                    if (!window.confirm(Craft.t('component-guide', 'Delete your variant “{title}”?', { title: mine.title }))) {
+                        return;
+                    }
+                    Craft.sendActionRequest('POST', 'component-guide/user-stories/delete', {
+                        data: { id: mine.userStoryId },
+                    }).then(function () {
+                        mapPromise = null;
+                        Craft.cp.displayNotice(Craft.t('component-guide', 'Variant deleted.'));
+                        if (story) {
+                            card.remove();
+                            return;
+                        }
+                        var index = variants.indexOf(mine);
+                        variants.splice(index, 1);
+                        var select = card.querySelector('.cg-picker-card__variants select');
+                        if (select) {
+                            select.remove(index);
+                            Array.prototype.forEach.call(select.options, function (o, i) { o.value = String(i); });
+                            select.selectedIndex = 0;
+                            select.dispatchEvent(new Event('change'));
+                        }
+                    }).catch(function () {
+                        Craft.cp.displayError(Craft.t('component-guide', 'Could not delete the variant.'));
+                    });
+                });
+
+                var syncMineRow = function () { mineRow.hidden = !(active && active.mine); };
+                syncMineRow();
+                card.addEventListener('cg-variant-change', syncMineRow);
+                card.appendChild(mineRow);
             }
 
             if (blockReason) {
@@ -1069,7 +1515,7 @@
         if (!isPro) { panel.appendChild(buildUpgradeNote()); }
         document.body.appendChild(panel);
         search.focus();
-        activePanel = { el: panel, onKey: onKey };
+        activePanel = { el: panel, onKey: onKey, source: source, key: key };
 
         // Scale thumbnails once cards have a layout size.
         requestAnimationFrame(function () {
@@ -1081,7 +1527,7 @@
             });
         });
 
-        closeBtn.addEventListener('click', closePanel);
+        closeBtn.addEventListener('click', closeByEditor);
         document.addEventListener('keydown', onKey);
     };
 
@@ -1132,11 +1578,17 @@
             btn.type = 'button';
             btn.className = 'cg-picker-open';
             btn.textContent = Craft.t('component-guide', 'Blocks gallery');
+            // The map is read again on every open: a variant saved or deleted
+            // since the page loaded has to be there, or gone.
+            var key = 'inline:' + (field.id || '');
             btn.addEventListener('click', function () {
-                openPanel(inlineSource(field), comps);
+                loadMap().then(function (fresh) {
+                    openPanel(inlineSource(field), componentsByHandle(fresh), key);
+                });
             });
 
             anchor.appendChild(btn);
+            reopenIfRemembered(key, function () { btn.click(); });
         });
     };
 
@@ -1166,9 +1618,14 @@
             btn.type = 'button';
             btn.className = 'cg-picker-open';
             btn.textContent = Craft.t('component-guide', 'Blocks gallery');
+            var container = manager.$container && manager.$container[0];
+            var key = 'nested:' + ((container && container.id) || '');
             btn.addEventListener('click', function () {
-                openPanel(source, comps);
+                loadMap().then(function (fresh) {
+                    openPanel(source, componentsByHandle(fresh), key);
+                });
             });
+            setTimeout(function () { reopenIfRemembered(key, function () { btn.click(); }); }, 0);
 
             if (typeof manager.addButton === 'function' && window.jQuery) {
                 manager.addButton(window.jQuery(btn));
@@ -1294,6 +1751,7 @@
     if (window.__componentGuideTest) {
         window.__componentGuideTest.fillBlock = fillBlock;
         window.__componentGuideTest.galleryCards = galleryCards;
+        window.__componentGuideTest.readBlock = readBlock;
     }
 
     if (document.readyState === 'loading') {

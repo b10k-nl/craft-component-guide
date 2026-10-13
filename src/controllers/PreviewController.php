@@ -2,6 +2,8 @@
 
 namespace b10k\componentguide\controllers;
 
+use b10k\componentguide\models\ComponentDefinition;
+use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\Plugin;
 use Craft;
 use craft\web\Controller;
@@ -44,7 +46,42 @@ class PreviewController extends Controller
             throw new NotFoundHttpException('Story not found.');
         }
 
-        $renderer = $plugin->getPreviewRenderer();
+        return $this->document($component, $story);
+    }
+
+    /**
+     * An editor's own variant (see UserStoriesController). Looked up in the
+     * signed-in user's preferences only, so the URL can never reach anyone
+     * else's — and never carries args of its own.
+     */
+    public function actionRenderMine(string $componentId, string $userStoryId): Response
+    {
+        $plugin = Plugin::getInstance();
+        $record = $plugin->getUserStories()->find($userStoryId);
+        if ($record === null || $record['componentId'] !== $componentId) {
+            throw new NotFoundHttpException('Variant not found.');
+        }
+
+        $component = $plugin->getRepository()->getById($componentId);
+        if ($component === null) {
+            throw new NotFoundHttpException('Component not found.');
+        }
+
+        $bindings = $plugin->getContractInspector()->bindings(
+            [$component],
+            Craft::$app->getPath()->getSiteTemplatesPath(),
+        );
+        $story = $plugin->getUserStories()->story($component, $record, $bindings[$component->id] ?? null);
+        if ($story === null) {
+            throw new NotFoundHttpException('Story not found.');
+        }
+
+        return $this->document($component, $story);
+    }
+
+    private function document(ComponentDefinition $component, StoryDefinition $story): Response
+    {
+        $renderer = Plugin::getInstance()->getPreviewRenderer();
         $result = $renderer->render($component, $story);
         $html = $renderer->renderDocument($component, $story, $result);
 

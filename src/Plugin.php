@@ -16,6 +16,7 @@ use b10k\componentguide\services\StoryScaffolder;
 use b10k\componentguide\services\StoryStatusWriter;
 use b10k\componentguide\services\TwigSnippetGenerator;
 use b10k\componentguide\services\TwigStoryLoader;
+use b10k\componentguide\services\UserStories;
 use b10k\componentguide\services\WriteJournal;
 use Craft;
 use craft\base\Model;
@@ -136,6 +137,7 @@ class Plugin extends BasePlugin
                 ),
                 'previewRenderer' => PreviewRenderer::class,
                 'placeholderResolver' => PlaceholderResolver::class,
+                'userStories' => UserStories::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
                 'storyScaffolder' => StoryScaffolder::class,
                 'storyStatusWriter' => StoryStatusWriter::class,
@@ -289,6 +291,13 @@ class Plugin extends BasePlugin
         return $journal;
     }
 
+    public function getUserStories(): UserStories
+    {
+        /** @var UserStories $stories */
+        $stories = $this->get('userStories');
+        return $stories;
+    }
+
     public function getPlaceholderResolver(): PlaceholderResolver
     {
         /** @var PlaceholderResolver $resolver */
@@ -385,6 +394,18 @@ class Plugin extends BasePlugin
     }
 
     /**
+     * An editor's own variant — same site/CP choice as previewUrl().
+     */
+    public static function userStoryPreviewUrl(string $componentId, string $userStoryId): string
+    {
+        $path = self::PREVIEW_PATH . "/mine/$componentId/$userStoryId";
+
+        return Craft::$app->getConfig()->getGeneral()->headlessMode
+            ? UrlHelper::cpUrl($path)
+            : UrlHelper::siteUrl($path);
+    }
+
+    /**
      * The preview route lives on the site as well, and the site one is what the
      * guide links to (see previewUrl()). The CP rule stays registered so that
      * headless installs and any bookmarked URL keep working.
@@ -397,6 +418,8 @@ class Plugin extends BasePlugin
             function (RegisterUrlRulesEvent $event): void {
                 $event->rules[self::PREVIEW_PATH . '/<componentId:[\w\-]+>/<storyId:[\w\-]+>']
                     = 'component-guide/preview/render';
+                $event->rules[self::PREVIEW_PATH . '/mine/<componentId:[\w\-]+>/<userStoryId:[a-f0-9]+>']
+                    = 'component-guide/preview/render-mine';
             }
         );
     }
@@ -412,6 +435,8 @@ class Plugin extends BasePlugin
                 $event->rules['component-guide/components/<componentId:[\w\-]+>/<storyId:[\w\-]+>'] = 'component-guide/components/view';
                 $event->rules[self::PREVIEW_PATH . '/<componentId:[\w\-]+>/<storyId:[\w\-]+>']
                     = 'component-guide/preview/render';
+                $event->rules[self::PREVIEW_PATH . '/mine/<componentId:[\w\-]+>/<userStoryId:[a-f0-9]+>']
+                    = 'component-guide/preview/render-mine';
                 $event->rules['component-guide/picker-map'] = 'component-guide/picker/map';
             }
         );

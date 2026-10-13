@@ -285,3 +285,35 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
     text-underline-offset: 2px;
     cursor: pointer;
 }
+
+/* An editor's own variants ------------------------------------------------
+   "Save as my variant…" lives in Craft's block action menu (picker.js adds it);
+   its icon is ours, so it is sized to sit level with Craft's own. */
+[data-cg-variant] .icon svg { width: 16px; height: 16px; }
+
+.cg-variant-form {
+    display: flex; flex-direction: column; gap: 10px;
+    width: 320px; max-width: 80vw;
+}
+.cg-variant-form__label {
+    display: flex; flex-direction: column; gap: 6px; font-weight: 600;
+}
+.cg-variant-form__note {
+    margin: 0; font-size: 12px; line-height: 1.5;
+    color: var(--light-text-color, #7a8794);
+}
+.cg-variant-form .btn { align-self: flex-start; }
+
+/* Share and Delete under a variant's card; follows the state the card offers. */
+.cg-picker-card__mine {
+    display: flex; gap: 14px; padding: 0 12px 10px;
+    font-size: 12px;
+}
+.cg-picker-card__mine[hidden] { display: none; }
+
+/* Shown only when the clipboard is refused: the snippet itself, to copy. */
+.cg-variant-snippet {
+    max-height: 240px; overflow: auto; margin: 8px 0 0; padding: 8px;
+    border-radius: 4px; background: #f3f5f7;
+    font-size: 11px; line-height: 1.5; white-space: pre;
+}

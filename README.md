@@ -18,7 +18,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.6.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.7.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -49,6 +49,11 @@ Nothing configured yet? The guide starts by explaining how to get there:
   stories shows them in a dropdown on its card, or — with **Variants as cards**
   ticked — as one card per story, for stories that change the layout rather
   than a colour.
+- **Editors' own variants:** "Save as my variant…" in a block's action menu
+  keeps the block as the editor filled it, under a name, as a card of their own
+  in the gallery. Personal, stored in their Craft user preferences — no table,
+  no migration — and handed to a developer as a ready-to-paste story when it
+  deserves to be one for everybody.
 - **Bulk setup with a coding agent:** a recipe in `AGENT-SETUP.md` any agent
   can follow to document an existing library in one pass — marker file, one
   draft story per component, and a report of the blocks that do not match an
@@ -91,6 +96,8 @@ in it:
 
 - **inserting a block from the gallery** — an editor picks a card and the block
   lands filled in, from the state whose preview they were looking at
+- **saving their own variants** — "Save as my variant…" on a block, and the
+  card it becomes in the gallery (see below)
 - **`stories/check`** — the contract check as a console command with an exit
   code, for CI. The edition comes from your committed `project.yaml`, so a CI
   runner reads Pro without needing a licence key of its own; under Lite the
@@ -109,6 +116,41 @@ In PHP and Twig:
 ```php
 if (\b10k\componentguide\Plugin::getInstance()->isPro()) { … }
 ```
+
+## Editors' own variants
+
+The developer's stories are the starting points. An editor who keeps building
+the same block the same way — the dark coaching hero, the two-plan pricing
+table — can keep it:
+
+1. Fill in a block on any entry as usual.
+2. Open the block's action menu (⋯) and choose **Save as my variant…**.
+3. Name it. The panel says which fields are kept before anything is saved.
+
+The variant appears in the blocks gallery next to the block's stories, marked
+★, with a live preview. Clicking it adds the block filled in exactly as saved.
+
+**What is kept.** Only the fields the gallery can fill back in: those the
+adapter passes to exactly one template argument — text, number, URL, email,
+dropdown, radio buttons and lightswitches, up to 500 characters each. Rich text
+(CKEditor), assets, relations and nested blocks are not kept and start from the
+block's first story instead; the save panel names them. That rule is what keeps
+a variant honest: its card previews exactly what a click puts back.
+
+**Where it lives.** In the editor's own Craft user preferences — personal,
+across sessions and devices, gone when the user is deleted. The plugin still
+ships no migration and no table of its own. Nobody else sees an editor's
+variants, developers included.
+
+**Making it everyone's.** On the variant's gallery card, **Share with a
+developer** copies it as a story entry in Twig — every argument written out —
+for a developer to paste into the component's story file. That hand-over is
+deliberate: preferences are personal and cannot be searched efficiently, and a
+story in git is reviewed like any other change. **Delete** removes the variant.
+
+Saving a variant is a Pro feature. It works in Matrix fields set to
+**Inline-editable blocks**; Cards and Index modes have no block menu to add it
+to.
 
 ## Installation
 
@@ -612,6 +654,9 @@ the **Add story** button (and its CLI equivalent) writes a new one and never
 overwrites an existing one, and **Mark stable** / **Back to draft** rewrite the
 single `status` line of one.
 
+Editors' saved variants stay in their user preferences, under one key
+(`componentGuide.stories`), unread by anything once the plugin is gone.
+
 The scan cache can also be cleared on its own at any time, without uninstalling
 anything: **Utilities → Caches → Component Guide scan cache**.
 
@@ -638,6 +683,11 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   measure a preview's height. Metadata is escaped; error messages appear where
   `allowAdminChanges` is on, absolute paths and stack traces only in
   `devMode`.
+- Editors' variants are read and written only for the signed-in user, in
+  their own user preferences; no request can name another user's. Saving is
+  POST-only and CSRF-protected, keeps only fields the block's adapter maps,
+  and renders through the same preview as stories — a variant never supplies a
+  template path or args of its own.
 
 Do **not** expose the plugin to untrusted users — story files are project code,
 not a sandbox.

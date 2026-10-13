@@ -761,9 +761,4 @@ class StoryScaffolder extends Component
     {
         return TwigLiteral::string($value);
     }
-
-    private function twigKey(string $key): string
-    {
-        return TwigLiteral::key($key);
-    }
 }

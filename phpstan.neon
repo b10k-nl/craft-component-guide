@@ -9,3 +9,8 @@ parameters:
     # noise so the run stays green at level 5.
     ignoreErrors:
         - '#unknown class Craft#'
+        # Twig\Markup is `@final` by docblock only; Craft's HtmlFieldData extends
+        # it too, and a rich-text stand-in must be what Craft would hand over.
+        -
+            identifier: class.extendsFinalByPhpDoc
+            path: src/preview/StoryRichText.php

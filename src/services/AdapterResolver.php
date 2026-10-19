@@ -37,6 +37,11 @@ class AdapterResolver extends Component
         'owner', 'parent', 'postDate', 'prev', 'primaryOwner', 'ref', 'section',
         'siblings', 'site', 'siteId', 'slug', 'sortOrder', 'status', 'title',
         'type', 'uid', 'uri', 'url',
+        // Ids and flags a block template reaches for — `craft.entries.id(block.ownerId)`
+        // on a real project was reported as a missing field before these were here.
+        'ownerId', 'primaryOwnerId', 'fieldId', 'typeId', 'sectionId', 'canonicalId',
+        'canonicalUid', 'draftId', 'revisionId', 'isDraft', 'isRevision', 'cpEditUrl',
+        'dateDeleted', 'trashed', 'archived', 'structureId',
     ];
 
     /** @var array<string, list<array{name: string, inner: string}>> Scanned tags by source hash. */
@@ -44,6 +49,15 @@ class AdapterResolver extends Component
 
     /** Roots that are never the block variable. */
     private const GLOBAL_ROOTS = ['craft', 'loop', 'now', 'app', '_self', '_context', 'this'];
+
+    /**
+     * Variables Craft puts in every site template. A template reading
+     * `currentSite.name` is not reading a block.
+     */
+    private const CRAFT_GLOBALS = [
+        'currentSite', 'currentUser', 'siteName', 'siteUrl', 'systemName', 'view',
+        'devMode', 'isInstalled', 'loginUrl', 'logoutUrl', 'setPasswordUrl', 'now',
+    ];
 
     /**
      * Parse one template and, if it includes the given component, describe the
@@ -131,6 +145,92 @@ class AdapterResolver extends Component
                         $forLoops[$var] ?? null,
                     ),
                     'fields' => $this->unique($nestedFields[$var]),
+                ];
+            }
+        }
+
+        return $binding;
+    }
+
+    /**
+     * The binding of a component that has no adapter because it reads the block
+     * itself — `{{ block.heading }}`, `{% for card in block.cards.all() %}`.
+     *
+     * That is how most Craft projects are written, and until this existed the
+     * plugin treated such a template as presentational: stories could only
+     * pass plain values, `.all()` and `.one()` on them quietly returned null,
+     * and the gallery offered cards whose previews were missing half the block
+     * and whose click added an empty one. A lie, and a silent one.
+     *
+     * The entry variable is not assumed to be called `block` — the dispatcher
+     * picks the name (`item`, `contentBlock`, …). It is the variable the
+     * template reads properties from that nothing else defines: not the story,
+     * not a `set`/`for`/macro in the template, not a Twig or Craft global. When
+     * several qualify (a template can also read `entry` for the page), the one
+     * whose properties are fields of the matched entry type wins; a tie is
+     * refused rather than guessed.
+     *
+     * Pure, like parse(): strings and arrays in, value object out.
+     *
+     * @param string[] $storyArgs Every argument name any story sets.
+     * @param string[] $entryFields Field handles on the matched entry type.
+     */
+    public function parseSelf(string $source, string $templatePath, array $storyArgs, array $entryFields): ?AdapterBinding
+    {
+        $tags = $this->cachedTags($source);
+        $expressions = array_map(fn(string $e): string => $this->stripStrings($e), $this->expressions($source, $tags));
+
+        $defined = $this->definedVars($tags, $expressions);
+        $excluded = array_flip(array_merge($defined, $storyArgs, self::GLOBAL_ROOTS, self::CRAFT_GLOBALS));
+
+        /** @var array<string, array<string, true>> $props root => properties, first-seen order */
+        $props = [];
+        foreach ($expressions as $expression) {
+            foreach ($this->references($expression) as [$root, $property]) {
+                if (isset($excluded[$root])) {
+                    continue;
+                }
+                $props[$root][$property] = true;
+            }
+        }
+
+        $fields = array_flip($entryFields);
+        $best = '';
+        $bestScore = 0;
+        $tie = false;
+        foreach ($props as $root => $read) {
+            $score = count(array_intersect_key($read, $fields));
+            if ($score > $bestScore) {
+                [$best, $bestScore, $tie] = [(string)$root, $score, false];
+            } elseif ($score === $bestScore && $score > 0) {
+                $tie = true;
+            }
+        }
+
+        if ($best === '' || $tie) {
+            return null;
+        }
+
+        $binding = new AdapterBinding(
+            adapterPath: $templatePath,
+            blockRoot: $best,
+            selfReading: true,
+        );
+
+        foreach (array_keys($props[$best]) as $property) {
+            $binding->args[$property] = $best . '.' . $property;
+            $binding->blockFields[$property] = [$property];
+        }
+
+        // `{% for card in block.cards.all() %}` — a nested entry field; what is
+        // read on `card` belongs to the nested entry types, not to the block.
+        $pattern = '/^for\s+(?:[A-Za-z_]\w*\s*,\s*)?([A-Za-z_]\w*)\s+in\s+' . preg_quote($best, '/') . '\.([A-Za-z_]\w*)/';
+        foreach ($tags as $tag) {
+            if ($tag['name'] === 'for' && preg_match($pattern, $tag['inner'], $match) === 1) {
+                $binding->nested[$match[2]] = [
+                    'var' => $match[1],
+                    'sourceField' => $match[2],
+                    'fields' => $this->bodyReferences($source, $match[1]),
                 ];
             }
         }
@@ -437,6 +537,84 @@ class AdapterResolver extends Component
         }
 
         return null;
+    }
+
+    // --- Self-reading templates ---------------------------------------------
+
+    /**
+     * Every Twig expression in a template: the inside of each `{{ … }}` print
+     * and each `{% … %}` tag. Markup between them is never looked at — an
+     * apostrophe in body copy would otherwise swallow half the file as a
+     * "string".
+     *
+     * @param list<array{name: string, inner: string}> $tags
+     * @return list<string>
+     */
+    private function expressions(string $source, array $tags): array
+    {
+        $found = array_map(static fn(array $tag): string => $tag['inner'], $tags);
+
+        preg_match_all('/\{\{-?(.*?)-?\}\}/s', $source, $prints);
+        foreach ($prints[1] as $print) {
+            $found[] = trim($print);
+        }
+
+        return $found;
+    }
+
+    /**
+     * Names the template defines for itself — `set`, `for`, macro arguments,
+     * imports, `paginate … as`, arrow-function parameters. None of these can be
+     * the entry the dispatcher hands in.
+     *
+     * @param list<array{name: string, inner: string}> $tags
+     * @param list<string> $expressions
+     * @return list<string>
+     */
+    private function definedVars(array $tags, array $expressions): array
+    {
+        $names = [];
+
+        foreach ($tags as $tag) {
+            $inner = $tag['inner'];
+
+            switch ($tag['name']) {
+                case 'set':
+                    if (preg_match('/^set\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)/', $inner, $m) === 1) {
+                        array_push($names, ...(preg_split('/\s*,\s*/', $m[1]) ?: []));
+                    }
+                    break;
+                case 'for':
+                case 'nav':
+                    if (preg_match('/^(?:for|nav)\s+([A-Za-z_]\w*)(?:\s*,\s*([A-Za-z_]\w*))?\s+in\b/', $inner, $m) === 1) {
+                        $names[] = $m[1];
+                        if (($m[2] ?? '') !== '') {
+                            $names[] = $m[2];
+                        }
+                    }
+                    break;
+                case 'macro':
+                    if (preg_match('/^macro\s+\w+\s*\(([^)]*)\)/', $inner, $m) === 1) {
+                        preg_match_all('/([A-Za-z_]\w*)\s*(?:=[^,]*)?(?:,|$)/', $m[1], $params);
+                        array_push($names, ...$params[1]);
+                    }
+                    break;
+                case 'import':
+                case 'from':
+                case 'paginate':
+                    if (preg_match('/\b(?:as|import)\s+(.*)$/s', $inner, $m) === 1) {
+                        preg_match_all('/[A-Za-z_]\w*/', $m[1], $words);
+                        array_push($names, ...$words[0]);
+                    }
+                    break;
+            }
+        }
+
+        foreach ($expressions as $expression) {
+            array_push($names, ...$this->arrowVars($expression));
+        }
+
+        return $this->unique($names);
     }
 
     // --- References ---------------------------------------------------------

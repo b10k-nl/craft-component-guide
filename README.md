@@ -18,7 +18,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.7.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.8.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -54,6 +54,10 @@ Nothing configured yet? The guide starts by explaining how to get there:
   in the gallery. Personal, stored in their Craft user preferences — no table,
   no migration — and handed to a developer as a ready-to-paste story when it
   deserves to be one for everybody.
+- **Works with block templates as they are:** a block template that reads the
+  entry itself — `{{ block.heading }}`, `block.cards.all()`, `block.image.one().url`
+  — previews from a story written in field handles; the guide builds the block
+  it reads, in the shape Craft gives each field. No adapter needed to start.
 - **Bulk setup with a coding agent:** a recipe in `AGENT-SETUP.md` any agent
   can follow to document an existing library in one pass — marker file, one
   draft story per component, and a report of the blocks that do not match an
@@ -67,8 +71,9 @@ Nothing configured yet? The guide starts by explaining how to get there:
 ## When not to use this
 
 - **Your components query Craft themselves.** A component that runs its own
-  element queries needs a story that passes plain arrays instead; presentational
-  components work as they are.
+  element queries (`craft.entries…`) previews whatever those queries find, not
+  what a story says. Reading the block it is given is fine — see
+  [Block templates that read the block themselves](#block-templates-that-read-the-block-themselves).
 - **You have no page-builder field.** The editor half is built around Matrix.
   Without one the guide is still a component browser, but the half that earns
   its keep sits idle.
@@ -521,10 +526,73 @@ So: scaffold with tokens (one click, previews come alive), then replace the
 values that are worth a human's attention. That's exactly what the `draft`
 status is there to remind you of.
 
+## Block templates that read the block themselves
+
+Most Craft projects have no adapters: the page loops its Matrix field and
+includes one template per block type, and that template reads the entry it is
+handed:
+
+```twig
+{# _blocks/hero.twig #}
+{% set image = block.heroImage.one() %}
+<section class="{{ block.theme.value == 'dark' ? 'bg-slate-900' : 'bg-white' }}">
+    {% if image %}<img src="{{ image.url }}" alt="">{% endif %}
+    <h1>{{ block.heading }}</h1>
+    {{ block.bodyText }}
+</section>
+```
+
+That works without changing a line. Write the story in the entry type's **field
+handles**, plainly:
+
+```twig
+{% set stories = {
+    'Dark': { args: {
+        theme: 'dark',
+        heading: 'Ride better, not just harder',
+        bodyText: '<p>Fitting, coaching and servicing in one workshop.</p>',
+        heroImage: '@image_1600x600',
+    } },
+} %}
+```
+
+A Matrix field takes a list of items in its nested entry type's handles —
+`gridCards: [ { title: 'Bike fitting', cardText: 'Two hours on the rig.' } ]`
+— and the template's `{% for card in block.gridCards.all() %}` loops them.
+
+The guide notices the template reads a variable no story sets and nothing in
+the template defines — `block` here, whatever your dispatcher calls it — and
+builds that entry from the story, using the matched entry type's field types:
+rich text prints as HTML, a dropdown has `.value` and `.label` and compares as
+its value, assets and relations answer `.one()`, `.all()`, `|length` and loops,
+Matrix items become entries of their nested type (name it with `type:
+'handle'` when the field allows several), and `block.type.handle` and
+`block.fieldLayout.getFieldByHandle()` work. The blocks gallery, prefill, the
+contract check and editors' own variants all use the same field handles.
+
+Limits, named here rather than discovered:
+
+- **What the stand-in cannot answer, the preview says.** A field the entry type
+  does not have, a method only a real element has, an image transform — the
+  value is empty and a note under the preview lists it. Nothing is left out
+  quietly.
+- **Only when there is no adapter.** A component something else includes with
+  plain values is presentational and renders as it always has. So does a story
+  that sets the variable itself (`args: { block: { … } }`).
+- **One template per entry type.** If the same entry type is rendered by two
+  templates, the check reports fields the other one reads as unused.
+- A template that reassigns its block variable in a loop — a dispatcher — is
+  not treated as a block.
+
+When a block grows, splitting it into an adapter and a presentational component
+(below) is still where the guide does best — but it is a step you take when it
+pays, not the price of trying the plugin.
+
 ## Recommended architecture: adapters + presentational components
 
-The guide works with any template structure, but this three-layer pattern gets
-the most out of it — and keeps a Matrix page builder maintainable:
+The guide works with any template structure — including block templates that
+read the block themselves (above) — but this three-layer pattern gets the most
+out of it, and keeps a Matrix page builder maintainable:
 
 ```
 templates/_v2/

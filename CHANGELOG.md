@@ -3,6 +3,38 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.8.0 - 2026-10-19
+
+### Added
+
+- **Block templates that read the block themselves now preview properly.** Most
+  Craft projects have no adapters: the block template is handed the entry and
+  reads `block.heading`, `block.cards.all()`, `block.image.one().url`. Such a
+  template was treated as presentational, so a story could only pass plain
+  arrays — and those answer `.all()`, `.one()` and `.value` with nothing, in
+  silence: previews without their cards or image, a dark theme rendered light,
+  rich text printed as tags, and gallery cards whose click added an empty block.
+  Now the guide recognises the variable such a template reads (whatever the
+  dispatcher calls it) and builds that entry from a story written in plain field
+  handles, shaped by the matched entry type's fields: rich text as HTML,
+  dropdowns and radio buttons with `.value`/`.label`, assets and relations and
+  Matrix fields as queries that `.one()`, `.all()`, count and loop. The blocks
+  gallery, prefill, the contract check and editors' own variants work the same
+  way, with no adapter. Components with an adapter are untouched, and so are
+  stories that pass the block variable themselves.
+- **A preview says what it could not show.** When a template asks such a
+  stand-in entry for something no field or story provides — a missing field, a
+  method only a real element has, an image transform — the value is empty, as
+  on a real entry, and a note under the preview lists it.
+
+### Changed
+
+- For a template that reads the block itself, contract messages speak of the
+  template (“the template never reads `block.x`”) rather than of an adapter, and
+  “Twig usage” shows `{% include … with { block: block } only %}`.
+- Element ids such as `ownerId`, `fieldId` and `canonicalId` are recognised as
+  attributes, not reported as missing fields.
+
 ## 1.7.0 - 2026-10-13
 
 ### Added

@@ -99,6 +99,30 @@ So count what a template **fetches**, not how often the word `craft` appears. A
 template that says `craft.` eight times and fetches nothing is a component, and
 skipping it is the most expensive mistake you can make in this pass.
 
+**A block template that reads the block it is handed is a component too.** On
+most projects there are no adapters: the dispatcher includes one template per
+block type with `{ block: block }`, and that template reads `block.heading`,
+`block.cards.all()`, `block.image.one().url` itself. Document it. Its story is
+written in the entry type's **field handles**, flat — not wrapped in `block:` —
+and the guide builds the block from it (README, “Block templates that read the
+block themselves”):
+
+```twig
+{% set stories = {
+    'Default': { args: {
+        heading: '…',
+        bodyText: '<p>…</p>',
+        heroImage: '@image_1600x600',
+        theme: 'dark',
+        cards: [ { title: '…', cardText: '…' } ],
+    } },
+} %}
+```
+
+Take the handles from `config/project/entryTypes/`, not from guesses. The
+fetching that disqualifies a template is the kind that goes past the block it
+is given — `craft.entries…`, a related entry's own fields looked up by id.
+
 **The `_` prefix means nothing by itself.** Craft's own conventions put an
 underscore on any template that should not be routed to, so on many projects
 nearly every file has one. Count before you judge: if most files in the folder

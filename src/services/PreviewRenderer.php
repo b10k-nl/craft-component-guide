@@ -6,6 +6,8 @@ use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\RenderResult;
 use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\Plugin;
+use b10k\componentguide\preview\StandIns;
+use b10k\componentguide\preview\StoryEntryBuilder;
 use Craft;
 use craft\helpers\UrlHelper;
 use craft\web\View;
@@ -40,10 +42,16 @@ class PreviewRenderer extends Component
             $args = Plugin::getInstance()->getPlaceholderResolver()
                 ->resolveArgs($story->args, $component->id . '/' . $story->id);
 
+            // A template that reads the block itself gets one, built from the
+            // story — see preview\StoryEntry. The plain args stay in scope as
+            // well: harmless to such a template, and what a presentational one
+            // needs if detection ever calls it wrong.
+            $standIns = $this->standInEntry($component, $args);
+
             // renderTemplate scopes the template to exactly these variables
             // (plus globals) — story args never inherit CP template state.
             $html = $view->renderTemplate($component->templatePath, $args, View::TEMPLATE_MODE_SITE);
-            return RenderResult::success($html);
+            return RenderResult::success($html, $standIns?->all() ?? []);
         } catch (\Throwable $e) {
             Craft::error(
                 sprintf('Failed to render component “%s” story “%s”: %s', $component->id, $story->id, $e->getMessage()),
@@ -66,6 +74,42 @@ class PreviewRenderer extends Component
         } finally {
             $view->setTemplateMode($oldMode);
         }
+    }
+
+    /**
+     * When the component template reads the block entry itself, adds a story
+     * entry under the variable it reads, and returns the notes that entry will
+     * collect while the template renders. Null for every other component.
+     *
+     * @param array<string, mixed> $args
+     */
+    private function standInEntry(ComponentDefinition $component, array &$args): ?StandIns
+    {
+        $plugin = Plugin::getInstance();
+
+        // Asked through bindings(), not selfBinding(): a component that has an
+        // adapter is presentational, whatever its template happens to read,
+        // and must render exactly as it always has. Only the answer the index
+        // and the gallery give — no adapter, reads the block itself — earns a
+        // stand-in entry.
+        $binding = $plugin->getContractInspector()->bindings(
+            [$component],
+            Craft::$app->getPath()->getSiteTemplatesPath(),
+        )[$component->id] ?? null;
+        $handle = $plugin->getGalleryMatcher()->matchedEntryTypeHandle($component);
+        if ($binding === null || !$binding->selfReading || $handle === null) {
+            return null;
+        }
+
+        $schema = $plugin->getContractInspector()->entryTypeSchema($handle);
+        if ($schema === null) {
+            return null;
+        }
+
+        $standIns = new StandIns();
+        $args[$binding->blockRoot] = (new StoryEntryBuilder($standIns))->entry($args, $schema, $binding->blockRoot);
+
+        return $standIns;
     }
 
     /**

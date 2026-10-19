@@ -108,4 +108,5 @@ return [
     'Give the variant a name.' => 'Give the variant a name.',
     'The guide cannot read how this block’s fields reach its template, so it cannot save a variant of it.' => 'The guide cannot read how this block’s fields reach its template, so it cannot save a variant of it.',
     'You have {count} saved variants, the most there can be. Delete one in the blocks gallery first.' => 'You have {count} saved variants, the most there can be. Delete one in the blocks gallery first.',
+    'This preview is incomplete — the template asked for values the story cannot provide.' => 'This preview is incomplete — the template asked for values the story cannot provide.',
 ];

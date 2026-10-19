@@ -7,7 +7,14 @@ use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\ScanError;
 use Craft;
 use craft\base\FieldInterface;
+use craft\fields\Assets;
+use craft\fields\BaseOptionsField;
+use craft\fields\BaseRelationField;
+use craft\fields\Checkboxes;
+use craft\fields\Lightswitch;
 use craft\fields\Matrix;
+use craft\fields\MultiSelect;
+use craft\fields\Number;
 use yii\base\Component;
 
 /**
@@ -173,7 +180,127 @@ class ContractInspector extends Component
             }
         }
 
+        // No adapter — but the template may read the block itself, which is
+        // how most projects are written. Two adapters (ambiguous) is not this
+        // case: something does include the component, so it is not the block
+        // template, and guessing between the two stays refused.
+        foreach ($components as $component) {
+            if (!isset($bindings[$component->id]) && !isset($candidates[$component->id])) {
+                $self = $this->selfBinding($component);
+                if ($self !== null) {
+                    $bindings[$component->id] = $self;
+                }
+            }
+        }
+
         return $this->adapterCache[$key] = $bindings;
+    }
+
+    /**
+     * The binding of a component template that reads the block entry itself,
+     * or null when it does not (or has no entry type to read it against).
+     * See AdapterResolver::parseSelf().
+     */
+    public function selfBinding(ComponentDefinition $component): ?AdapterBinding
+    {
+        $handle = $this->matcher->matchedEntryTypeHandle($component);
+        if ($handle === null) {
+            return null;
+        }
+
+        $source = @file_get_contents($component->absoluteTemplatePath);
+        if ($source === false) {
+            return null;
+        }
+
+        $storyArgs = [];
+        foreach ($component->stories as $story) {
+            foreach (array_keys($story->args) as $arg) {
+                $storyArgs[(string)$arg] = true;
+            }
+        }
+
+        return $this->resolver->parseSelf(
+            $source,
+            $component->templatePath,
+            array_keys($storyArgs),
+            $this->fieldHandles($handle),
+        );
+    }
+
+    /**
+     * The matched entry type, described for StoryEntryBuilder: each field's
+     * handle and the shape Craft gives its value. Matrix fields carry their
+     * own entry types, one level down — deep enough for a block's cards, and a
+     * bound on the walk.
+     *
+     * @return array{handle: string, name: string, fields: array<string, array<string, mixed>>}|null
+     */
+    public function entryTypeSchema(string $entryTypeHandle, int $depth = 0): ?array
+    {
+        $service = Craft::$app->getEntries();
+        $entryType = $service->getEntryTypeByHandle($entryTypeHandle);
+        if ($entryType === null) {
+            return null;
+        }
+
+        $fields = [];
+        foreach ($this->customFields($entryTypeHandle) as $field) {
+            $spec = ['kind' => $this->fieldKind($field)];
+
+            if ($field instanceof BaseOptionsField) {
+                $labels = [];
+                foreach ($field->options as $option) {
+                    if (is_array($option) && isset($option['value']) && !isset($option['optgroup'])) {
+                        $labels[(string)$option['value']] = (string)($option['label'] ?? $option['value']);
+                    }
+                }
+                $spec['options'] = $labels;
+            }
+
+            if ($field instanceof Matrix && $depth < 1) {
+                $types = [];
+                foreach ($field->getEntryTypes() as $type) {
+                    $nested = $this->entryTypeSchema((string)$type->handle, $depth + 1);
+                    if ($nested !== null) {
+                        $types[(string)$type->handle] = $nested;
+                    }
+                }
+                $spec['types'] = $types;
+            }
+
+            $fields[(string)$field->handle] = $spec;
+        }
+
+        return [
+            'handle' => (string)$entryType->handle,
+            'name' => (string)$entryType->name,
+            'fields' => $fields,
+        ];
+    }
+
+    /**
+     * The shape a field's value takes in a template. Anything not listed is a
+     * plain value — text, email, URL, date — which a story string already is.
+     */
+    private function fieldKind(FieldInterface $field): string
+    {
+        $class = get_class($field);
+
+        return match (true) {
+            $field instanceof Matrix => 'matrix',
+            $field instanceof Assets => 'assets',
+            $field instanceof BaseRelationField => 'relation',
+            $field instanceof Lightswitch => 'bool',
+            $field instanceof Number => 'number',
+            $field instanceof Checkboxes, $field instanceof MultiSelect => 'options',
+            $field instanceof BaseOptionsField => 'option',
+            class_exists('craft\\fields\\Link') && is_a($field, 'craft\\fields\\Link') => 'link',
+            is_a($field, 'craft\\htmlfield\\HtmlField'),
+            str_contains($class, '\\ckeditor\\'),
+            str_contains($class, '\\redactor\\') => 'html',
+            default => 'text',
+        };
     }
 
     /**

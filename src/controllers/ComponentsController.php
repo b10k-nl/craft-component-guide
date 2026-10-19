@@ -3,6 +3,7 @@
 namespace b10k\componentguide\controllers;
 
 use b10k\componentguide\Plugin;
+use Craft;
 use craft\web\Controller;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
@@ -110,9 +111,24 @@ class ComponentsController extends Controller
             throw new NotFoundHttpException('Story not found.');
         }
 
-        $snippet = $story !== null
-            ? $plugin->getSnippetGenerator()->generate($component->templatePath, $story->args)
-            : null;
+        // A template that reads the block itself is included with the block,
+        // not with the story's values — those are the block's field contents,
+        // and pasting them as include arguments would do nothing.
+        $self = $plugin->getContractInspector()->bindings(
+            [$component],
+            Craft::$app->getPath()->getSiteTemplatesPath(),
+        )[$component->id] ?? null;
+        $self = $self !== null && $self->selfReading ? $self : null;
+        $snippet = match (true) {
+            $story === null => null,
+            $self !== null => sprintf(
+                "{%% include '%s' with { %s: %s } only %%}",
+                $component->templatePath,
+                $self->blockRoot,
+                $self->blockRoot,
+            ),
+            default => $plugin->getSnippetGenerator()->generate($component->templatePath, $story->args),
+        };
 
         $matcher = $plugin->getGalleryMatcher();
 

@@ -50,6 +50,15 @@ class AdapterBinding
 
         /** Whether the include carries `only` — proof the component is presentational. */
         public bool $only = true,
+
+        /**
+         * True when there is no adapter and the component template reads the
+         * block entry itself (`{{ block.heading }}`) — the common shape of a
+         * Craft project written before anyone split adapters out. The template
+         * is then its own adapter: every field it reads is an argument of the
+         * same name, so stories are written in field handles.
+         */
+        public bool $selfReading = false,
     ) {
     }
 

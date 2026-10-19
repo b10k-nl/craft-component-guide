@@ -16,6 +16,9 @@
         .cg-render-error pre { white-space: pre-wrap; overflow-x: auto; font-size: 12px; color: #444; }
         .cg-render-empty { font-family: system-ui, sans-serif; color: #6b5a2b; background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px; padding: 16px; line-height: 1.5; }
         .cg-render-empty code { background: rgba(0,0,0,.06); border-radius: 3px; padding: 1px 4px; }
+        .cg-render-notes { font-family: system-ui, sans-serif; font-size: 13px; color: #6b5a2b; background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px; padding: 8px 12px; margin-top: 12px; line-height: 1.5; }
+        .cg-render-notes summary { cursor: pointer; font-weight: 600; }
+        .cg-render-notes ul { margin: 6px 0 0; padding-left: 18px; }
     </style>
     <script>
         // Placeholder photos come from an external service (@image tokens), so a
@@ -58,6 +61,19 @@
         </div>
     {% else %}
         {{ result.html|raw }}
+        {% if result.notes is not empty %}
+            {# The template read the block itself and asked for things the story
+               could not supply. Shown with the preview rather than logged, so
+               nobody mistakes the gaps for the block. #}
+            <details class="cg-render-notes">
+                <summary>{{ "This preview is incomplete — the template asked for values the story cannot provide."|t('component-guide') }}</summary>
+                <ul>
+                    {% for note in result.notes %}
+                        <li>{{ note }}</li>
+                    {% endfor %}
+                </ul>
+            </details>
+        {% endif %}
     {% endif %}
 {% else %}
     <div class="cg-render-error">
@@ -85,7 +101,8 @@
                     componentId: {{ component.id|json_encode|raw }},
                     storyId: {{ story.id|json_encode|raw }},
                     state: {{ renderState|json_encode|raw }},
-                    message: {{ (result.success ? '' : result.error)|json_encode|raw }}
+                    message: {{ (result.success ? '' : result.error)|json_encode|raw }},
+                    notes: {{ (result.notes ?? [])|json_encode|raw }}
                 }, {{ parentOrigin|json_encode|raw }});
             } catch (e) {}
         })();

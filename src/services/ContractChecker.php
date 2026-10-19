@@ -62,7 +62,9 @@ class ContractChecker extends Component
             $errors[] = $this->error(
                 $component,
                 ScanError::CONTRACT_UNUSED_FIELD,
-                sprintf('The entry type has a “%s” field, but the adapter never passes it to the component.', $handle),
+                $binding->selfReading
+                    ? sprintf('The entry type has a “%s” field, but the template never reads it.', $handle)
+                    : sprintf('The entry type has a “%s” field, but the adapter never passes it to the component.', $handle),
             );
         }
 
@@ -193,7 +195,32 @@ class ContractChecker extends Component
             $failure['handles'],
         ));
 
-        $message = match ($failure['kind']) {
+        $message = match (true) {
+            // A template that reads the block itself is written in field
+            // handles, so the argument *is* the field — there is no adapter in
+            // between to blame.
+            $binding->selfReading && $failure['kind'] === 'not-passed' => sprintf(
+                'Stories set “%s”, but the template never reads “%s.%s”.',
+                $arg,
+                $binding->blockRoot,
+                $arg,
+            ),
+            $binding->selfReading => sprintf(
+                'Stories set “%s”, but this entry type has no such field.',
+                $arg,
+            ),
+            default => $this->adapterMessage($failure, $arg, $quoted),
+        };
+
+        return $this->error($component, ScanError::CONTRACT_UNFILLABLE_ARG, $message);
+    }
+
+    /**
+     * @param array{kind: string, handles: list<string>} $failure
+     */
+    private function adapterMessage(array $failure, string $arg, string $quoted): string
+    {
+        return match ($failure['kind']) {
             'not-passed' => sprintf(
                 'Stories set “%s”, but the adapter never passes it — nothing an editor fills will reach it.',
                 $arg,
@@ -221,8 +248,6 @@ class ContractChecker extends Component
                     count($failure['handles']) === 1 ? 'does not exist' : 'do not exist',
                 ),
         };
-
-        return $this->error($component, ScanError::CONTRACT_UNFILLABLE_ARG, $message);
     }
 
     /**
@@ -253,10 +278,9 @@ class ContractChecker extends Component
                 continue;
             }
 
-            $messages[] = sprintf(
-                'The adapter reads “%s”, which this entry type does not have, so it always falls back.',
-                $handle,
-            );
+            $messages[] = $binding->selfReading
+                ? sprintf('The template reads “%s.%s”, which this entry type does not have.', $binding->blockRoot, $handle)
+                : sprintf('The adapter reads “%s”, which this entry type does not have, so it always falls back.', $handle);
         }
 
         foreach ($binding->nested as $arg => $nested) {
@@ -278,12 +302,14 @@ class ContractChecker extends Component
                     continue;
                 }
 
-                $messages[] = sprintf(
-                    'Building “%s”, the adapter reads “%s” on each “%s” entry, which those entry types do not have.',
-                    $arg,
-                    $handle,
-                    $source,
-                );
+                $messages[] = $binding->selfReading
+                    ? sprintf('The template reads “%s” on each “%s” entry, which those entry types do not have.', $handle, $source)
+                    : sprintf(
+                        'Building “%s”, the adapter reads “%s” on each “%s” entry, which those entry types do not have.',
+                        $arg,
+                        $handle,
+                        $source,
+                    );
             }
         }
 

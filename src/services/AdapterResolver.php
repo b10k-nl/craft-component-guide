@@ -222,6 +222,22 @@ class AdapterResolver extends Component
             $binding->blockFields[$property] = [$property];
         }
 
+        // Story arguments the template reads as plain variables — `{{ blockIndex }}`
+        // next to `{{ block.heading }}` — are context the dispatcher passes, not
+        // fields. Named so the contract check does not call them missing.
+        foreach ($storyArgs as $arg) {
+            if (isset($binding->args[$arg]) || isset($props[$arg])) {
+                continue;
+            }
+            $bare = '/(?<![\w.$])' . preg_quote($arg, '/') . '(?![\w(])(?!\s*:(?!:))/';
+            foreach ($expressions as $expression) {
+                if (preg_match($bare, $expression) === 1) {
+                    $binding->contextArgs[] = $arg;
+                    break;
+                }
+            }
+        }
+
         // `{% for card in block.cards.all() %}` — a nested entry field; what is
         // read on `card` belongs to the nested entry types, not to the block.
         $pattern = '/^for\s+(?:[A-Za-z_]\w*\s*,\s*)?([A-Za-z_]\w*)\s+in\s+' . preg_quote($best, '/') . '\.([A-Za-z_]\w*)/';

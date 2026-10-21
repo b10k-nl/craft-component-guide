@@ -19,7 +19,10 @@ for the format; this file only tells you how to apply it.
 - **Directory conventions**
 - **Marker files: components without stories**
 - **Placeholder tokens**, including *What to tokenise — and what not to*
-- **Recommended architecture: adapters + presentational components**
+- **Terms used here**
+- **Block templates that read the block themselves**
+- **Best practice: adapters + presentational components** — a recommendation,
+  not something to impose; document the project as it is
 
 If anything below contradicts the README, the README wins. Say so in your report
 rather than guessing.
@@ -34,17 +37,31 @@ page-builder blocks, the half that reaches editors, sit one level down or in a
 folder named after nothing in particular. Choosing by folder name reliably
 finds the wrong half.
 
-Start from the adapters, because they are findable mechanically:
+Start from the dispatcher — the loop over the page builder — because it is
+findable mechanically:
 
 ```
+grep -rn "type.handle" templates/
 grep -rn "block.type ==" templates/
 grep -rn "\.type ==" templates/
 ```
 
-A template that loops a Matrix field and switches on the block type is an
-adapter, and **every template it includes is a presentational component** —
-with its argument list written out at the include site. That is the
-highest-value set on the project, and it arrives already documented.
+A template that loops a Matrix field and includes a template per block type
+(by building the path from `type.handle`, or by switching on the type) is the
+dispatcher, and **every template it reaches is a block template** — the
+highest-value set on the project. A project has one of two shapes, and often
+both:
+
+- **Block templates that read the block themselves** — `{{ block.heading }}`,
+  `block.cards.all()`. The usual Craft shape. Document them as they are; their
+  stories are written in the entry type's field handles (Step 2).
+- **Adapters** — a block template that only reads fields and includes another
+  template `with { … } only`. The included template is a presentational
+  component, and its argument list is written out at the include site. Document
+  the presentational component, not the adapter.
+
+Do not restructure templates into adapters. That is a recommendation for the
+developer to take up later, not part of documenting what exists.
 
 Then, separately, look for folders of shared presentational partials. Common
 names: `_components/`, `_blocks/`, `components/`, `blocks/`.
@@ -54,8 +71,8 @@ page-builder blocks from shared UI — `_blocks/` and `_components/` side by
 side. Each folder gets its own marker file and becomes its own group in the
 guide, and group names mirror the folder hierarchy.
 
-So: list what you found — the block set first, named by the adapter that feeds
-it, then the candidate folders with one line each on what each appears to hold
+So: list what you found — the block set first, named by the dispatcher that
+reaches it, then the candidate folders with one line each on what each appears to hold
 — and **ask which to document**: the blocks, one folder, several, or all. Do
 not choose for the human, and do not document every folder that merely
 contains Twig.
@@ -67,11 +84,12 @@ produces a mess of one-item groups.
 
 ## Step 2 — Decide what is a component
 
-Document only **presentational** templates: ones that render markup from plain
-variables passed in.
+Document templates that **render markup**: presentational components, which
+render from plain values passed in, and block templates that read the block
+they are handed. Skip glue that renders nothing.
 
-**One signal settles it, and it is not a judgement call.** If a template is
-pulled in like this:
+**For a presentational component, one signal settles it, and it is not a
+judgement call.** If a template is pulled in like this:
 
 ```twig
 {% include 'path/to/thing.twig' with { heading: …, items: … } only %}
@@ -82,12 +100,18 @@ reach anything except the variables listed at the include site. It is
 presentational **by construction**, and that variable list is the argument list
 your story needs. When you find this, stop reasoning and write the story.
 
-**The adapter test is about fetching data, not about naming Craft.** A real
-adapter runs element queries and walks fields: `.one()`, `.all()`,
-`.eagerly()`, `craft.entries`, `block.someField.one()`, iterating a Matrix
-field.
+**An adapter renders no markup.** It reads fields and hands them to another
+template with `only` — that is all it does, and it is the one block template
+you skip (its presentational component is what you document). A block template
+that reads fields *and* renders markup — `block.someField.one()`, iterating a
+Matrix field — is a component; see below.
 
-These do **not** make a template an adapter:
+**What makes a template hard to preview is fetching past what it is given**:
+`craft.entries…`, `craft.assets…`, a related entry's own fields looked up by id.
+Those previews show whatever the query finds, not what the story says. Document
+such a template anyway and say so in the report.
+
+These do **not** count as fetching:
 
 - `craft.app.request.getQueryParam(…)`, `craft.app.config…`, `|t`, `url()` —
   ambient calls that return null or a harmless default inside a preview
@@ -119,9 +143,11 @@ block themselves”):
 } %}
 ```
 
-Take the handles from `config/project/entryTypes/`, not from guesses. The
-fetching that disqualifies a template is the kind that goes past the block it
-is given — `craft.entries…`, a related entry's own fields looked up by id.
+Take the handles from `config/project/entryTypes/`, not from guesses. Do not
+split such a template into an adapter and a component while you are here: the
+guide does not need it, and changing how a project is built is the developer's
+decision (README, “Best practice”). If a block looks like it would benefit,
+say so in the report.
 
 **The `_` prefix means nothing by itself.** Craft's own conventions put an
 underscore on any template that should not be routed to, so on many projects
@@ -133,7 +159,7 @@ prefix mean "internal partial", and only there should you skip them.
 Skip:
 
 - `index.twig` and `undefined.twig` — dispatcher entry point and fallback
-- true adapters, by the test above
+- adapters, by the test above — templates that render no markup of their own
 - anything under `node_modules`, `vendor`, or a cache folder
 
 If you cannot tell whether a file is a component or an adapter, list it in your
@@ -277,8 +303,9 @@ Never promote a status yourself.
 Report, in this order:
 
 1. Components documented, with counts.
-2. The adapters you found, and which presentational template each block type
-   is handed to — the map a human cannot get from the file tree.
+2. The dispatcher, and for each block type the template that renders it —
+   directly, or through which adapter to which presentational component. That
+   is the map a human cannot get from the file tree.
 3. Components matched to an entry type — and components that look like
    page-builder blocks but have **no** matching handle. That second list is the
    most useful thing you can hand over.

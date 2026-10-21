@@ -68,8 +68,9 @@ only ever writes story files when you press “Add story”, “Mark stable” o
 5. **Sanity-check from the command line:**
    `php craft component-guide/components/scan` prints everything it found.
 
-The README covers the story formats, the recommended template architecture and
-all settings in more detail.
+The README covers the story formats, the terms it uses (page builder, block,
+block template, adapter), the template shapes the guide supports — including
+the best-practice one — and all settings in more detail.
 
 ## Known limitations
 
@@ -84,9 +85,12 @@ all settings in more detail.
   or preview yet).
 - The story scaffolder is heuristic: it reads the template with regexes, so
   complex templates — especially ones that pull live data themselves — will
-  need manual fixing.
-- Components that query Craft or use Sprig internally may render partially in
-  previews.
+  need manual fixing. For a block template that reads `block.…` itself it does
+  not yet write the entry type's field handles; write those by hand (README,
+  “Block templates that read the block themselves”).
+- Block templates that read the block they are handed preview fine from a story
+  written in field handles. Templates that run their own queries
+  (`craft.entries…`) or use Sprig may render partially in previews.
 
 ## Feedback
 

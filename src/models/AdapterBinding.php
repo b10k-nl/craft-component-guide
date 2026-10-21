@@ -59,6 +59,17 @@ class AdapterBinding
          * same name, so stories are written in field handles.
          */
         public bool $selfReading = false,
+
+        /**
+         * For a self-reading template: story arguments that are not fields but
+         * plain variables the dispatcher passes alongside the block and the
+         * template reads as they are — `with { block: block, blockIndex:
+         * loop.index }` is one way page-builder tutorials write it. They are
+         * neither prefilled nor reported as missing fields.
+         *
+         * @var list<string>
+         */
+        public array $contextArgs = [],
     ) {
     }
 

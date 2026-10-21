@@ -128,6 +128,14 @@ class SelfReadingTemplateTest extends TestCase
         $this->assertArrayNotHasKey('cardIcon', $binding->args);
     }
 
+    public function testStoriesThatAlreadyPassABlockAreLeftAsTheyWere(): void
+    {
+        // Someone may have worked around the old behaviour with
+        // `args: { block: { heading: … } }`. That story sets `block` itself, so
+        // nothing is stood in and the template renders exactly as before.
+        $this->assertNull($this->resolver->parseSelf(self::HERO, '_blocks/hero.twig', ['block'], self::HERO_FIELDS));
+    }
+
     public function testThePresentationalComponentIsNotSelfReading(): void
     {
         // `image.url` and `b.url` are property reads, but `image` is a story

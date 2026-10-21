@@ -2,6 +2,7 @@
     "name": "b10k/craft-component-guide",
     "description": "Visual Matrix block picker with live previews rendered from your own Twig templates — and a component library in the control panel.",
     "type": "craft-plugin",
+    "homepage": "https://b10k.nl/plugins/component-guide/",
     "keywords": [
         "craft",
         "cms",

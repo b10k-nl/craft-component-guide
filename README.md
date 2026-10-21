@@ -18,7 +18,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.8.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.8.1` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -68,6 +68,30 @@ Nothing configured yet? The guide starts by explaining how to get there:
 - Persistent scan cache keyed by a filesystem fingerprint — invalidates itself
   the moment a story, template or marker changes.
 
+## Terms used here
+
+Craft and its community name the same things several ways; this README uses one
+name for each.
+
+- **Page builder** — a Matrix field an editor builds a page from, block by
+  block. Also called a *content builder*.
+- **Block** — one item in that field; tutorials also say *section* or
+  *element*. Craft 5 calls these *nested entries*; Craft 4 and earlier called
+  them *Matrix blocks*. A **block type** is the nested entry's *entry type*.
+- **Block template** — the Twig file that renders one block type, often kept
+  as a *partial* (`_blocks/hero.twig`, `_partials/_block_hero.twig`).
+- **Dispatcher** — the loop over the page builder that includes the right block
+  template for each block, by its type handle.
+- **Component** — any template the guide lists. Block templates are components;
+  so are shared partials such as buttons and cards.
+- **Story** — one example state of a component: the values it renders with,
+  in a `*.stories.twig` (or `.php`) file next to it.
+- **Adapter** *(optional, recommended)* — a small template between the
+  dispatcher and a block template that reads the block's fields and passes them
+  on as plain values. See [Best practice](#best-practice-adapters--presentational-components).
+- **Presentational component** — a template that renders only from the plain
+  values it is given and never reads an entry.
+
 ## When not to use this
 
 - **Your components query Craft themselves.** A component that runs its own
@@ -82,7 +106,9 @@ Nothing configured yet? The guide starts by explaining how to get there:
 - **Your previews need CSS the guide cannot reach.** They are exactly as
   accurate as the stylesheet you point them at.
 - **You need a verdict on every component.** The contract check gives none when
-  it cannot identify a single adapter. Refusing beats guessing.
+  it cannot tell which template reads a block — two adapters for one
+  component, or a dispatcher that reuses the block variable. Refusing beats
+  guessing.
 
 ## Editions
 
@@ -135,8 +161,9 @@ table — can keep it:
 The variant appears in the blocks gallery next to the block's stories, marked
 ★, with a live preview. Clicking it adds the block filled in exactly as saved.
 
-**What is kept.** Only the fields the gallery can fill back in: those the
-adapter passes to exactly one template argument — text, number, URL, email,
+**What is kept.** Only the fields the gallery can fill back in: each reaching
+the template as exactly one value, read directly or passed on by an adapter —
+text, number, URL, email,
 dropdown, radio buttons and lightswitches, up to 500 characters each. Rich text
 (CKEditor), assets, relations and nested blocks are not kept and start from the
 block's first story instead; the save panel names them. That rule is what keeps
@@ -528,9 +555,9 @@ status is there to remind you of.
 
 ## Block templates that read the block themselves
 
-Most Craft projects have no adapters: the page loops its Matrix field and
-includes one template per block type, and that template reads the entry it is
-handed:
+This is how most page builders are built, and how Craft's own docs and most
+tutorials show it: the dispatcher loops the Matrix field and includes one block
+template per block type, and that template reads the block it is handed:
 
 ```twig
 {# _blocks/hero.twig #}
@@ -555,6 +582,10 @@ handles**, plainly:
     } },
 } %}
 ```
+
+Variables the dispatcher passes alongside the block — `with { block: block,
+blockIndex: loop.index }` is one way tutorials write it — go into the story as
+they are (`blockIndex: 1`); the guide treats them as context, not as fields.
 
 A Matrix field takes a list of items in its nested entry type's handles —
 `gridCards: [ { title: 'Bike fitting', cardText: 'Two hours on the rig.' } ]`
@@ -585,14 +616,16 @@ Limits, named here rather than discovered:
   not treated as a block.
 
 When a block grows, splitting it into an adapter and a presentational component
-(below) is still where the guide does best — but it is a step you take when it
-pays, not the price of trying the plugin.
+(below) is a good next step — but it is one you take when it pays, not the
+price of trying the plugin.
 
-## Recommended architecture: adapters + presentational components
+## Best practice: adapters + presentational components
 
-The guide works with any template structure — including block templates that
-read the block themselves (above) — but this three-layer pattern gets the most
-out of it, and keeps a Matrix page builder maintainable:
+Not required — the guide works with block templates as they are (above). This
+three-layer pattern is what we recommend once a page builder has more than a
+handful of blocks: it keeps the markup reusable outside the Matrix field, puts
+every field read in one small file per block type, and gets the most out of the
+guide.
 
 ```
 templates/_v2/
@@ -753,7 +786,7 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   `devMode`.
 - Editors' variants are read and written only for the signed-in user, in
   their own user preferences; no request can name another user's. Saving is
-  POST-only and CSRF-protected, keeps only fields the block's adapter maps,
+  POST-only and CSRF-protected, keeps only fields the block's template reads,
   and renders through the same preview as stories — a variant never supplies a
   template path or args of its own.
 

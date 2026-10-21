@@ -3,6 +3,22 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.8.1 - 2026-10-21
+
+### Fixed
+
+- A block template that reads the block itself and also prints a variable the
+  dispatcher passes with it — `with { block: block, blockIndex: loop.index }`,
+  as some page-builder tutorials write it — no longer has that variable reported
+  as a missing field when a story sets it. The report also hid the story's card
+  from the blocks gallery.
+
+### Changed
+
+- The README names its terms once — page builder, block (nested entry), block
+  type, block template, dispatcher, adapter — and presents adapters with
+  presentational components as a best practice rather than a prerequisite.
+
 ## 1.8.0 - 2026-10-19
 
 ### Added

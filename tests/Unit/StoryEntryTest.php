@@ -160,6 +160,24 @@ class StoryEntryTest extends TestCase
         $this->assertSame([], $notes->all());
     }
 
+    public function testNestedTypeComparesAsItsHandle(): void
+    {
+        // As written on a real project: `sliderBlocks|filter(bl => bl.type == 'blockTitle')`.
+        // Craft's EntryType prints its handle, so the stand-in must too.
+        $values = ['gridCards' => [['title' => 'A'], ['title' => 'B']]];
+
+        $html = $this->render(
+            "{{ (block.gridCards.all|filter(c => c.type == 'gridCard')|first).title }}|{{ block.gridCards.one.title }}|{{ block.gridCards.count() }}",
+            $values,
+            self::CARDS_TYPE,
+            true,
+            $notes,
+        );
+
+        $this->assertSame('A|A|2', $html);
+        $this->assertSame([], $notes->all());
+    }
+
     public function testAssetTransformsAreNotedNotFaked(): void
     {
         $html = $this->render("{{ block.heroImage.one().getUrl({ width: 300 }) }}", self::HERO_DARK, self::HERO_TYPE, true, $notes);

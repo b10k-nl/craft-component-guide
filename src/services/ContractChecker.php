@@ -142,6 +142,12 @@ class ContractChecker extends Component
      */
     private function argFailure(AdapterBinding $binding, string $arg, array $entryFields): ?array
     {
+        // A variable the dispatcher passes with the block (`blockIndex`) and the
+        // template reads directly: nothing an editor fills, nothing missing.
+        if ($binding->selfReading && in_array($arg, $binding->contextArgs, true)) {
+            return null;
+        }
+
         if (!array_key_exists($arg, $binding->args)) {
             return ['kind' => 'not-passed', 'handles' => []];
         }

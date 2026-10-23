@@ -136,17 +136,53 @@ final class UserStoryBuilder
     }
 
     /**
+     * A story title that says who made the case and when: “Light — by Anna
+     * Smith, 2026-10-23”. A developer on a project with many editors gets
+     * these in batches, from different people, often several from one person;
+     * without a name and a date they are a pile of “Light”s.
+     *
+     * English and an ISO date on purpose: it ends up as a key in a project
+     * file, read by developers, not in an editor's own language.
+     */
+    public static function attributedTitle(string $title, ?string $author, \DateTimeInterface $date): string
+    {
+        $author = $author !== null ? trim((string)preg_replace('/\s+/u', ' ', $author)) : '';
+
+        return $title . ' — '
+            . ($author !== '' ? 'by ' . $author . ', ' : '')
+            . $date->format('Y-m-d');
+    }
+
+    /**
      * The variant as a story a developer pastes into the component's story file,
      * inside `{% set stories = { … } %}`. Complete on its own: every argument is
      * written out, not only the ones the editor changed, so it does not depend
      * on the story it was based on staying the same.
      *
+     * With a comment, the first line says which block it belongs to — a
+     * developer may get dozens of these, pasted into one chat. It is a Twig
+     * inline comment (`# …`), the only kind that is valid inside the hash it is
+     * pasted into, and Twig has it only from 3.15: below that, pass null
+     * ({@see supportsInlineComments()}) rather than hand over a snippet that
+     * breaks the story file.
+     *
      * @param array<string, mixed> $args
      */
-    public static function snippet(string $title, array $args): string
+    public static function snippet(string $title, array $args, ?string $comment = null): string
     {
-        return TwigLiteral::string($title) . ": {\n"
+        $comment = $comment !== null ? trim((string)preg_replace('/\s+/u', ' ', $comment)) : '';
+
+        return ($comment !== '' ? '# ' . $comment . "\n" : '')
+            . TwigLiteral::string($title) . ": {\n"
             . '    args: ' . TwigLiteral::value($args, 1) . ",\n"
             . '},';
+    }
+
+    /**
+     * Whether the installed Twig reads `# …` inside an expression.
+     */
+    public static function supportsInlineComments(string $twigVersion = \Twig\Environment::VERSION): bool
+    {
+        return version_compare($twigVersion, '3.15.0', '>=');
     }
 }

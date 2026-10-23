@@ -126,9 +126,30 @@ class UserStoriesController extends Controller
         }
 
         return $this->asJson([
-            'snippet' => UserStoryBuilder::snippet($record['title'], $story->args),
+            // Named and dated: a developer gets these from many editors, often
+            // several from one. The date is the day the variant was saved.
+            'snippet' => UserStoryBuilder::snippet(
+                UserStoryBuilder::attributedTitle(
+                    $record['title'],
+                    Craft::$app->getUser()->getIdentity()?->getName(),
+                    $this->savedOn($record['dateCreated']),
+                ),
+                $story->args,
+                UserStoryBuilder::supportsInlineComments()
+                    ? $component->title . ' · ' . $component->storyFilePath
+                    : null,
+            ),
             'file' => $component->storyFilePath,
         ]);
+    }
+
+    private function savedOn(string $dateCreated): \DateTimeImmutable
+    {
+        try {
+            return new \DateTimeImmutable($dateCreated !== '' ? $dateCreated : 'now');
+        } catch (\Exception) {
+            return new \DateTimeImmutable();
+        }
     }
 
     private function component(string $id): ComponentDefinition

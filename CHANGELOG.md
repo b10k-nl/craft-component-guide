@@ -3,6 +3,58 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.9.0 - 2026-10-23
+
+### Added
+
+- **Controls on the component page.** Under the preview, every argument of the
+  story has an input that fits it — a select of the values the template
+  compares it with or the block's dropdown field offers, a checkbox for a
+  lightswitch or a boolean, a number, text with the other stories' values as
+  suggestions, JSON for lists and hashes. For a template that reads the block
+  itself, every field of the entry type is listed, in its order, whether a
+  story fills it or not. An image argument gets **Choose an image** — Craft's
+  own asset modal, uploading included — and an asset from the same site is
+  written as a root-relative path, so it works on every environment. The
+  preview re-renders as you type, on any device; nothing is saved. **Copy as
+  story** puts the changed story on the clipboard as Twig for the story file,
+  and shows it under the controls as well, in case the browser will not copy.
+  The page's address follows the changes so it can be sent; a page opened from
+  such an address asks before it shows them. In Lite — the way to let a client
+  try the blocks of a sprint on staging, with their own words and pictures.
+- **Shared stories say who, when and for which block.** “Copy as story” and an
+  editor's “Share with a developer” now title the story with its author and
+  date — `'Light — by Anna Smith, 2026-10-23'` — and start with a comment
+  naming the block and its story file, so a developer collecting them from many
+  editors can tell them apart. The comment is a Twig inline comment, valid
+  where the story is pasted; on Twig older than 3.15, which has none, the
+  snippet goes without it.
+- **The whole library in the sidebar.** The index and every component page
+  list all components by group in the control panel's sidebar, each with a
+  status dot, and the current component's stories under it — the next
+  component is one click away, not a trip back to the index.
+
+### Changed
+
+- **Filters moved to the sidebar and stay set.** Search, group and status sit
+  above the tree on the index and on every component page, narrow the cards
+  and the tree together, and are kept for the browser tab until **Clear
+  filters** — narrow the library to a few blocks, open one, and the sidebar
+  still shows those few.
+- **Search matches at the start of a word**, and every word of the query has to
+  match. “grid” no longer finds Upcoming Rides through the `g` + `rid` inside
+  its handle `upcomingRides`; handles are searched as the words they are made
+  of.
+- Buttons on the component page are Craft's own regular buttons, with icons;
+  disabled ones look disabled.
+
+### Security
+
+- Changed values reach the preview only in a POST body with the viewer's own
+  CSRF token, for the same story of the same component, and never in the
+  preview frame's URL. They are limited in size, depth and argument names,
+  and rendered, never stored.
+
 ## 1.8.1 - 2026-10-21
 
 ### Fixed

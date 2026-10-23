@@ -370,9 +370,40 @@ class StoryScaffolder extends Component
      */
     public function detectStates(string $source): ?array
     {
+        $enums = $this->detectEnums($source);
+
+        $best = null;
+        foreach ($enums as $var => $values) {
+            if ($best === null || count($values) > count($enums[$best])) {
+                $best = $var;
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        return [
+            'var' => $best,
+            // Four states is plenty for a scaffold; more is a sign the guess
+            // went wrong, not that the component has ten looks.
+            'values' => array_slice($enums[$best], 0, 4),
+        ];
+    }
+
+    /**
+     * Every argument the template compares against two or more string
+     * literals, with those literals (and a quoted fallback, if it has one) —
+     * the values the component knows what to do with. The scaffolder takes the
+     * biggest one as its states; the component page offers each as a select.
+     *
+     * @return array<string, list<string>>
+     */
+    public function detectEnums(string $source): array
+    {
         $source = preg_replace('/\{#.*?#\}/s', '', $source) ?? $source;
         if (preg_match_all('/\{\{(.*?)\}\}|\{%(.*?)%\}/s', $source, $m) === false) {
-            return null;
+            return [];
         }
 
         $byVar = [];
@@ -406,26 +437,14 @@ class StoryScaffolder extends Component
             }
         }
 
-        $best = null;
+        $enums = [];
         foreach ($byVar as $var => $values) {
-            if (count($values) < 2) {
-                continue;
-            }
-            if ($best === null || count($values) > count($byVar[$best])) {
-                $best = $var;
+            if (count($values) >= 2) {
+                $enums[(string)$var] = array_map('strval', array_keys($values));
             }
         }
 
-        if ($best === null) {
-            return null;
-        }
-
-        return [
-            'var' => $best,
-            // Four states is plenty for a scaffold; more is a sign the guess
-            // went wrong, not that the component has ten looks.
-            'values' => array_slice(array_keys($byVar[$best]), 0, 4),
-        ];
+        return $enums;
     }
 
     /**

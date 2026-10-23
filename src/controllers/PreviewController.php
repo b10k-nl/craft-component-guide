@@ -2,11 +2,14 @@
 
 namespace b10k\componentguide\controllers;
 
+use b10k\componentguide\helpers\StoryControls;
 use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\Plugin;
 use Craft;
 use craft\web\Controller;
+use InvalidArgumentException;
+use yii\web\BadRequestHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
@@ -44,6 +47,21 @@ class PreviewController extends Controller
         $story = $component->getStory($storyId);
         if ($story === null) {
             throw new NotFoundHttpException('Story not found.');
+        }
+
+        // The controls on the component page post the values someone changed.
+        // Only ever in a POST body, so they arrive with the CSRF token of the
+        // person who typed them: a link can open a story, but it cannot make
+        // someone else's preview render values of its choosing. They are data
+        // for the same template, nothing more — no path, no other component.
+        $request = Craft::$app->getRequest();
+        if ($request->getIsPost()) {
+            try {
+                $overrides = StoryControls::decodeOverrides((string)$request->getBodyParam('args', ''));
+            } catch (InvalidArgumentException $e) {
+                throw new BadRequestHttpException($e->getMessage(), 0, $e);
+            }
+            $story = StoryControls::withOverrides($story, $overrides);
         }
 
         return $this->document($component, $story);
@@ -90,7 +108,8 @@ class PreviewController extends Controller
         $response->data = $html;
         $response->getHeaders()
             ->set('Content-Type', 'text/html; charset=UTF-8')
-            ->set('X-Robots-Tag', 'noindex, nofollow');
+            ->set('X-Robots-Tag', 'noindex, nofollow')
+            ->set('Cache-Control', 'no-store');
 
         return $response;
     }

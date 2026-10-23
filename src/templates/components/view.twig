@@ -10,6 +10,14 @@
 
 {% do view.registerAssetBundle("b10k\\componentguide\\assetbundles\\ComponentGuideAsset") %}
 
+{% block sidebar %}
+    {% include "component-guide/components/_tree" with {
+        grouped: grouped,
+        current: component,
+        story: story,
+    } only %}
+{% endblock %}
+
 
 {% block content %}
     <div class="cg-detail">
@@ -27,7 +35,7 @@
                 {# The page you are on when you decide. The index toggle is for
                    the obvious ones; this is for the ones you had to look at. #}
                 {% if canToggleStatus and component.status in ['draft', 'stable'] %}
-                    <button type="button" class="btn small cg-detail__status"
+                    <button type="button" class="btn cg-detail__status"
                             data-cg-status-toggle
                             data-component-id="{{ component.id }}"
                             data-status="{{ component.status }}"
@@ -66,24 +74,7 @@
                 <p>{{ "This component has no valid stories."|t('component-guide') }}</p>
             </div>
         {% else %}
-            <div class="cg-layout">
-                <nav class="cg-stories" aria-label="{{ 'Stories'|t('component-guide') }}">
-                    <h2 class="cg-stories__title">
-                        {{ "Stories"|t('component-guide') }}
-                        <span class="light">({{ component.storyCount }})</span>
-                    </h2>
-                    <ul>
-                        {% for s in component.stories %}
-                            <li>
-                                <a href="{{ cpUrl('component-guide/components/' ~ component.id ~ '/' ~ s.id) }}"
-                                   class="cg-stories__item{{ story and s.id == story.id ? ' is-selected' : '' }}">
-                                    {{ s.title }}
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </nav>
-
+            <div class="cg-layout cg-layout--single">
                 <div class="cg-main">
                     <div class="cg-preview">
                         <div class="cg-preview__bar">
@@ -94,9 +85,9 @@
                             </span>
                             <span class="cg-preview__actions">
                                 <span class="cg-preview__width light" data-cg-width></span>
-                                <button type="button" class="btn small" data-cg-rotate hidden>{{ "Rotate"|t('component-guide') }}</button>
-                                <button type="button" class="btn small" data-cg-refresh>{{ "Refresh"|t('component-guide') }}</button>
-                                <a class="btn small" href="{{ previewUrl }}" target="_blank" rel="noopener">{{ "Open in new tab"|t('component-guide') }}</a>
+                                <button type="button" class="btn" data-icon="rotate-left" data-cg-rotate hidden>{{ "Rotate"|t('component-guide') }}</button>
+                                <button type="button" class="btn" data-icon="arrows-rotate" data-cg-refresh>{{ "Refresh"|t('component-guide') }}</button>
+                                <a class="btn" data-icon="share" href="{{ previewUrl }}" target="_blank" rel="noopener" data-cg-open-tab>{{ "Open in new tab"|t('component-guide') }}</a>
                             </span>
                         </div>
 
@@ -121,6 +112,15 @@
                             </p>
                         {% endif %}
                     </div>
+
+                    {% if enableIframePreview %}
+                        {% include "component-guide/components/_controls" with {
+                            controls: controls,
+                            component: component,
+                            story: story,
+                            previewUrl: previewUrl,
+                        } only %}
+                    {% endif %}
 
                     <div class="cg-info">
                         {% if story.description %}
@@ -147,7 +147,7 @@
                         {% endif %}
 
                         <div class="cg-info__block">
-                            <h3>{{ "Args"|t('component-guide') }}</h3>
+                            <h3>{{ "Story args"|t('component-guide') }}</h3>
                             <pre class="cg-code">{{ story.args|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
                         </div>
 
@@ -155,7 +155,7 @@
                             <div class="cg-info__block">
                                 <h3>
                                     {{ "Twig usage"|t('component-guide') }}
-                                    <button type="button" class="btn small" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
+                                    <button type="button" class="btn small" data-icon="clipboard" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
                                 </h3>
                                 <pre class="cg-code" data-cg-snippet>{{ snippet }}</pre>
                             </div>

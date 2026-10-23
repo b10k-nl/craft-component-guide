@@ -246,7 +246,9 @@ class ContractInspector extends Component
 
         $fields = [];
         foreach ($this->customFields($entryTypeHandle) as $field) {
-            $spec = ['kind' => $this->fieldKind($field)];
+            // The name is for people (the component page labels its controls
+            // with it); the kind is what the stand-in entry is built from.
+            $spec = ['kind' => $this->fieldKind($field), 'name' => (string)$field->name];
 
             if ($field instanceof BaseOptionsField) {
                 $labels = [];

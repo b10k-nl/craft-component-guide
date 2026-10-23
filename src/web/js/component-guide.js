@@ -15,38 +15,122 @@
     // after a component changes state, from further down this file.
     var refreshStatusFilter = null;
 
+    // A search term matches at the start of a word, not anywhere: “grid”
+    // found “upcomin-g-rid-es” inside the handle upcomingRides. Every word of
+    // the term has to match (so “hero dark” narrows rather than widens), and
+    // handles are split at their capitals where the haystack is written.
+    var termMatcher = function (term) {
+        var words = term.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        var patterns = words.map(function (w) {
+            return new RegExp('(^|[^\\p{L}\\p{N}])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u');
+        });
+        return function (haystack) {
+            haystack = haystack || '';
+            return patterns.every(function (p) { return p.test(haystack); });
+        };
+    };
+
+    // The device preview and the controls below it are written as two
+    // sections; this is where they meet. The device section sets reload(),
+    // the controls set post() — which renders changed values, and says
+    // whether there were any.
+    var cgPreview = { reload: null, post: null, frameName: 'cg-preview-frame' };
+
     if (search || groupFilter || statusFilter) {
+        // Two pages, one set of filters. On the index they narrow the cards and
+        // the tree follows the cards; on a component page there are no cards,
+        // so they narrow the tree itself. Either way the same three questions
+        // are asked of each subject: its words, its group, its status.
         var cards = Array.prototype.slice.call(document.querySelectorAll('[data-card]'));
         var groups = Array.prototype.slice.call(document.querySelectorAll('[data-group]'));
         var noResults = document.getElementById('cg-no-results');
+        var treeItems = Array.prototype.slice.call(document.querySelectorAll('[data-cg-tree-item]'));
+        var treeGroups = Array.prototype.slice.call(document.querySelectorAll('[data-cg-tree-group]'));
+        var onIndex = cards.length > 0;
+
+        var subjects = onIndex ? cards : treeItems;
+        var groupOf = function (el) {
+            if (!onIndex) { return el.getAttribute('data-tree-group') || ''; }
+            var section = el.closest('[data-group]');
+            return section ? section.getAttribute('data-group') : '';
+        };
+        var statusOf = function (el) {
+            return el.getAttribute(onIndex ? 'data-card-status' : 'data-tree-status') || '__nostatus';
+        };
+
+        var filteredNotes = Array.prototype.slice.call(document.querySelectorAll('[data-cg-filtered]'));
+        var clearButtons = Array.prototype.slice.call(document.querySelectorAll('[data-cg-filters-clear]'));
+
+        // Kept for the browser tab, so narrowing the library to a few blocks
+        // and opening one of them does not throw the narrowing away. Session
+        // storage: a new tab starts from the whole library again.
+        var STORE = 'componentGuide.filters';
+        var save = function (state) {
+            try { window.sessionStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* no storage — filters just do not carry over */ }
+        };
+        var load = function () {
+            try { return JSON.parse(window.sessionStorage.getItem(STORE) || 'null') || {}; } catch (e) { return {}; }
+        };
 
         var filter = function () {
             var term = search ? search.value.trim().toLowerCase() : '';
+            var termMatches = termMatcher(term);
             var wantGroup = groupFilter ? groupFilter.value : '';
             var wantStatus = statusFilter ? statusFilter.value : '';
-            var anyVisible = false;
+            var active = term !== '' || wantGroup !== '' || wantStatus !== '';
+            var shown = 0;
 
-            cards.forEach(function (card) {
-                var section = card.closest('[data-group]');
-                var match = (term === '' || (card.getAttribute('data-search') || '').indexOf(term) !== -1)
-                    && (wantGroup === '' || (section && section.getAttribute('data-group') === wantGroup))
-                    && (wantStatus === '' || card.getAttribute('data-card-status') === wantStatus);
-                card.classList.toggle('hidden', !match);
-                if (match) { anyVisible = true; }
+            save({ term: search ? search.value : '', group: wantGroup, status: wantStatus });
+
+            subjects.forEach(function (el) {
+                var match = termMatches(el.getAttribute('data-search'))
+                    && (wantGroup === '' || groupOf(el) === wantGroup)
+                    && (wantStatus === '' || statusOf(el) === wantStatus);
+                if (match) { shown++; }
+                if (onIndex) {
+                    el.classList.toggle('hidden', !match);
+                } else {
+                    // The page you are on stays in the tree, filtered or not.
+                    el.hidden = !match && !el.hasAttribute('data-tree-current');
+                }
             });
 
-            // Hide groups with no visible cards.
-            groups.forEach(function (group) {
-                var visible = group.querySelectorAll('[data-card]:not(.hidden)').length;
-                group.classList.toggle('hidden', visible === 0);
+            if (onIndex) {
+                groups.forEach(function (group) {
+                    group.classList.toggle('hidden', !group.querySelector('[data-card]:not(.hidden)'));
+                });
+                if (noResults) { noResults.classList.toggle('hidden', shown > 0); }
+
+                // The tree shows exactly the cards that are left.
+                treeItems.forEach(function (item) {
+                    var card = document.getElementById('cg-card-' + item.getAttribute('data-component-id'));
+                    item.hidden = !card || card.classList.contains('hidden');
+                });
+            }
+
+            treeGroups.forEach(function (group) {
+                group.hidden = !group.querySelector('[data-cg-tree-item]:not([hidden])');
             });
 
-            if (noResults) { noResults.classList.toggle('hidden', anyVisible); }
+            filteredNotes.forEach(function (note) {
+                note.hidden = !active;
+                var count = note.querySelector('[data-cg-filtered-count]');
+                if (count) { count.textContent = shown; }
+            });
         };
 
         if (search) { search.addEventListener('input', filter); }
         if (groupFilter) { groupFilter.addEventListener('change', filter); }
         if (statusFilter) { statusFilter.addEventListener('change', filter); }
+        clearButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (search) { search.value = ''; }
+                if (groupFilter) { groupFilter.value = ''; }
+                if (statusFilter) { statusFilter.value = ''; }
+                filter();
+                if (search) { search.focus(); }
+            });
+        });
 
         if (statusFilter) {
             // The statuses on offer are the statuses on the page — never a list
@@ -62,9 +146,7 @@
 
             refreshStatusFilter = function () {
                 var seen = {};
-                cards.forEach(function (card) {
-                    seen[card.getAttribute('data-card-status') || '__nostatus'] = true;
-                });
+                subjects.forEach(function (el) { seen[statusOf(el)] = true; });
                 // Written statuses first, alphabetically; the two buckets that
                 // stand for something missing belong at the end of the list.
                 var values = Object.keys(seen).sort(function (a, b) {
@@ -90,6 +172,18 @@
 
             refreshStatusFilter();
         }
+
+        // Put back what was set before — only values that still exist, so a
+        // renamed group or a status nobody has any more cannot filter to
+        // nothing — then apply it.
+        var saved = load();
+        var hasOption = function (select, value) {
+            return Array.prototype.some.call(select.options, function (o) { return o.value === value; });
+        };
+        if (search && typeof saved.term === 'string') { search.value = saved.term; }
+        if (groupFilter && saved.group && hasOption(groupFilter, saved.group)) { groupFilter.value = saved.group; }
+        if (statusFilter && saved.status && hasOption(statusFilter, saved.status)) { statusFilter.value = saved.status; }
+        filter();
     }
 
     // --- Index: scale card thumbnails ---
@@ -294,6 +388,7 @@
 
             iframe = document.createElement('iframe');
             iframe.setAttribute('title', title);
+            iframe.setAttribute('name', cgPreview.frameName);
             iframe.addEventListener('load', function () {
                 frame.classList.add('is-loaded');
                 fitDevice();
@@ -309,8 +404,11 @@
 
         var reload = function () {
             frame.classList.remove('is-loaded');
-            iframe.src = src + (src.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+            // Changed values are posted, never put in the frame's URL.
+            if (cgPreview.post && cgPreview.post()) { return; }
+            iframe.contentWindow.location.replace(src + (src.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now());
         };
+        cgPreview.reload = reload;
 
         var selectDevice = function (device, btn) {
             currentDevice = DEVICES[device] ? device : 'desktop';
@@ -356,6 +454,414 @@
         })[0] || devButtons[0];
         selectDevice(defaultDevice, defaultBtn);
     }
+
+    // --- Detail: controls ---
+    // Change a story's values and watch the component answer. The values are
+    // POSTed with the CSRF token of whoever typed them; the frame's own URL
+    // never carries them (see _controls.twig for why).
+    //
+    // Rendered through fetch and handed to the frame as a document of its own
+    // with location.replace(): a form posted into the frame would add a history
+    // entry per keystroke, and Back would walk through every one of them.
+    (function () {
+        var root = document.querySelector('[data-cg-controls]');
+        var frameEl = document.querySelector('.cg-preview__frame');
+        var form = root && root.querySelector('[data-cg-args-form]');
+        if (!root || !frameEl || !form) { return; }
+
+        var rows = Array.prototype.slice.call(root.querySelectorAll('[data-cg-control]'));
+        var argsInput = form.querySelector('input[name="args"]');
+        var changedNote = root.querySelector('[data-cg-controls-changed]');
+        var resetBtn = root.querySelector('[data-cg-controls-reset]');
+        var copyBtn = root.querySelector('[data-cg-controls-copy]');
+        var linked = root.querySelector('[data-cg-controls-linked]');
+        var openTab = document.querySelector('[data-cg-open-tab]');
+        var src = frameEl.getAttribute('data-cg-src');
+
+        // Craft draws a disabled button from the `disabled` class, not the
+        // attribute — with the attribute alone it looks clickable and is not.
+        var enable = function (button, on) {
+            if (!button) { return; }
+            button.disabled = !on;
+            button.classList.toggle('disabled', !on);
+        };
+
+        var lastValid = {};
+        var current = null;
+        var sequence = 0;
+
+        var nameOf = function (row) { return row.getAttribute('data-cg-control'); };
+        var kindOf = function (row) { return row.getAttribute('data-kind'); };
+        var isSet = function (row) { return row.getAttribute('data-set') === '1'; };
+        var inputOf = function (row) { return row.querySelector('input:not([type="hidden"]), select, textarea'); };
+        var original = function (row) {
+            try { return JSON.parse(row.getAttribute('data-original')); } catch (e) { return null; }
+        };
+
+        var showError = function (row, message) {
+            var error = row.querySelector('[data-cg-control-error]');
+            if (!error) { return; }
+            error.textContent = message || '';
+            error.hidden = !message;
+        };
+
+        // The value a control holds, in the type the story would give it.
+        var read = function (row) {
+            var el = inputOf(row);
+            var name = nameOf(row);
+            switch (kindOf(row)) {
+                case 'bool':
+                    return el.checked;
+                case 'number':
+                    if (el.value.trim() === '') { return null; }
+                    var n = Number(el.value);
+                    return isNaN(n) ? null : n;
+                case 'json':
+                    var raw = el.value.trim();
+                    if (raw === '') { showError(row, ''); return null; }
+                    try {
+                        var parsed = JSON.parse(raw);
+                        showError(row, '');
+                        lastValid[name] = parsed;
+                        return parsed;
+                    } catch (e) {
+                        showError(row, root.getAttribute('data-msg-json'));
+                        return Object.prototype.hasOwnProperty.call(lastValid, name) ? lastValid[name] : original(row);
+                    }
+                default:
+                    return el.value;
+            }
+        };
+
+        var write = function (row, value) {
+            var el = inputOf(row);
+            switch (kindOf(row)) {
+                case 'bool':
+                    el.checked = !!value;
+                    break;
+                case 'json':
+                    el.value = value === null || value === undefined ? '' : JSON.stringify(value, null, 2);
+                    showError(row, '');
+                    break;
+                case 'select':
+                    var wanted = value === null || value === undefined ? '' : String(value);
+                    var has = Array.prototype.some.call(el.options, function (o) { return o.value === wanted; });
+                    if (!has) {
+                        var option = document.createElement('option');
+                        option.value = wanted;
+                        option.textContent = wanted === '' ? '—' : wanted;
+                        el.appendChild(option);
+                    }
+                    el.value = wanted;
+                    break;
+                default:
+                    el.value = value === null || value === undefined ? '' : String(value);
+            }
+        };
+
+        var unchanged = function (row, value) {
+            var before = original(row);
+            if (!isSet(row)) {
+                // Leaving an argument empty is not setting it.
+                return value === '' || value === null || value === false;
+            }
+            if (before !== null && typeof before === 'object') {
+                return JSON.stringify(before) === JSON.stringify(value);
+            }
+            if (kindOf(row) === 'bool' || kindOf(row) === 'number') {
+                return before === value;
+            }
+            return String(before === null ? '' : before) === String(value === null ? '' : value);
+        };
+
+        // Argument name => value, for the controls that differ from the
+        // story; null when none do.
+        var collect = function () {
+            var out = {};
+            var any = false;
+            rows.forEach(function (row) {
+                var value = read(row);
+                if (!unchanged(row, value)) {
+                    out[nameOf(row)] = value;
+                    any = true;
+                }
+            });
+            return any ? out : null;
+        };
+
+        var encode = function (obj) {
+            var bytes = new TextEncoder().encode(JSON.stringify(obj));
+            var bin = '';
+            for (var i = 0; i < bytes.length; i++) { bin += String.fromCharCode(bytes[i]); }
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        };
+        var decode = function (text) {
+            var b64 = text.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) { b64 += '='; }
+            var bin = atob(b64);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+            return JSON.parse(new TextDecoder().decode(bytes));
+        };
+
+        // The page's own address keeps the changes, so “this is what I see”
+        // can be sent as a link. Replaced, not pushed: Back leaves the page.
+        var remember = function (values) {
+            try {
+                var url = new URL(window.location.href);
+                if (values) { url.searchParams.set('args', encode(values)); } else { url.searchParams.delete('args'); }
+                window.history.replaceState(window.history.state, '', url.toString());
+            } catch (e) { /* an address we cannot rewrite — the controls still work */ }
+        };
+
+        var iframe = function () { return frameEl.querySelector('iframe'); };
+
+        // The preview document is served from the preview route; a <base>
+        // keeps its relative URLs (styles, scripts, images) pointing there.
+        var withBase = function (html, base) {
+            var tag = '<base href="' + base.replace(/"/g, '&quot;') + '">';
+            return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, function (m) { return m + tag; }) : tag + html;
+        };
+
+        var postToFrame = function (values) {
+            var frameNow = iframe();
+            if (!frameNow) { return; }
+            argsInput.value = JSON.stringify(values);
+
+            var body = new FormData(form);
+            var mine = ++sequence;
+            fetch(form.action, { method: 'POST', body: body, credentials: 'same-origin' })
+                .then(function (response) { return response.text(); })
+                .then(function (html) {
+                    // Typing outruns rendering; only the latest answer is shown.
+                    if (mine !== sequence) { return; }
+                    var base = new URL(form.action, window.location.href).toString();
+                    var blob = new Blob([withBase(html, base)], { type: 'text/html' });
+                    var url = URL.createObjectURL(blob);
+                    var target = iframe();
+                    target.addEventListener('load', function revoke() {
+                        target.removeEventListener('load', revoke);
+                        URL.revokeObjectURL(url);
+                    });
+                    target.contentWindow.location.replace(url);
+                })
+                .catch(function () {
+                    // A preview on another origin cannot be read back; post
+                    // into the frame instead, history entry and all.
+                    if (mine !== sequence) { return; }
+                    form.target = cgPreview.frameName;
+                    form.submit();
+                });
+        };
+
+        cgPreview.post = function () {
+            if (!current) { return false; }
+            postToFrame(current);
+            return true;
+        };
+
+        var refresh = function () {
+            current = collect();
+            if (changedNote) { changedNote.hidden = !current; }
+            enable(resetBtn, !!current);
+            enable(copyBtn, !!current);
+            remember(current);
+
+            if (current) {
+                postToFrame(current);
+            } else {
+                sequence++;
+                var frameNow = iframe();
+                if (frameNow) { frameNow.contentWindow.location.replace(src); }
+            }
+        };
+
+        var timer = null;
+        var later = function () {
+            clearTimeout(timer);
+            timer = setTimeout(refresh, 350);
+        };
+
+        rows.forEach(function (row) {
+            var el = inputOf(row);
+            if (!el) { return; }
+            var kind = kindOf(row);
+            if (kind === 'bool' || kind === 'select') {
+                el.addEventListener('change', refresh);
+            } else {
+                el.addEventListener('input', later);
+                el.addEventListener('change', function () { clearTimeout(timer); refresh(); });
+            }
+        });
+
+        // An asset on the site the preview is served from is written as a
+        // root-relative path: the story it ends up in is committed and run on
+        // local, staging and production, and only the path is the same on all
+        // of them.
+        var portable = function (url) {
+            try {
+                var asset = new URL(url, window.location.href);
+                var site = new URL(form.action, window.location.href);
+                return asset.origin === site.origin ? asset.pathname + asset.search : url;
+            } catch (e) {
+                return url;
+            }
+        };
+
+        // An image argument takes a URL; the site's own assets are one click
+        // away, through Craft's own asset modal — uploading included, where
+        // the person may upload. Nothing is attached to anything: the preview
+        // just gets the asset's URL.
+        rows.forEach(function (row) {
+            var pick = row.querySelector('[data-cg-control-image]');
+            if (!pick || !window.Craft || !Craft.createElementSelectorModal) {
+                if (pick) { pick.hidden = true; }
+                return;
+            }
+            pick.addEventListener('click', function () {
+                Craft.createElementSelectorModal('craft\\elements\\Asset', {
+                    multiSelect: false,
+                    criteria: { kind: ['image'] },
+                    onSelect: function (elements) {
+                        var element = elements && elements[0];
+                        if (!element) { return; }
+                        var url = element.url || (element.$element && element.$element.data('url')) || '';
+                        if (!url) {
+                            if (Craft.cp && Craft.cp.displayError) { Craft.cp.displayError(root.getAttribute('data-msg-no-url')); }
+                            return;
+                        }
+                        write(row, portable(url));
+                        clearTimeout(timer);
+                        refresh();
+                    }
+                });
+            });
+        });
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function () {
+                lastValid = {};
+                rows.forEach(function (row) { write(row, isSet(row) ? original(row) : null); });
+                refresh();
+            });
+        }
+
+        if (openTab) {
+            openTab.addEventListener('click', function (event) {
+                if (!current) { return; }
+                event.preventDefault();
+                argsInput.value = JSON.stringify(current);
+                form.target = '_blank';
+                form.submit();
+                form.target = cgPreview.frameName;
+            });
+        }
+
+        // The story is always shown under the controls as well: the clipboard
+        // can refuse (a browser without the permission, focus lost while the
+        // request was out), and a refusal must not look like nothing happened.
+        var shown = root.querySelector('[data-cg-controls-snippet]');
+        var shownText = shown && shown.querySelector('textarea');
+
+        var execCopy = function (text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            document.body.removeChild(ta);
+            return ok;
+        };
+
+        var copyText = function (text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text).then(
+                    function () { return true; },
+                    function () { return execCopy(text); }
+                );
+            }
+            return Promise.resolve(execCopy(text));
+        };
+
+        if (copyBtn && window.Craft && Craft.sendActionRequest) {
+            copyBtn.addEventListener('click', function () {
+                enable(copyBtn, false);
+                Craft.sendActionRequest('POST', 'component-guide/components/story-snippet', {
+                    data: {
+                        componentId: root.getAttribute('data-component-id'),
+                        storyId: root.getAttribute('data-story-id'),
+                        args: JSON.stringify(current || {})
+                    }
+                }).then(function (response) {
+                    var text = ((response && response.data) || {}).snippet || '';
+                    if (shown && shownText) {
+                        shownText.value = text;
+                        shownText.rows = Math.min(16, text.split('\n').length + 1);
+                        shown.hidden = false;
+                    }
+                    return copyText(text).then(function (copied) {
+                        if (copied) {
+                            if (Craft.cp && Craft.cp.displayNotice) { Craft.cp.displayNotice(root.getAttribute('data-msg-copied')); }
+                        } else if (shownText) {
+                            shownText.focus();
+                            shownText.select();
+                            if (Craft.cp && Craft.cp.displayError) { Craft.cp.displayError(root.getAttribute('data-msg-copy-manual')); }
+                        }
+                    });
+                }).catch(function (error) {
+                    var body = error && error.response && error.response.data;
+                    if (Craft.cp && Craft.cp.displayError) {
+                        Craft.cp.displayError((body && body.message) || root.getAttribute('data-msg-copy-error'));
+                    }
+                    if (window.console) { console.error('[component-guide] Copy as story:', error); }
+                }).then(function () {
+                    enable(copyBtn, !!current);
+                });
+            });
+        }
+
+        // Opened from a link that carries changes: say so, and wait. Applying
+        // them is one click — but it is the reader's click, not the link's.
+        var linkedValues = null;
+        try {
+            var param = new URL(window.location.href).searchParams.get('args');
+            if (param) {
+                var decoded = decode(param);
+                if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+                    linkedValues = {};
+                    rows.forEach(function (row) {
+                        if (Object.prototype.hasOwnProperty.call(decoded, nameOf(row))) {
+                            linkedValues[nameOf(row)] = decoded[nameOf(row)];
+                        }
+                    });
+                    if (!Object.keys(linkedValues).length) { linkedValues = null; }
+                }
+            }
+        } catch (e) { linkedValues = null; }
+
+        if (linkedValues && linked) {
+            linked.hidden = false;
+            linked.querySelector('[data-cg-controls-apply]').addEventListener('click', function () {
+                rows.forEach(function (row) {
+                    if (Object.prototype.hasOwnProperty.call(linkedValues, nameOf(row))) {
+                        write(row, linkedValues[nameOf(row)]);
+                    }
+                });
+                linked.hidden = true;
+                refresh();
+            });
+            linked.querySelector('[data-cg-controls-ignore]').addEventListener('click', function () {
+                linked.hidden = true;
+                remember(null);
+            });
+        } else if (new URL(window.location.href).searchParams.has('args')) {
+            remember(null);
+        }
+    })();
 
     // --- Status toggle: draft <-> stable, without leaving the page ---
     // A reviewer working through forty generated drafts is somewhere in the
@@ -446,6 +952,20 @@
 
                     // The card on the index, or the whole header on a detail page.
                     repaint(button.closest('.cg-card') || document, data);
+
+                    // The sidebar's status filter reads the tree on a
+                    // component page, so the tree has to move with it too.
+                    var treeItem = document.querySelector('[data-cg-tree-item][data-component-id="'
+                        + CSS.escape(button.getAttribute('data-component-id') || '') + '"]');
+                    if (treeItem) {
+                        treeItem.setAttribute('data-tree-status', status);
+                        var dot = treeItem.querySelector('[data-cg-tree-dot]');
+                        if (dot) {
+                            var colors = { stable: 'green', beta: 'blue', draft: 'orange', deprecated: 'red' };
+                            dot.className = 'status ' + (colors[status] || 'cg-status--none');
+                            dot.title = status;
+                        }
+                    }
 
                     var readyCount = document.querySelector('[data-cg-ready-count]');
                     if (readyCount && typeof data.galleryReadyCount === 'number') {

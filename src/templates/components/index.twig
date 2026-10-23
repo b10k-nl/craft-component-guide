@@ -6,6 +6,15 @@
 
 {% do view.registerAssetBundle("b10k\\componentguide\\assetbundles\\ComponentGuideAsset") %}
 
+{# The filters live in the sidebar, above the tree (see _tree): one set
+   narrows the cards and the tree together, and stays set from page to page. #}
+{% block sidebar %}
+    {% include "component-guide/components/_tree" with {
+        grouped: grouped,
+        autofocus: true,
+    } only %}
+{% endblock %}
+
 {% block content %}
     <p class="cg-intro light">
         {{ "A browser for reusable Twig components and their story states, discovered from your templates directory."|t('component-guide') }}
@@ -52,70 +61,6 @@
             {% endif %}
         </div>
 
-        {% if componentCount > 0 %}
-            {# Filter options are built from what is actually on the page, not
-               from a taxonomy we invent: a status is whatever the story file
-               says, and the two synthetic buckets cover the states a story
-               cannot express — no status written, and no story at all. Each
-               select is drawn only when it has something to choose between; a
-               lone “All groups” on a one-group project is a control that does
-               nothing. #}
-            {% set statusBuckets = [] %}
-            {% for groupComponents in grouped %}
-                {% for component in groupComponents %}
-                    {% set bucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
-                    {% if bucket not in statusBuckets %}
-                        {% set statusBuckets = statusBuckets|merge([bucket]) %}
-                    {% endif %}
-                {% endfor %}
-            {% endfor %}
-
-            <div class="cg-toolbar__tools">
-                {% if grouped|length > 1 or statusBuckets is not empty %}
-                    <div class="cg-filters"
-                         data-label-nostory="{{ "No story"|t('component-guide') }}"
-                         data-label-nostatus="{{ "No status"|t('component-guide') }}">
-                        {% if grouped|length > 1 %}
-                            {% set groupOptions = [{ label: "All groups"|t('component-guide'), value: '' }] %}
-                            {% for groupName in grouped|keys %}
-                                {% set groupOptions = groupOptions|merge([{ label: groupName, value: groupName }]) %}
-                            {% endfor %}
-                            {{ forms.select({
-                                id: 'cg-filter-group',
-                                options: groupOptions,
-                                label: "Group"|t('component-guide'),
-                                labelHidden: true,
-                            }) }}
-                        {% endif %}
-
-                        {# Only the “all” option is rendered here. The rest are built in
-                           the browser from the cards actually on the page, and rebuilt
-                           after every status toggle — the toggle moves a component
-                           between statuses over AJAX, so a list fixed at render time
-                           would either go stale or, if we pre-empted it with every
-                           status the plugin can write, offer choices that match nothing.
-                           The whole control hides itself when there is only one status
-                           to choose between. #}
-                        {% if statusBuckets is not empty %}
-                            {{ forms.select({
-                                id: 'cg-filter-status',
-                                options: [{ label: "All statuses"|t('component-guide'), value: '' }],
-                                label: "Status"|t('component-guide'),
-                                labelHidden: true,
-                            }) }}
-                        {% endif %}
-                    </div>
-                {% endif %}
-
-                <div class="cg-search">
-                    {{ forms.text({
-                        id: 'cg-search',
-                        placeholder: "Search components…"|t('component-guide'),
-                        autofocus: true,
-                    }) }}
-                </div>
-            </div>
-        {% endif %}
     </div>
 
     {% if componentCount == 0 %}
@@ -206,7 +151,7 @@ hero{{ settings.twigStorySuffix() }}</div>
                 <strong>{{ "Component Guide changed these files from the control panel, and the changes are still on disk."|t('component-guide') }}</strong>
                 <span class="light">{{ "Review the diff and commit."|t('component-guide') }}</span>
                 <span class="cg-hint__action">
-                    <button type="button" class="btn small" data-cg-reviewed>{{ "Reviewed"|t('component-guide') }}</button>
+                    <button type="button" class="btn small" data-icon="check" data-cg-reviewed>{{ "Reviewed"|t('component-guide') }}</button>
                 </span>
             </div>
             <ul class="cg-writes" data-cg-writes-list>
@@ -261,7 +206,9 @@ hero{{ settings.twigStorySuffix() }}</div>
                     {% endif %}
                     <ul class="cg-grid">
                         {% for component in components %}
-                            {% set search = [component.title, component.name, group, component.templatePath, component.status, component.description, component.isDocumented ? '' : 'undocumented']|join(' ')|lower %}
+                            {# Handles split at their capitals (upcomingRides → upcoming Rides): the
+                               search matches at word starts, and a handle is several words. #}
+                            {% set search = [component.title, component.name, group, component.templatePath, component.status, component.description, component.isDocumented ? '' : 'undocumented']|join(' ')|replace('/([a-z0-9])([A-Z])/', '$1 $2')|lower %}
                             {% set statusBucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
                             <li class="cg-card" id="cg-card-{{ component.id }}" data-card data-search="{{ search }}"
                                 data-card-status="{{ statusBucket }}">

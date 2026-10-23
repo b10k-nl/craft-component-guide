@@ -18,7 +18,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.8.1` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.9.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -34,10 +34,17 @@ Nothing configured yet? The guide starts by explaining how to get there:
   adjacent (`button.twig` + `button.stories.twig`) conventions.
 - Two story languages (Twig and PHP) and two shapes (simple + rich),
   normalized to one internal model.
-- Groups, lists and client-side-searches components in the CP.
+- Groups, lists and searches components in the CP, with the whole library in
+  the sidebar and filters that stay set while you move between components.
 - Renders each story in an isolated **iframe** with your front-end CSS, on a
   desktop, tablet or phone frame, cropped to the component's own height.
 - Generates a copy-pasteable Twig `{% include … with {…} only %}` snippet.
+- **Controls on every component page:** change a story's values — text,
+  on/off, a choice among the values the template or the block's field knows,
+  JSON for lists — and the preview re-renders as you type, on any device.
+  Every component and its stories sit in the sidebar. Keep a case with
+  **Copy as story**, or send the page's address to show what you see. Handy
+  when a client reviews blocks on staging, long before launch.
 - Surfaces per-component errors without breaking the rest of the guide.
 - Lists story-less templates via **marker files** (`GUIDE.md` / `BLOCKS.md` /
   `COMPONENTS.md`), so the guide doubles as a full component inventory.
@@ -117,6 +124,8 @@ in it:
 
 - the component index, marker files and groups
 - live previews rendered with your site's own CSS
+- Controls on the component page — change a story's values and watch it
+  re-render
 - the contract check and its badge — a story promising a field the entry type
   does not have
 - loud render errors, rather than a silent broken thumbnail
@@ -456,6 +465,38 @@ Then you review — not by reading a large diff, but by looking. Open the guide,
 scan the rendered previews, and the ones that came out wrong are the ones whose
 args need a two-line fix.
 
+## Trying a component: Controls
+
+Under the preview on a component page, **Controls** lists the story's
+arguments, each with an input that fits it:
+
+| The argument | The input |
+|---|---|
+| a field of the block, for a template that reads the block itself | every field of the entry type, in its order — a dropdown or radio field as a select of its options, a lightswitch as a checkbox, rich text as a text area, Matrix and relations as JSON |
+| fed by an adapter from a dropdown or lightswitch field | the same select or checkbox |
+| compared in the template with a few literals (`theme == 'dark'`) | a select of those values |
+| otherwise | by the values the stories give it: text (with the other stories' values as suggestions), number, checkbox, or JSON for a list or hash |
+
+An image argument — an Assets field holding one image, an `@image…` token, or
+a URL to an image file — gets **Choose an image** next to its input: Craft's
+own asset modal, uploading included where the person may upload. The preview
+gets the asset's URL; nothing is attached to anything. Assets in a volume
+without public URLs cannot be shown and say so.
+
+Arguments that only another story of the component uses are listed too,
+empty, so a case nobody wrote a story for is one input away.
+
+The preview re-renders as you type. Nothing is saved: **Reset** goes back to
+the story, and **Copy as story** puts the changed story on the clipboard as
+Twig for the story file. The page's own address follows the changes, so you
+can send someone exactly what you see. A page opened from such an address
+asks before it shows the values — see *Security & trust model*.
+
+This is the part of the guide a client can use: give them a control-panel
+account with the `component-guide:access` permission on staging, and they can
+open each block of the sprint and try it with their own words, without a page
+built around it.
+
 ## Reviewing and promoting
 
 A component whose story is `draft` gets a **Mark stable** button on its index
@@ -789,6 +830,15 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   POST-only and CSRF-protected, keeps only fields the block's template reads,
   and renders through the same preview as stories — a variant never supplies a
   template path or args of its own.
+
+- Controls send the values someone changed only in a POST body, with their
+  own CSRF token, to the same story of the same component — never a template
+  path, and never in the preview frame's URL. The component page keeps them
+  in its own address so it can be shared, but a page opened from an address
+  that carries values shows them only after the reader chooses to: a link can
+  carry anything, and a template that prints a value inside a `<script>` or an
+  `onclick` is not made safe by HTML escaping. The values are rendered, never
+  stored.
 
 Do **not** expose the plugin to untrusted users — story files are project code,
 not a sandbox.

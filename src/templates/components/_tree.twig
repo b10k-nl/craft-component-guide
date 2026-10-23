@@ -1,0 +1,142 @@
+{% import "_includes/forms" as forms %}
+{#
+    Every component, with the current one's stories under it — the way
+    Storybook lays a library out, in the control panel's own sidebar. Shared
+    by the index (nothing selected but “All components”) and a component page,
+    so moving between components is one click, not a trip back to the index.
+
+    Story-less components are listed on the index itself, for scaffolding; the
+    tree leaves them out unless one is the page you are on.
+
+    The filters above it are the same on both pages and kept for the browser
+    tab (see component-guide.js): narrow the library to a few blocks, open one,
+    and the sidebar still shows those few until the filters are cleared.
+#}
+{% set current = current ?? null %}
+{% set story = story ?? null %}
+
+<nav class="cg-tree" aria-label="{{ 'Components'|t('component-guide') }}">
+    <div class="cg-tree__filter">
+        <input type="search" class="text fullwidth" id="cg-search"
+               {% if autofocus ?? false %}autofocus{% endif %}
+               placeholder="{{ 'Find a component'|t('component-guide') }}"
+               aria-label="{{ 'Find a component'|t('component-guide') }}">
+    </div>
+{% if grouped is not empty %}
+    {# Filter options are built from what is actually on the page, not
+       from a taxonomy we invent: a status is whatever the story file
+       says, and the two synthetic buckets cover the states a story
+       cannot express — no status written, and no story at all. Each
+       select is drawn only when it has something to choose between; a
+       lone “All groups” on a one-group project is a control that does
+       nothing. #}
+    {% set statusBuckets = [] %}
+    {% for groupComponents in grouped %}
+        {% for component in groupComponents %}
+            {% set bucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
+            {% if bucket not in statusBuckets %}
+                {% set statusBuckets = statusBuckets|merge([bucket]) %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    <div class="cg-sidebar-filters">
+        {% if grouped|length > 1 or statusBuckets is not empty %}
+            <div class="cg-filters"
+                 data-label-nostory="{{ "No story"|t('component-guide') }}"
+                 data-label-nostatus="{{ "No status"|t('component-guide') }}">
+                {% if grouped|length > 1 %}
+                    {% set groupOptions = [{ label: "All groups"|t('component-guide'), value: '' }] %}
+                    {% for groupName in grouped|keys %}
+                        {% set groupOptions = groupOptions|merge([{ label: groupName, value: groupName }]) %}
+                    {% endfor %}
+                    {{ forms.select({
+                        id: 'cg-filter-group',
+                        options: groupOptions,
+                        label: "Group"|t('component-guide'),
+                        labelHidden: true,
+                    }) }}
+                {% endif %}
+
+                {# Only the “all” option is rendered here. The rest are built in
+                   the browser from the cards actually on the page, and rebuilt
+                   after every status toggle — the toggle moves a component
+                   between statuses over AJAX, so a list fixed at render time
+                   would either go stale or, if we pre-empted it with every
+                   status the plugin can write, offer choices that match nothing.
+                   The whole control hides itself when there is only one status
+                   to choose between. #}
+                {% if statusBuckets is not empty %}
+                    {{ forms.select({
+                        id: 'cg-filter-status',
+                        options: [{ label: "All statuses"|t('component-guide'), value: '' }],
+                        label: "Status"|t('component-guide'),
+                        labelHidden: true,
+                    }) }}
+                {% endif %}
+            </div>
+        {% endif %}
+
+    </div>
+{% endif %}
+    <p class="cg-tree__filtered" data-cg-filtered hidden>
+        {{ "Filtered:"|t('component-guide') }}
+        <strong data-cg-filtered-count>0</strong>
+        <button type="button" class="btn small" data-cg-filters-clear>{{ "Clear filters"|t('component-guide') }}</button>
+    </p>
+    <ul>
+        <li>
+            <a href="{{ cpUrl('component-guide') }}"{% if current is null %} class="sel" aria-current="page"{% endif %}>
+                <span class="label">{{ "All components"|t('component-guide') }}</span>
+            </a>
+        </li>
+        {% for group, items in grouped %}
+            {% set visible = items|filter(c => c.isDocumented or (current and c.id == current.id)) %}
+            {% if visible is not empty %}
+                <li class="heading" data-cg-tree-group>
+                    <span>{{ group }}</span>
+                    <ul>
+                        {% for c in visible %}
+                            {% set isCurrent = current and c.id == current.id %}
+                            {% set expanded = isCurrent and c.stories|length > 1 %}
+                            <li data-cg-tree-item data-component-id="{{ c.id }}"
+                                data-search="{{ [c.title, c.name, group]|join(' ')|replace('/([a-z0-9])([A-Z])/', '$1 $2')|lower }}"
+                                data-tree-group="{{ group }}"
+                                data-tree-status="{{ not c.isDocumented ? '__nostory' : (c.status ?: '__nostatus') }}"
+                                {% if isCurrent %}data-tree-current{% endif %}>
+                                <a href="{{ cpUrl('component-guide/components/' ~ c.id) }}"
+                                   class="{{ isCurrent and not expanded ? 'sel' }}{{ expanded ? ' cg-tree__open' }}"
+                                   {% if isCurrent and not expanded %}aria-current="page"{% endif %}>
+                                    {# The status the filter above asks about, as Craft marks an
+                                       element's: a dot, named in its tooltip. #}
+                                    {% set dot = { stable: 'green', beta: 'blue', draft: 'orange', deprecated: 'red' }[c.status ?? ''] ?? null %}
+                                    <span class="status {{ dot ?? 'cg-status--none' }}" data-cg-tree-dot
+                                          title="{{ c.status ?: (c.isDocumented ? 'No status'|t('component-guide') : 'No story'|t('component-guide')) }}"
+                                          aria-hidden="true"></span>
+                                    <span class="label">{{ c.title }}</span>
+                                    {% if not expanded and c.stories|length > 1 %}
+                                        <span class="cg-tree__count">{{ c.stories|length }}</span>
+                                    {% endif %}
+                                </a>
+                                {% if expanded %}
+                                    <ul class="cg-tree__stories">
+                                        {% for s in c.stories %}
+                                            {% set here = story and s.id == story.id %}
+                                            <li>
+                                                <a href="{{ cpUrl('component-guide/components/' ~ c.id ~ '/' ~ s.id) }}"
+                                                   class="{{ here ? 'sel' }}"
+                                                   {% if here %}aria-current="page"{% endif %}>
+                                                    <span class="label">{{ s.title }}</span>
+                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>

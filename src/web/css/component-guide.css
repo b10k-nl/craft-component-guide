@@ -157,23 +157,24 @@
 .cg-layout > * { min-width: 0; }
 @media (max-width: 760px) { .cg-layout { grid-template-columns: 1fr; } }
 
-.cg-stories__title { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #8b97a3; margin: 0 0 8px; }
-.cg-stories ul { list-style: none; margin: 0; padding: 0; }
-.cg-stories__item {
-    display: block;
-    padding: 7px 10px;
-    border-radius: 6px;
-    text-decoration: none;
-    color: #3f4d5a;
+.cg-layout--single { grid-template-columns: 1fr; }
+
+/* Component tree in the CP sidebar (detail page) */
+.cg-tree__filter { padding: 0 0 10px; }
+.cg-tree [hidden] { display: none; }
+.cg-tree a .cg-tree__count {
+    flex: none; margin-inline-start: 6px; font-size: 11px; color: var(--light-text-color, #8b97a3);
 }
-.cg-stories__item:hover { background: #eef1f4; }
-.cg-stories__item.is-selected { background: #4a5560; color: #fff; }
+.cg-tree a.cg-tree__open { font-weight: 600; }
+.cg-tree .cg-tree__stories { margin: 0 0 4px; }
+.cg-tree .cg-tree__stories a { padding-inline-start: calc(var(--xl, 24px) + 12px); font-size: 13px; min-height: 0; padding-block: 5px; }
 
 /* Preview */
 .cg-preview { border: 1px solid #cdd8e4; border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
 .cg-preview__bar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 12px; background: #f3f5f7; border-bottom: 1px solid #cdd8e4;
+    /* White, not grey: Craft's grey buttons on a grey bar read as labels. */
+    padding: 8px 12px; background: #fff; border-bottom: 1px solid #cdd8e4;
 }
 .cg-preview__actions { display: flex; align-items: center; gap: 8px; }
 /* Craft's .btn sets display, which beats the hidden attribute — without this
@@ -316,3 +317,52 @@
     display: flex; align-items: center; gap: 7px;
     background: #f1f3f5; border-color: #dfe3e8; color: #5a6672;
 }
+
+/* Controls (detail page) */
+.cg-controls { border: 1px solid #cdd8e4; border-radius: 8px; margin-bottom: 24px; }
+.cg-controls__bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 12px; background: #fff; border-bottom: 1px solid #cdd8e4; border-radius: 8px 8px 0 0;
+}
+.cg-controls__bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: #5f6c79; margin: 0; }
+.cg-controls__changed { font-size: 12px; color: #8a5a00; }
+.cg-controls__actions { margin-inline-start: auto; display: flex; gap: 8px; }
+.cg-controls [hidden] { display: none; }
+.cg-controls__linked {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 12px; padding: 10px 12px; background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px;
+}
+.cg-controls__linked p { margin: 0; flex: 1 1 320px; font-size: 13px; }
+.cg-controls__empty { padding: 12px; margin: 0; }
+.cg-controls__list { padding: 4px 12px 8px; }
+.cg-controls__row {
+    display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 12px; align-items: start;
+    padding: 8px 0; border-top: 1px solid #eef1f4;
+}
+.cg-controls__row:first-child { border-top: 0; }
+.cg-controls__row > * { min-width: 0; }
+.cg-controls__name { padding-top: 6px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.cg-controls__name code { font-size: 12.5px; }
+.cg-controls__input textarea.code { font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 12px; }
+.cg-controls__input input.checkbox + label { margin-top: 6px; }
+.cg-controls__error { margin: 4px 0 0; font-size: 12px; }
+@media (max-width: 760px) { .cg-controls__row { grid-template-columns: 1fr; gap: 4px; } }
+.cg-controls__snippet { margin: 12px; }
+.cg-controls__snippet p { margin: 0 0 6px; font-size: 13px; }
+.cg-controls__snippet textarea { font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 12px; }
+.cg-controls__with-button { display: flex; gap: 8px; align-items: flex-start; }
+.cg-controls__with-button .btn { flex: none; }
+
+/* Index filters in the sidebar, under the search */
+.cg-sidebar-filters { padding: 0 0 12px; }
+.cg-sidebar-filters .cg-filters { flex-direction: column; align-items: stretch; gap: 6px; }
+.cg-sidebar-filters .field { margin: 0; }
+.cg-sidebar-filters .select, .cg-sidebar-filters select { width: 100%; }
+.cg-tree__filtered { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; color: #596673; }
+.cg-tree__filtered[hidden] { display: none; }
+/* A rule between the filters and the list they narrow. */
+.cg-tree > ul { border-top: 1px solid var(--hairline-color, #cdd8e4); padding-top: 12px; }
+/* Status dots in the tree: Craft's own .status, with its spacing. */
+.cg-tree a .status { flex: none; margin-inline-end: 8px; }
+.cg-tree a .status.cg-status--none { background: transparent; border: 1px solid var(--gray-300, #a3afbb); }
+.cg-tree a.sel .status.cg-status--none { border-color: currentColor; }

@@ -2,8 +2,14 @@
 
 namespace b10k\componentguide\controllers;
 
+use b10k\componentguide\helpers\StoryControls;
+use b10k\componentguide\helpers\UserStoryBuilder;
+use b10k\componentguide\models\AdapterBinding;
+use b10k\componentguide\models\ComponentDefinition;
+use b10k\componentguide\models\StoryDefinition;
 use b10k\componentguide\Plugin;
 use Craft;
+use InvalidArgumentException;
 use craft\web\Controller;
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
@@ -114,11 +120,11 @@ class ComponentsController extends Controller
         // A template that reads the block itself is included with the block,
         // not with the story's values — those are the block's field contents,
         // and pasting them as include arguments would do nothing.
-        $self = $plugin->getContractInspector()->bindings(
+        $binding = $plugin->getContractInspector()->bindings(
             [$component],
             Craft::$app->getPath()->getSiteTemplatesPath(),
         )[$component->id] ?? null;
-        $self = $self !== null && $self->selfReading ? $self : null;
+        $self = $binding !== null && $binding->selfReading ? $binding : null;
         $snippet = match (true) {
             $story === null => null,
             $self !== null => sprintf(
@@ -135,6 +141,8 @@ class ComponentsController extends Controller
         return $this->renderTemplate('component-guide/components/view', [
             'title' => $component->title,
             'component' => $component,
+            'grouped' => $plugin->getRepository()->getGrouped(),
+            'controls' => $story !== null ? $this->controls($component, $story, $binding) : [],
             'entryTypeName' => $matcher->matchedEntryType($component),
             'readyForEditors' => $matcher->isReadyForEditors($component),
             'story' => $story,
@@ -147,6 +155,95 @@ class ComponentsController extends Controller
             'canToggleStatus' => $this->canScaffold(),
             'enableIframePreview' => $plugin->getSettings()->enableIframePreview,
         ]);
+    }
+
+    /**
+     * The story as changed on the component page, as Twig a developer pastes
+     * into the story file — the same writer as an editor's shared variant, so
+     * the two can never disagree about quoting.
+     */
+    public function actionStorySnippet(): Response
+    {
+        $this->requirePostRequest();
+        $this->requireAcceptsJson();
+
+        $component = Plugin::getInstance()->getRepository()->getById(
+            (string)$this->request->getRequiredBodyParam('componentId'),
+        );
+        $story = $component?->getStory((string)$this->request->getRequiredBodyParam('storyId'));
+        if ($component === null || $story === null) {
+            throw new NotFoundHttpException('Story not found.');
+        }
+
+        try {
+            $overrides = StoryControls::decodeOverrides((string)$this->request->getBodyParam('args', ''));
+        } catch (InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage(), 0, $e);
+        }
+
+        $edited = StoryControls::withOverrides($story, $overrides);
+
+        return $this->asJson([
+            'snippet' => UserStoryBuilder::snippet(
+                UserStoryBuilder::attributedTitle(
+                    $story->title,
+                    Craft::$app->getUser()->getIdentity()?->getName(),
+                    new \DateTimeImmutable(),
+                ),
+                $edited->args,
+                UserStoryBuilder::supportsInlineComments()
+                    ? $component->title . ' · ' . $component->storyFilePath
+                    : null,
+            ),
+            'file' => $component->storyFilePath,
+        ]);
+    }
+
+    /**
+     * One control per argument of the story, typed from the best source there
+     * is: the block's own fields, then the literals the template compares an
+     * argument with, then the values the stories give it.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function controls(ComponentDefinition $component, StoryDefinition $story, ?AdapterBinding $binding): array
+    {
+        $plugin = Plugin::getInstance();
+
+        $enums = [];
+        if (is_readable($component->absoluteTemplatePath)) {
+            $source = @file_get_contents($component->absoluteTemplatePath);
+            if ($source !== false) {
+                $enums = $plugin->getStoryScaffolder()->detectEnums($source);
+            }
+        }
+
+        $fields = [];
+        $handle = $binding !== null ? $plugin->getGalleryMatcher()->matchedEntryTypeHandle($component) : null;
+        $schema = $handle !== null ? $plugin->getContractInspector()->entryTypeSchema($handle) : null;
+        $schemaFields = is_array($schema['fields'] ?? null) ? $schema['fields'] : [];
+
+        if ($binding !== null && $binding->selfReading) {
+            // The arguments are the block's fields.
+            $fields = $schemaFields;
+        } elseif ($binding !== null) {
+            // An adapter feeds each argument from a field; the field says
+            // what kind of value it is, and which options it allows.
+            foreach (array_keys($binding->args) as $arg) {
+                $field = $binding->fieldFor((string)$arg);
+                if ($field !== null && isset($schemaFields[$field])) {
+                    $fields[(string)$arg] = $schemaFields[$field];
+                }
+            }
+        }
+
+        return StoryControls::build(
+            $story,
+            $component->stories,
+            $enums,
+            $fields,
+            $binding !== null && $binding->selfReading,
+        );
     }
 
     /**

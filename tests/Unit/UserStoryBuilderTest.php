@@ -118,6 +118,39 @@ class UserStoryBuilderTest extends TestCase
         );
     }
 
+    public function testAttributedTitleSaysWhoAndWhen(): void
+    {
+        $date = new \DateTimeImmutable('2026-10-23T09:15:00+02:00');
+
+        $this->assertSame('Light — by Anna Smith, 2026-10-23', UserStoryBuilder::attributedTitle('Light', "  Anna \n Smith ", $date));
+        $this->assertSame('Light — 2026-10-23', UserStoryBuilder::attributedTitle('Light', null, $date));
+        $this->assertSame('Light — 2026-10-23', UserStoryBuilder::attributedTitle('Light', '  ', $date));
+        $this->assertSame(
+            "'Light — by Anna, 2026-10-23': {\n    args: {\n        theme: 'dark',\n    },\n},",
+            UserStoryBuilder::snippet(UserStoryBuilder::attributedTitle('Light', 'Anna', $date), ['theme' => 'dark']),
+        );
+    }
+
+    public function testSnippetCanSayWhichBlockItIsFor(): void
+    {
+        $snippet = UserStoryBuilder::snippet('Light — by Anna, 2026-10-23', ['theme' => 'dark'], "Hero ·\n _blocks/hero.stories.twig");
+
+        $this->assertSame(
+            "# Hero · _blocks/hero.stories.twig\n'Light — by Anna, 2026-10-23': {\n    args: {\n        theme: 'dark',\n    },\n},",
+            $snippet,
+            'one line, or the rest of the comment would be read as Twig',
+        );
+
+        // Pasted into a story file, exactly as a developer would.
+        $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([
+            't' => "{% set stories = {\n    Default: { args: { theme: 'light' } },\n" . $snippet . "\n} %}{{ stories|keys|join('|') }}",
+        ]));
+        $this->assertSame('Default|Light — by Anna, 2026-10-23', $twig->render('t'));
+
+        $this->assertTrue(UserStoryBuilder::supportsInlineComments('3.15.0'));
+        $this->assertFalse(UserStoryBuilder::supportsInlineComments('3.8.0'));
+    }
+
     public function testTwigLiteralQuotesKeysOnlyWhenItMust(): void
     {
         $this->assertSame("{\n    plain: 1,\n    'two words': 'a\\\\b',\n}", TwigLiteral::value(['plain' => 1, 'two words' => 'a\\b']));

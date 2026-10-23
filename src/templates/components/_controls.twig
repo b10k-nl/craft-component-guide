@@ -1,0 +1,117 @@
+{#
+    Controls: change a story's values and watch the component answer.
+
+    The changed values never travel in a URL the preview loads. They are posted
+    into the frame with this session's CSRF token, so a link can open a story
+    but cannot make someone else's preview render values of its choosing. The
+    page's own address keeps them (for “send me what you see”), and a page
+    opened from such an address asks before it uses them.
+
+    Nothing here is written anywhere: closing the page forgets it. “Copy as
+    story” is the way to keep a case.
+#}
+{% set prettyJson = constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE') %}
+
+<section class="cg-controls" data-cg-controls
+         data-component-id="{{ component.id }}"
+         data-story-id="{{ story.id }}"
+         data-msg-copied="{{ 'Copied. It goes into {file}, inside the stories.'|t('component-guide', { file: component.storyFilePath }) }}"
+         data-msg-copy-error="{{ 'Could not prepare the story.'|t('component-guide') }}"
+         data-msg-no-url="{{ 'This asset has no public URL, so a preview cannot show it. Choose one from a volume with public URLs.'|t('component-guide') }}"
+         data-msg-copy-manual="{{ 'The browser did not allow copying. The story is selected below — copy it with ⌘C or Ctrl+C.'|t('component-guide') }}"
+         data-msg-json="{{ 'Not valid JSON — the preview keeps the last valid value.'|t('component-guide') }}"
+         aria-labelledby="cg-controls-title">
+
+    <form method="post" action="{{ previewUrl }}" target="cg-preview-frame" data-cg-args-form hidden>
+        {{ csrfInput() }}
+        <input type="hidden" name="args" value="">
+    </form>
+
+    <header class="cg-controls__bar">
+        <h2 id="cg-controls-title">{{ "Controls"|t('component-guide') }}</h2>
+        <span class="cg-controls__changed" data-cg-controls-changed hidden>
+            {{ "Changed here only — nothing is saved."|t('component-guide') }}
+        </span>
+        <span class="cg-controls__actions">
+            <button type="button" class="btn disabled" data-cg-controls-reset disabled>{{ "Reset"|t('component-guide') }}</button>
+            <button type="button" class="btn disabled" data-icon="clipboard" data-cg-controls-copy disabled>{{ "Copy as story"|t('component-guide') }}</button>
+        </span>
+    </header>
+
+    <div class="cg-controls__linked" data-cg-controls-linked hidden>
+        <p>{{ "This link carries changed values for this story. They are not shown until you choose to — a link can carry anything, so look at who sent it."|t('component-guide') }}</p>
+        <button type="button" class="btn submit" data-icon="eye" data-cg-controls-apply>{{ "Show them"|t('component-guide') }}</button>
+        <button type="button" class="btn" data-cg-controls-ignore>{{ "Ignore"|t('component-guide') }}</button>
+    </div>
+
+    <div class="cg-controls__snippet" data-cg-controls-snippet hidden>
+        <p class="light">{{ "The story as copied. It goes into {file}, inside the stories."|t('component-guide', { file: component.storyFilePath }) }}</p>
+        <textarea class="text fullwidth code" readonly spellcheck="false" rows="8"
+                  aria-label="{{ 'Copy as story'|t('component-guide') }}"></textarea>
+    </div>
+
+    {% if controls is empty %}
+        <p class="light cg-controls__empty">{{ "This story takes no arguments."|t('component-guide') }}</p>
+    {% else %}
+        <div class="cg-controls__list">
+            {% for c in controls %}
+                {% set id = 'cg-ctl-' ~ loop.index %}
+                <div class="cg-controls__row"
+                     data-cg-control="{{ c.name }}"
+                     data-kind="{{ c.kind }}"
+                     data-set="{{ c.set ? '1' : '0' }}"
+                     data-original="{{ c.value|json_encode }}">
+                    <div class="cg-controls__name">
+                        <label for="{{ id }}"><code>{{ c.name }}</code></label>
+                        {% if c.label and c.label != c.name %}
+                            <span class="light">{{ c.label }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="cg-controls__input">
+                        {% switch c.kind %}
+                            {% case 'bool' %}
+                                <input type="checkbox" class="checkbox" id="{{ id }}"{% if c.value %} checked{% endif %}>
+                                <label for="{{ id }}"><span class="visually-hidden">{{ c.name }}</span></label>
+                            {% case 'number' %}
+                                <input type="number" step="any" class="text" id="{{ id }}" value="{{ c.value ?? '' }}">
+                            {% case 'select' %}
+                                <div class="select">
+                                    <select id="{{ id }}">
+                                        {% if not c.set %}
+                                            <option value="" selected>—</option>
+                                        {% endif %}
+                                        {% for value, label in c.options %}
+                                            <option value="{{ value }}"{% if c.set and (value ~ '') == (c.value ~ '') %} selected{% endif %}>
+                                                {{- label -}}{% if (label ~ '') != (value ~ '') %} ({{ value }}){% endif -%}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            {% case 'json' %}
+                                {% set json = c.set ? c.value|json_encode(prettyJson) : '' %}
+                                <textarea class="text fullwidth code" id="{{ id }}" spellcheck="false"
+                                          rows="{{ max(2, min(14, json|split("\n")|length)) }}">{{ json }}</textarea>
+                                <p class="error cg-controls__error" data-cg-control-error hidden></p>
+                            {% case 'textarea' %}
+                                <textarea class="text fullwidth" id="{{ id }}" rows="3">{{ c.value ?? '' }}</textarea>
+                            {% default %}
+                                {% if c.image %}<div class="cg-controls__with-button">{% endif %}
+                                <input type="text" class="text fullwidth" id="{{ id }}" value="{{ c.value ?? '' }}"
+                                       {% if c.suggestions is not empty %}list="{{ id }}-list"{% endif %}
+                                       autocomplete="off">
+                                {% if c.suggestions is not empty %}
+                                    <datalist id="{{ id }}-list">
+                                        {% for value in c.suggestions %}<option value="{{ value }}">{% endfor %}
+                                    </datalist>
+                                {% endif %}
+                                {% if c.image %}
+                                    <button type="button" class="btn" data-icon="image" data-cg-control-image>{{ "Choose an image"|t('component-guide') }}</button>
+                                    </div>
+                                {% endif %}
+                        {% endswitch %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>

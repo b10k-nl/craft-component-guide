@@ -3,6 +3,27 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.10.0 - 2026-10-25
+
+### Added
+
+- **Live Preview follows the block you add.** A block added from the gallery
+  is appended, so it usually landed below the fold while the preview stayed
+  where it was. Now the preview scrolls to it once it shows up. The front end
+  has no marker for a new block and a block may have no text, so it is found
+  by the page's shape: the element tree recorded before the click, compared
+  with the first refresh that has more elements, from the start — everything
+  before an appended block is unchanged. The scroll waits until Craft has
+  finished swapping and resizing the preview, follows the block through the
+  refresh its prefill causes, and gives way as soon as the editor scrolls,
+  clicks or types in the preview. Without Live Preview, or with a preview on
+  another origin, nothing changes.
+
+### Changed
+
+- The README and Getting Started describe trying blocks on staging — the
+  client-review use of Controls added in 1.9.0.
+
 ## 1.9.0 - 2026-10-23
 
 ### Added

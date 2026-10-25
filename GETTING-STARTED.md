@@ -67,6 +67,11 @@ only ever writes story files when you press “Add story”, “Mark stable” o
    like the front end does (see the README).
 5. **Sanity-check from the command line:**
    `php craft component-guide/components/scan` prints everything it found.
+6. **Try a block.** Open any component: under the preview, **Controls** lists
+   its arguments — change a heading, pick another theme, choose an image from
+   your assets — and the preview re-renders as you type. Nothing is saved;
+   **Copy as story** keeps a case as Twig for the story file. On staging, this
+   is the page a client uses to try the blocks of a sprint.
 
 The README covers the story formats, the terms it uses (page builder, block,
 block template, adapter), the template shapes the guide supports — including

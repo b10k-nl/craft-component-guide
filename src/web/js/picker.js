@@ -739,6 +739,152 @@
         requestAnimationFrame(tick);
     };
 
+    // --- Follow the new block in Live Preview ------------------------------
+    // The gallery appends, so in Live Preview the block an editor just added
+    // lands at the end of the page builder — usually below the fold — while
+    // Craft keeps the preview where it was.
+    //
+    // The front end has no marker for "the block with this uid", and a block
+    // may have no text at all, so it is found by the page's shape instead.
+    // Before the click the preview's element tree is recorded (tag and first
+    // class, and how many elements sit under each node — no content). In the
+    // first refresh that has more elements, the walk goes down the branch that
+    // grew; where a node has gained a child, the first child that differs from
+    // the recorded one — comparing from the start, because everything before
+    // an appended block is unchanged — is the new block. That holds with a
+    // static section after the page builder, and when the new block is the
+    // same kind as the one before it.
+    //
+    // Nothing happens without Live Preview, with a preview on another origin,
+    // or when no refresh within a few seconds adds anything to the page.
+    var SKIP_TAGS = { SCRIPT: 1, STYLE: 1, TEMPLATE: 1, NOSCRIPT: 1, LINK: 1, META: 1 };
+
+    var shapeOf = function (el) {
+        var kids = [];
+        for (var c = el.firstElementChild; c; c = c.nextElementSibling) {
+            if (!SKIP_TAGS[c.tagName]) { kids.push(shapeOf(c)); }
+        }
+        var size = kids.length;
+        kids.forEach(function (k) { size += k.size; });
+        var firstClass = (el.getAttribute('class') || '').trim().split(/\s+/)[0] || '';
+        return { sig: el.tagName + '.' + firstClass, size: size, kids: kids, el: el };
+    };
+
+    // The element in `after` that `before` did not have, or null.
+    var addedElement = function (before, after) {
+        if (after.size <= before.size) { return null; }
+
+        if (after.kids.length > before.kids.length) {
+            for (var i = 0; i < after.kids.length; i++) {
+                if (i >= before.kids.length || before.kids[i].sig !== after.kids[i].sig) {
+                    return after.kids[i].el;
+                }
+            }
+        }
+
+        for (var j = 0; j < after.kids.length && j < before.kids.length; j++) {
+            if (after.kids[j].size > before.kids[j].size) {
+                return addedElement(before.kids[j], after.kids[j]);
+            }
+        }
+
+        return null;
+    };
+
+    var followInPreview = function () {
+        if (!window.Garnish || !window.Craft || !Craft.Preview) { return; }
+        var frames = document.querySelectorAll('iframe.lp-preview');
+        var frame = frames.length ? frames[frames.length - 1] : null;
+        if (!frame) { return; }
+
+        var before;
+        try {
+            var doc = frame.contentDocument;
+            // A frame still loading has nothing to compare against.
+            if (!doc || !doc.body || !doc.body.firstElementChild) { return; }
+            // Shapes only: the old frame is thrown away on refresh.
+            before = shapeOf(doc.body);
+            (function strip(node) { node.el = null; node.kids.forEach(strip); })(before);
+        } catch (e) {
+            return; // a preview on another origin cannot be read
+        }
+
+        // Followed for a few seconds — the block's own refresh and the one
+        // its prefill causes — and given up the moment the editor scrolls,
+        // clicks or types in the preview: their scroll wins over ours.
+        var deadline = Date.now() + 10000;
+        var done = false;
+        var poll = null;
+        var stop = function () {
+            done = true;
+            clearTimeout(poll);
+            Garnish.off(Craft.Preview, 'afterUpdateIframe', onUpdate);
+        };
+        var userEvents = ['wheel', 'touchstart', 'mousedown', 'keydown'];
+        var watchUser = function (target) {
+            userEvents.forEach(function (type) {
+                target.addEventListener(type, stop, { once: true, passive: true });
+            });
+        };
+        var container = document.querySelector('.lp-iframe-container');
+        if (container) { watchUser(container); }
+
+        // Craft swaps the frame, sets its height and scroll position, and —
+        // with its iframe resizer, the default — resizes the frame again once
+        // the page inside reports its size. A scroll made before that is
+        // undone. So wait until Craft calls the frame loaded and its height
+        // has held still for a moment, then scroll.
+        var whenSettled = function (preview, iframe, then) {
+            var lastHeight = -1;
+            var steady = 0;
+            var giveUp = Date.now() + 4000;
+            var check = function () {
+                if (done || !iframe.isConnected) { return; }
+                var height = iframe.offsetHeight;
+                var loaded = !preview || preview.iframeLoaded !== false;
+                var ready = iframe.contentDocument && iframe.contentDocument.readyState === 'complete';
+                steady = (loaded && ready && height === lastHeight) ? steady + 1 : 0;
+                lastHeight = height;
+                if (steady >= 3 || Date.now() > giveUp) { then(); return; }
+                poll = setTimeout(check, 100);
+            };
+            check();
+        };
+
+        var onLoad = function (preview, iframe) {
+            if (done) { return; }
+            if (Date.now() > deadline) { stop(); return; }
+            var target;
+            try {
+                var body = iframe.contentDocument && iframe.contentDocument.body;
+                target = body ? addedElement(before, shapeOf(body)) : null;
+                if (body) { watchUser(iframe.contentDocument); }
+            } catch (e) {
+                stop();
+                return;
+            }
+            // A block whose template renders nothing until its fields are
+            // filled shows up only in a later refresh; keep waiting for it.
+            if (!target) { return; }
+
+            whenSettled(preview, iframe, function () {
+                if (done || !target.isConnected) { return; }
+                try { target.scrollIntoView({ block: 'start' }); } catch (e) { /* old browser */ }
+            });
+        };
+
+        var onUpdate = function (ev) {
+            var iframe = ev && ev.$iframe && ev.$iframe[0];
+            if (!iframe || done) { return; }
+            clearTimeout(poll);
+            var preview = ev.target || null;
+            iframe.addEventListener('load', function () { onLoad(preview, iframe); }, { once: true });
+        };
+
+        Garnish.on(Craft.Preview, 'afterUpdateIframe', onUpdate);
+        setTimeout(stop, 10000);
+    };
+
     // --- Undo ---------------------------------------------------------------
     // Craft has a notification of its own whose details area takes arbitrary
     // markup, so there is no reason to build a snackbar. One detail of
@@ -1349,12 +1495,16 @@
                 // fields hand back the live field element (prefillable),
                 // Cards/Index mode just returns true — Craft opens its own
                 // slideout there, so there is no local form to fill.
-                var target = source.add(item);
-                if (!target) { return; }
-
                 // What the editor picked is what they get: the block starts
                 // from the state whose preview they were looking at.
                 var prefill = active ? active.prefill : (comp ? comp.prefill : null);
+
+                // Recorded before the block exists, so the refresh that shows
+                // it can be told apart (see followInPreview).
+                followInPreview();
+
+                var target = source.add(item);
+                if (!target) { return; }
 
                 // Inline fields hand back the live field element, so the new
                 // block can be found — and taken back out if the editor changes
@@ -1752,6 +1902,8 @@
         window.__componentGuideTest.fillBlock = fillBlock;
         window.__componentGuideTest.galleryCards = galleryCards;
         window.__componentGuideTest.readBlock = readBlock;
+        window.__componentGuideTest.followInPreview = followInPreview;
+        window.__componentGuideTest.addedElement = function (beforeEl, afterEl) { return addedElement(shapeOf(beforeEl), shapeOf(afterEl)); };
     }
 
     if (document.readyState === 'loading') {

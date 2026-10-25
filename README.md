@@ -6,6 +6,8 @@
 
 For developers it is a **component library for Craft CMS** — a living style guide of every Twig component in the project, rendered with your site's own CSS and discovered from the templates you already have. No separate Storybook, no second environment to keep alive, no screenshots to maintain.
 
+For agencies it is **where a client tries the blocks of a sprint** before they are on any page: on staging, under each preview, the client changes the block's text, choices and pictures and watches it re-render — and sends back what they see, or a case the developer turns into a story.
+
 It also catches previews that lie: a story can promise a field the entry type does not have, and the guide says so before an editor meets a card they can never reproduce.
 
 ![The component index: live preview cards with status and gallery chips, a status filter, and a count of blocks ready for editors](docs/images/index.png)
@@ -18,7 +20,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.9.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.10.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 

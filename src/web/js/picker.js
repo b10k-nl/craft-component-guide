@@ -96,7 +96,11 @@
 
     var loadMap = function () {
         if (!mapPromise) {
-            mapPromise = fetch(Craft.getCpUrl('component-guide/picker-map'), {
+            // An action URL, not the CP route: Craft lets nobody open a
+            // plugin's section pages without “Access Component Guide”, and an
+            // editor with only the gallery permission has the gallery, not
+            // the section.
+            mapPromise = fetch(Craft.getActionUrl('component-guide/picker/map'), {
                 headers: { 'Accept': 'application/json' },
             }).then(function (r) {
                 return r.ok ? r.json() : { components: [] };
@@ -1291,6 +1295,25 @@
                 chip.textContent = comp.status;
                 headFlex.appendChild(chip);
             }
+            // Where the client's review of the state on offer stands — a
+            // version they signed off, one they asked to change, or one
+            // changed since. The server words it; nothing when nobody has
+            // reviewed it. Follows the dropdown below.
+            var reviewChip = document.createElement('span');
+            var paintReview = function () {
+                var review = active && active.review;
+                if (!review) {
+                    // A class `display` beats the `hidden` attribute.
+                    reviewChip.style.display = 'none';
+                    return;
+                }
+                reviewChip.style.display = '';
+                reviewChip.className = 'cg-chip cg-chip--review cg-chip--review-' + review.state;
+                reviewChip.textContent = review.label;
+                reviewChip.title = review.note;
+            };
+            paintReview();
+            headFlex.appendChild(reviewChip);
             head.appendChild(headFlex);
             if (story) {
                 // Where the dropdown sits on a block's card: the state this
@@ -1372,6 +1395,7 @@
                 variantSelect.addEventListener('change', function (event) {
                     event.stopPropagation();
                     active = variants[variantSelect.selectedIndex] || active;
+                    paintReview();
                     if (frame && active && active.previewUrl) {
                         frame.src = active.previewUrl;
                     }

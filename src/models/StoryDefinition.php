@@ -23,6 +23,14 @@ class StoryDefinition
         public ?string $viewport = null,
         /** @var string[] */
         public array $tags = [],
+        /**
+         * Who approved this story as the sign-off of the block, and when —
+         * written by a client review (see ClientReviews) and kept in the
+         * story file, so the record of what was approved lives in git.
+         *
+         * @var array{by: string, date: string}|null
+         */
+        public ?array $approval = null,
     ) {
     }
 }

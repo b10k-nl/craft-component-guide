@@ -179,6 +179,21 @@ final class UserStoryBuilder
     }
 
     /**
+     * `{ by: 'Anna Smith', date: '2026-10-30', version: '…' }` on one line —
+     * the key a client's approval adds to a story (see
+     * StoryParser::normalizeApproval()).
+     *
+     * @param array{by: string, date: string, version?: string|null} $approval
+     */
+    public static function approvalLiteral(array $approval): string
+    {
+        return '{ by: ' . TwigLiteral::string($approval['by'])
+            . ', date: ' . TwigLiteral::string($approval['date'])
+            . (($approval['version'] ?? null) !== null ? ', version: ' . TwigLiteral::string((string)$approval['version']) : '')
+            . ' }';
+    }
+
+    /**
      * Whether the installed Twig reads `# …` inside an expression.
      */
     public static function supportsInlineComments(string $twigVersion = \Twig\Environment::VERSION): bool

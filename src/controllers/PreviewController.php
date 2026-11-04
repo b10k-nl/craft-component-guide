@@ -32,7 +32,15 @@ class PreviewController extends Controller
         // site route so that Twig extensions other plugins register for site
         // requests are present when the component template compiles. Access is
         // still gated — a session and the plugin's own permission.
-        $this->requirePermission(Plugin::PERMISSION_ACCESS);
+        if (!Plugin::canAccess()) {
+            throw new \yii\web\ForbiddenHttpException('User is not permitted to perform this action.');
+        }
+        // A preview reads the session (who is asking) and never writes it.
+        // Released here, so the index's and the gallery's thumbnails render
+        // side by side: PHP holds a session's lock until the request ends,
+        // and every thumbnail waited for the one before it — 80 of them took
+        // ten seconds on the demo site.
+        Craft::$app->getSession()->close();
         return true;
     }
 

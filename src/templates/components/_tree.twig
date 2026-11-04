@@ -13,9 +13,19 @@
     and the sidebar still shows those few until the filters are cleared.
 #}
 {% set current = current ?? null %}
+{#
+    A block's client review state, beside its status. The status is the
+    developer's (draft blocks cannot be added); the review state is everyone's:
+    to review, approved, or changes requested — the latest decision on its
+    stories (ClientReviews::states()). It says nothing about whether a stable
+    block may be used. Only with client review on; otherwise nothing.
+#}
+{% macro reviewState(c, reviewStates) -%}
+    {{- (reviewStates[c.id] ?? null) ? reviewStates[c.id].state : 'review' -}}
+{%- endmacro %}
 {% set story = story ?? null %}
 
-<nav class="cg-tree" aria-label="{{ 'Components'|t('component-guide') }}">
+<nav class="cg-tree" aria-label="{{ 'Components'|t('component-guide') }}" data-cg-index-url="{{ cpUrl('component-guide') }}">
     <div class="cg-tree__filter">
         <input type="search" class="text fullwidth" id="cg-search"
                {% if autofocus ?? false %}autofocus{% endif %}
@@ -41,7 +51,7 @@
     {% endfor %}
 
     <div class="cg-sidebar-filters">
-        {% if grouped|length > 1 or statusBuckets is not empty %}
+        {% if grouped|length > 1 or statusBuckets is not empty or (reviewEnabled ?? false) %}
             <div class="cg-filters"
                  data-label-nostory="{{ "No story"|t('component-guide') }}"
                  data-label-nostatus="{{ "No status"|t('component-guide') }}">
@@ -74,11 +84,61 @@
                         labelHidden: true,
                     }) }}
                 {% endif %}
+
+                {# Only with client review on (Pro, and turned on in the settings). #}
+                {% if reviewEnabled ?? false %}
+                    {{ forms.select({
+                        id: 'cg-filter-review',
+                        options: [
+                            { label: "All reviews"|t('component-guide'), value: '' },
+                            { label: "To review"|t('component-guide'), value: 'review' },
+                            { label: "Approved"|t('component-guide'), value: 'approved' },
+                            { label: "Changes requested"|t('component-guide'), value: 'changes' },
+                        ],
+                        label: "Client review"|t('component-guide'),
+                        labelHidden: true,
+                    }) }}
+                {% endif %}
             </div>
         {% endif %}
 
     </div>
 {% endif %}
+    {# Client reviews are recorded on staging; this file takes them to where
+       the story files are written (php craft component-guide/reviews/import).
+       A button only while there is something this admin has not exported
+       yet, with how much; after that a quiet line saying when, with a link
+       to export again (a lost file, a second machine). #}
+    {% if (reviewEnabled ?? false) and currentUser.admin and ((reviewsNew ?? 0) > 0 or (reviewsExportedOn ?? null)) %}
+        {# Both states are on the page: a download leaves the page where it
+           is, so after the click the script swaps to “exported just now”. #}
+        {% set pending = (reviewsNew ?? 0) > 0 or not (reviewsExportedOn ?? null) %}
+        <p class="cg-tree__export" data-cg-export>
+            <span class="cg-tree__export-pending" data-cg-export-pending{% if not pending %} hidden{% endif %}>
+                <a class="btn small" data-icon="download" href="{{ actionUrl('component-guide/reviews/export') }}" data-cg-export-link>{{ "Export client reviews"|t('component-guide') }}</a>
+                {% if (reviewsNew ?? 0) > 0 %}
+                    <span class="cg-tree__export-new" title="{{ 'Decisions made since you last exported'|t('component-guide') }}">{{ '{count} new'|t('component-guide', { count: reviewsNew }) }}</span>
+                {% endif %}
+            </span>
+            <span class="light" data-cg-export-done{% if pending %} hidden{% endif %}>
+                <span data-cg-export-text data-just-now="{{ 'Client reviews exported just now, nothing new.'|t('component-guide') }}">
+                    {{- (reviewsExportedOn ?? null) ? "Client reviews exported {date}, nothing new."|t('component-guide', { date: reviewsExportedOn|datetime('short') }) -}}
+                </span>
+                <a href="{{ actionUrl('component-guide/reviews/export') }}" data-cg-export-link>{{ "Export again"|t('component-guide') }}</a>
+            </span>
+        </p>
+    {% endif %}
+    {# Clearing the trial runs before the client starts (admins and the clear
+       permission, where the settings allow it) — every
+       decision, by everyone. Asks first, and says to export. #}
+    {% if (reviewEnabled ?? false) and (canClearReviews ?? false) and (reviewsTotal ?? 0) > 0 %}
+        <p class="cg-tree__clear">
+            <a href="#" data-cg-review-clear
+               data-confirm="{{ 'Delete all {count} review decisions, on every block, by everyone? This cannot be undone — export them first if you may need them. Approvals already in the story files stay.'|t('component-guide', { count: reviewsTotal }) }}">
+                {{- 'Clear review history…'|t('component-guide') -}}
+            </a>
+        </p>
+    {% endif %}
     <p class="cg-tree__filtered" data-cg-filtered hidden>
         {{ "Filtered:"|t('component-guide') }}
         <strong data-cg-filtered-count>0</strong>
@@ -90,6 +150,7 @@
                 <span class="label">{{ "All components"|t('component-guide') }}</span>
             </a>
         </li>
+        <li class="cg-tree__none light" data-cg-tree-none hidden>{{ "No components match the filters."|t('component-guide') }}</li>
         {% for group, items in grouped %}
             {% set visible = items|filter(c => c.isDocumented or (current and c.id == current.id)) %}
             {% if visible is not empty %}
@@ -103,19 +164,40 @@
                                 data-search="{{ [c.title, c.name, group]|join(' ')|replace('/([a-z0-9])([A-Z])/', '$1 $2')|lower }}"
                                 data-tree-group="{{ group }}"
                                 data-tree-status="{{ not c.isDocumented ? '__nostory' : (c.status ?: '__nostatus') }}"
+                                data-tree-review="{{ _self.reviewState(c, reviewStates ?? {}) }}"
                                 {% if isCurrent %}data-tree-current{% endif %}>
                                 <a href="{{ cpUrl('component-guide/components/' ~ c.id) }}"
                                    class="{{ isCurrent and not expanded ? 'sel' }}{{ expanded ? ' cg-tree__open' }}"
                                    {% if isCurrent and not expanded %}aria-current="page"{% endif %}>
                                     {# The status the filter above asks about, as Craft marks an
                                        element's: a dot, named in its tooltip. #}
-                                    {% set dot = { stable: 'green', beta: 'blue', draft: 'orange', deprecated: 'red' }[c.status ?? ''] ?? null %}
+                                    {# Craft's own status names next to the colour, so “Use shapes
+                                       to represent statuses” (My Account → Preferences) draws a
+                                       draft as a triangle and a deprecated block as a square. #}
+                                    {% set dot = { stable: 'green', beta: 'blue', draft: 'orange pending', deprecated: 'red expired' }[c.status ?? ''] ?? null %}
                                     <span class="status {{ dot ?? 'cg-status--none' }}" data-cg-tree-dot
                                           title="{{ c.status ?: (c.isDocumented ? 'No status'|t('component-guide') : 'No story'|t('component-guide')) }}"
                                           aria-hidden="true"></span>
-                                    <span class="label">{{ c.title }}</span>
+                                    {# Left to right: the name, with ≠ beside it as a remark on
+                                       it (a story promises fields the entry type lacks — the same
+                                       ≠ as on the index card); then how many stories; then, in a
+                                       column of its own, where the client review stands. #}
+                                    {% set contract = (contractErrors ?? {})[c.id] ?? [] %}
+                                    <span class="label">
+                                        {{- c.title -}}
+                                        {%- if contract is not empty %} <span class="cg-tree__contract"
+                                              title="{{ contract|map(e => e.message)|join("\n") }}">&ne;</span>{% endif -%}
+                                    </span>
                                     {% if not expanded and c.stories|length > 1 %}
-                                        <span class="cg-tree__count">{{ c.stories|length }}</span>
+                                        <span class="cg-tree__count" title="{{ '{count} stories'|t('component-guide', { count: c.stories|length }) }}">{{ c.stories|length }}</span>
+                                    {% endif %}
+                                    {% if reviewEnabled ?? false %}
+                                        {# ! is work, ✓ approved (every story); empty while to review. #}
+                                        {% set state = _self.reviewState(c, reviewStates ?? {}) ~ '' %}
+                                        <span class="cg-tree__review{{ state == 'changes' ? ' cg-tree__review--changes' : (state == 'approved' ? ' cg-tree__review--approved') }}"
+                                              {% if state == 'changes' %}title="{{ 'Changes requested'|t('component-guide') }}"{% elseif state == 'approved' %}title="{{ 'Approved'|t('component-guide') }}"{% endif %}>
+                                            {{- state == 'changes' ? '!' : (state == 'approved' ? '✓') -}}
+                                        </span>
                                     {% endif %}
                                 </a>
                                 {% if expanded %}
@@ -127,6 +209,14 @@
                                                    class="{{ here ? 'sel' }}"
                                                    {% if here %}aria-current="page"{% endif %}>
                                                     <span class="label">{{ s.title }}</span>
+                                                    {% if reviewEnabled ?? false %}
+                                                        {% set storyState = ((reviewStates ?? {})[c.id] ?? null) ? (reviewStates[c.id].stories[s.id] ?? null) : null %}
+                                                        {% set st = storyState ? storyState.state : 'review' %}
+                                                        <span class="cg-tree__review{{ st == 'changes' ? ' cg-tree__review--changes' : (st == 'approved' ? ' cg-tree__review--approved') }}"
+                                                              {% if st == 'changes' %}title="{{ 'Changes requested by {name}, {date}'|t('component-guide', { name: storyState.by, date: storyState.date|date('short') }) }}"{% elseif st == 'approved' %}title="{{ 'Approved by {name}, {date}'|t('component-guide', { name: storyState.by, date: storyState.date|date('short') }) }}"{% endif %}>
+                                                            {{- st == 'changes' ? '!' : (st == 'approved' ? '✓') -}}
+                                                        </span>
+                                                    {% endif %}
                                                 </a>
                                             </li>
                                         {% endfor %}

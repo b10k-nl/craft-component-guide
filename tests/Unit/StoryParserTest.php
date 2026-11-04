@@ -97,6 +97,24 @@ class StoryParserTest extends TestCase
         $this->assertSame($this->parser->slug('A B C'), $this->parser->slug('a b c'));
     }
 
+    public function testAnOlderStoryWithAnArgumentCalledApprovalStaysAsItWas(): void
+    {
+        // Written as bare args before `approval:` meant a sign-off.
+        $result = $this->parser->parseData([
+            'stories' => ['Badge' => ['approval' => 'pending', 'label' => 'New']],
+        ], 'x.stories.php');
+
+        $this->assertSame([], $result['errors']);
+        $this->assertSame(['approval' => 'pending', 'label' => 'New'], $result['stories'][0]->args);
+        $this->assertNull($result['stories'][0]->approval);
+
+        // With `args:` beside it, it is a sign-off.
+        $signed = $this->parser->parseData([
+            'stories' => ['Badge' => ['args' => ['label' => 'New'], 'approval' => ['by' => 'Anna', 'date' => '2026-10-30']]],
+        ], 'x.stories.php');
+        $this->assertSame(['by' => 'Anna', 'date' => '2026-10-30', 'version' => null], $signed['stories'][0]->approval);
+    }
+
     public function testViewportNormalizesAliasesAndReportsTypos(): void
     {
         // Canonical, case-insensitive.

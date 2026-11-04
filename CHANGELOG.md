@@ -3,6 +3,105 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.11.0 - 2026-11-04
+
+### Added
+
+- **Client review** *(Pro, off by default — Settings → Client review)*. On a
+  component's page, a user with the new **Approve blocks or ask for changes**
+  permission approves a story as written, or asks for changes with a comment
+  (and the values they tried in Controls). Every story is *To review*,
+  *Approved* or *Changes requested*, the same for everyone: the latest
+  decision decides, whoever made it. Decisions are never withdrawn; each is
+  kept in the story's History — only a slip of the mouse can be undone,
+  from the notification, in the seconds after the click. Kept in the reviewer's own user preferences:
+  still no table, no migration. With the setting off nothing of it shows, on
+  staging or production.
+  [CLIENT-REVIEW.md](CLIENT-REVIEW.md) walks through it.
+- **The block changed since.** Each decision remembers the block as the story
+  showed it — its template and the story's args. When either changes, the
+  story is back to *To review*: a
+  request for changes has most likely been answered, an approval was of a
+  block that looks different now. For a fix outside the template (a partial,
+  the CSS) an admin can **Mark as fixed**.
+- **From staging to git.** **Export client reviews** writes the decisions to
+  one file, with the site and Craft environment they come from; `php craft component-guide/reviews/import --file=<file>`
+  (`--file=-` reads standard input, for a download a DDEV container cannot
+  see) gives each approved story `approval: { by, date, version }` — `by`
+  is the approver's username, shown as their full name where they are a
+  user; one line, nothing else in the file changes — lists the requests for changes
+  with what was tried, takes out an approval that is no longer the latest
+  word, and leaves out approvals of an earlier version.
+  Importing twice changes nothing; `--dry-run` writes nothing. The export
+  button shows only while there is something you have not exported.
+- **Clear the history** of one block or of all — before the client starts —
+  on the block's page or in the sidebar, for admins and anyone given the new
+  **Clear the client review history** permission (with the new **Enable
+  History Clearing** setting, off by default), or with
+  `php craft component-guide/reviews/clear [--component=<id>]`. It asks first
+  and is logged; approvals in the story files stay.
+- The sidebar marks ✓ approved and ! changes requested — a block is approved
+  when all its stories are — a review filter
+  narrows the tree and the index, and the index counts each state. In the
+  editors' blocks gallery, a card says when its story is approved or has
+  changes requested.
+- **Variants as cards** on the index too, as in the blocks gallery: a checkbox above the cards shows a
+  card for every story instead of every block — each with its own preview
+  and, with client review on, where its review stands and who decided. The
+  filters and counts follow. Remembered in the browser.
+- Stories take an `approval` key; a malformed one is reported, not ignored.
+  A story written as bare args with an argument called `approval` is read
+  exactly as before.
+- **One permission per person.** Craft's own **Access Component Guide**
+  (General) now opens the whole guide by itself; the plugin's
+  `component-guide:access` is renamed **Use the blocks gallery on page-builder
+  fields**, for editors who never open the section. Either is enough — they
+  used to have to be ticked together.
+  The gallery now loads for editors with only the gallery permission — its
+  data came from a page of the Component Guide section, which Craft opens only
+  with Access Component Guide.
+- The sidebar filters now hide the component you are on too, when it does not
+  match, and say so when nothing does. Setting a filter that leaves out the
+  component you are on takes you to the list, with the filters kept; a link
+  to a block still opens it, whatever filters were left set.
+
+### Changed
+
+- **Admins only:** the buttons that write into `templates/` — Add story, Mark
+  stable / Back to draft, Reviewed — and exporting client reviews. A client
+  reviewing blocks, or an editor, sees the guide, not buttons that change
+  project files. ⚠️ A developer who used these with a non-admin account needs
+  an admin account for them now.
+- The two client review settings can be set to an environment variable — a
+  Yes / No / variable menu, as Craft's own settings have — so staging and
+  production can differ while project config stays the same.
+- Settings say what they do: the iframe preview is not “sandboxed” (it never
+  was) and only concerns the component page; turning off the control-panel
+  section only hides it from the navigation.
+
+### Fixed
+
+- **Thumbnails load much faster** on the index and in the blocks gallery.
+  Previews no longer hold the PHP session, which made them render one after
+  another (80 thumbnails took ten seconds on the demo site); and the index
+  loads only the cards near the screen — hidden cards were loaded too.
+
+- Uninstalling now removes what the plugin kept in user preferences (keys
+  starting with `componentGuide.`: editors' variants, client review
+  decisions). Craft does not know which keys are a plugin's, so they used to
+  stay behind.
+- The advice under a contract warning no longer assumes an adapter: “Use it in
+  the block's template (or in its adapter, if it has one)” — most blocks read
+  the entry themselves since 1.8.0.
+- Strings that had no entry in the English translation file now have one.
+- Card previews on the index keep their size when a filter hides and shows
+  them again; they used to come back at full size, zoomed in.
+- The status dots in the sidebar follow Craft's “Use shapes to represent
+  statuses”: a draft is a triangle, a deprecated block a square.
+- Dates in client review follow your formatting locale.
+- An index card no longer says “in gallery” for a block with no status: the
+  gallery shows such a block as unavailable, like a draft.
+
 ## 1.10.0 - 2026-10-25
 
 ### Added

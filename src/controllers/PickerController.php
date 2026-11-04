@@ -35,7 +35,9 @@ class PickerController extends Controller
             return false;
         }
         $this->requireCpRequest();
-        $this->requirePermission(Plugin::PERMISSION_ACCESS);
+        if (!Plugin::canAccess()) {
+            throw new \yii\web\ForbiddenHttpException('User is not permitted to perform this action.');
+        }
         return true;
     }
 
@@ -50,6 +52,9 @@ class PickerController extends Controller
         $inspector = $plugin->getContractInspector();
         $bindings = $inspector->bindings($components, $templatesRoot);
         $producible = $inspector->producibleStories($components, $templatesRoot);
+        // Where the client review of each story stands — only with client
+        // review on; read once for the whole gallery.
+        $reviews = $plugin->clientReviewEnabled() ? $plugin->getClientReviews()->states() : [];
 
         $catalog = [];
 
@@ -67,6 +72,7 @@ class PickerController extends Controller
                 $bindings[$component->id] ?? null,
                 $producible[$component->id] ?? [],
                 $pro,
+                $reviews[$component->id]['stories'] ?? [],
             );
 
             if ($stories === []) {
@@ -124,13 +130,15 @@ class PickerController extends Controller
      *
      * @param string[] $producibleIds
      * @param bool $pro Whether to include the field values a click would apply.
-     * @return list<array{id: string, title: string, description: string|null, previewUrl: string, prefill: array<string, mixed>|null}>
+     * @param array<string, array<string, mixed>> $reviews ClientReview::state() by story id.
+     * @return list<array{id: string, title: string, description: string|null, previewUrl: string, prefill: array<string, mixed>|null, review: array{state: string, label: string, note: string}|null}>
      */
     private function stories(
         ComponentDefinition $component,
         ?AdapterBinding $binding,
         array $producibleIds,
         bool $pro,
+        array $reviews = [],
     ): array {
         $stories = [];
 
@@ -150,6 +158,7 @@ class PickerController extends Controller
                 // field values, because filling the block in is the paid half.
                 // Held back on the server, never merely hidden in the browser.
                 'prefill' => $pro ? ($this->prefill($component, $story, $binding) ?: null) : null,
+                'review' => $this->review($reviews[$story->id] ?? null),
             ];
         }
 
@@ -164,10 +173,36 @@ class PickerController extends Controller
                 'description' => $first->description,
                 'previewUrl' => Plugin::previewUrl($component->id, $first->id),
                 'prefill' => $pro ? ($this->prefill($component, $first, $binding) ?: null) : null,
+                'review' => $this->review($reviews[$first->id] ?? null),
             ];
         }
 
         return $stories;
+    }
+
+    /**
+     * Where the client review of a story stands, for the editor about to add
+     * it: approved, or changes requested. Nothing while it is to review — on
+     * most sites that is every block, and a label on every card is noise.
+     *
+     * @param array<string, mixed>|null $state ClientReview::state()
+     * @return array{state: string, label: string, note: string}|null
+     */
+    private function review(?array $state): ?array
+    {
+        return match ($state['state'] ?? null) {
+            'approved' => [
+                'state' => 'approved',
+                'label' => Craft::t('component-guide', 'approved'),
+                'note' => Craft::t('component-guide', 'Approved by {name}, {date}', ['name' => $state['by'], 'date' => Craft::$app->getFormatter()->asDate(new \DateTime($state['date'], new \DateTimeZone(Craft::$app->getTimeZone())), 'short')]),
+            ],
+            'changes' => [
+                'state' => 'changes',
+                'label' => Craft::t('component-guide', 'changes requested'),
+                'note' => Craft::t('component-guide', 'Changes were asked for on this block. It may still change — check with your developer before relying on it.'),
+            ],
+            default => null,
+        };
     }
 
     /**

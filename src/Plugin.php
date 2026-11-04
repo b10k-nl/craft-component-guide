@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide;
 
+use b10k\componentguide\helpers\OwnPreferences;
 use b10k\componentguide\models\Settings;
 use b10k\componentguide\services\AdapterResolver;
 use b10k\componentguide\services\ComponentRepository;
@@ -16,13 +17,17 @@ use b10k\componentguide\services\StoryScaffolder;
 use b10k\componentguide\services\StoryStatusWriter;
 use b10k\componentguide\services\TwigSnippetGenerator;
 use b10k\componentguide\services\TwigStoryLoader;
+use b10k\componentguide\services\ClientReviews;
 use b10k\componentguide\services\UserStories;
 use b10k\componentguide\services\WriteJournal;
 use Craft;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterUrlRulesEvent;
+use craft\db\Query;
+use craft\db\Table;
 use craft\helpers\Console;
+use craft\helpers\Db;
 use craft\helpers\Json;
 use craft\helpers\UrlHelper;
 use craft\services\UserPermissions;
@@ -52,6 +57,20 @@ use yii\base\Event;
 class Plugin extends BasePlugin
 {
     public const PERMISSION_ACCESS = 'component-guide:access';
+
+    /**
+     * Sign off a block — approve the version on screen, or ask for changes.
+     * Its own permission, so a client's account can do it and an editor's
+     * need not.
+     */
+    public const PERMISSION_REVIEW = 'component-guide:review';
+
+    /**
+     * Clear the client review history — of one block, or of all — in the
+     * control panel. Offered only where the Enable History Clearing setting
+     * is on; admins have it, like every permission.
+     */
+    public const PERMISSION_CLEAR_REVIEWS = 'component-guide:clear-reviews';
 
     /**
      * Editions.
@@ -99,6 +118,15 @@ class Plugin extends BasePlugin
      * Craft only allows edition comparisons once `init()` has run, which is
      * true for every caller here (controllers, event handlers, Twig).
      */
+    /**
+     * Client review is on: turned on in the settings (off by default — an
+     * agency decides to use it with its client) and Pro.
+     */
+    public function clientReviewEnabled(): bool
+    {
+        return $this->getSettings()->isOn('enableClientReview') && $this->isPro();
+    }
+
     public function isPro(): bool
     {
         return $this->is(self::EDITION_PRO);
@@ -138,6 +166,7 @@ class Plugin extends BasePlugin
                 'previewRenderer' => PreviewRenderer::class,
                 'placeholderResolver' => PlaceholderResolver::class,
                 'userStories' => UserStories::class,
+                'clientReviews' => ClientReviews::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
                 'storyScaffolder' => StoryScaffolder::class,
                 'storyStatusWriter' => StoryStatusWriter::class,
@@ -178,7 +207,7 @@ class Plugin extends BasePlugin
      * Leaves nothing behind but the files the developer asked for.
      *
      * Craft removes the plugin row, its settings and its permissions itself;
-     * the scan cache is ours to drop. Story and marker files stay: they are
+     * the scan cache and our keys in user preferences are ours to drop. Story and marker files stay: they are
      * project code in git, and “remove the plugin and your project is
      * untouched” only holds if we don't delete them.
      */
@@ -187,6 +216,7 @@ class Plugin extends BasePlugin
         parent::afterUninstall();
 
         ComponentRepository::invalidateCache();
+        $this->removeOwnPreferences();
 
         $message = 'Component Guide uninstalled. Your story and marker files were left in templates/ — they are plain project files and do nothing without the plugin. See the “Uninstalling” section of the README if you want to remove them too.';
 
@@ -200,7 +230,43 @@ class Plugin extends BasePlugin
         }
     }
 
-    public function getRepository(): ComponentRepository
+    /**
+     * Takes our keys out of every user's preferences (see OwnPreferences):
+     * editors' variants and clients' reviews go with the plugin, as a plugin's
+     * own table would. Never stops the uninstall — at worst the keys stay,
+     * unread, as they would have without this.
+     */
+    private function removeOwnPreferences(): void
+    {
+        try {
+            $db = Craft::$app->getDb();
+            $dbType = $db->getSchema()->getTableSchema(Table::USERPREFERENCES)?->columns['preferences']->dbType;
+            $query = (new Query())->select(['userId', 'preferences'])->from([Table::USERPREFERENCES]);
+            $changes = [];
+
+            // Read first, write after: no update while a batch is open.
+            foreach ($query->each(500, $db) as $row) {
+                $preferences = is_string($row['preferences']) ? Json::decodeIfJson($row['preferences']) : $row['preferences'];
+                if (!is_array($preferences)) {
+                    continue;
+                }
+                [$kept, $changed] = OwnPreferences::strip($preferences);
+                if ($changed) {
+                    $changes[(int)$row['userId']] = $kept;
+                }
+            }
+
+            foreach ($changes as $userId => $kept) {
+                Db::update(Table::USERPREFERENCES, ['preferences' => Db::prepareValueForDb($kept, $dbType)], ['userId' => $userId], [], false, $db);
+            }
+
+            Craft::info(sprintf('Removed Component Guide preferences from %d user(s).', count($changes)), __METHOD__);
+        } catch (\Throwable $e) {
+            Craft::warning('Could not remove Component Guide user preferences: ' . $e->getMessage(), __METHOD__);
+        }
+    }
+
+        public function getRepository(): ComponentRepository
     {
         /** @var ComponentRepository $repo */
         $repo = $this->get('repository');
@@ -291,6 +357,13 @@ class Plugin extends BasePlugin
         return $journal;
     }
 
+    public function getClientReviews(): ClientReviews
+    {
+        /** @var ClientReviews $reviews */
+        $reviews = $this->get('clientReviews');
+        return $reviews;
+    }
+
     public function getUserStories(): UserStories
     {
         /** @var UserStories $stories */
@@ -356,16 +429,104 @@ class Plugin extends BasePlugin
             UserPermissions::class,
             UserPermissions::EVENT_REGISTER_PERMISSIONS,
             function (RegisterUserPermissionsEvent $event): void {
+                $review = [
+                    self::PERMISSION_REVIEW => [
+                        'label' => Craft::t('component-guide', 'Approve blocks or ask for changes (client review)'),
+                    ],
+                ];
+                // Only where clearing is on: a permission for something this
+                // environment does not allow would only mislead. The cost:
+                // saving a user group where it is off drops the permission
+                // from that group (in project config) — documented.
+                if ($this->getSettings()->isOn('enableReviewClearing')) {
+                    $review[self::PERMISSION_CLEAR_REVIEWS] = [
+                        'label' => Craft::t('component-guide', 'Clear the client review history'),
+                        'info' => Craft::t('component-guide', 'Deletes decisions by everyone, of one block or of all.'),
+                    ];
+                }
+
+                // A review is made on the block's page in the Component Guide
+                // section, which Craft guards with its own “Access Component
+                // Guide” (under General). So the review permission goes under
+                // that one: it cannot be ticked without it, and nobody has to
+                // read a hint to get it right.
+                // Off in the settings (the default), or Lite: no review
+                // permission to give, so nobody can be handed a feature the
+                // site does not use.
+                $withReview = $this->clientReviewEnabled();
+                $nested = false;
+                foreach ($withReview ? $event->permissions : [] as $i => $group) {
+                    if (!isset($group['permissions']) || !is_array($group['permissions'])) {
+                        continue;
+                    }
+                    $nested = self::nestUnder($group['permissions'], 'accessPlugin-component-guide', $review);
+                    if ($nested) {
+                        $event->permissions[$i] = $group;
+                        break;
+                    }
+                }
+
+                $permissions = [
+                    // For editors who use the gallery on their entries but never
+                    // open the section; Craft's own permission opens all of it.
+                    self::PERMISSION_ACCESS => [
+                        'label' => Craft::t('component-guide', 'Use the blocks gallery on page-builder fields'),
+                        'info' => Craft::t('component-guide', 'For editors. Not needed by anyone who has “Access Component Guide” under General — that one opens the whole guide.'),
+                    ],
+                ];
+                if ($withReview && !$nested) {
+                    // No section (enableCpSection off): nothing to nest under.
+                    $permissions += $review;
+                }
+
                 $event->permissions[] = [
                     'heading' => Craft::t('component-guide', 'Component Guide'),
-                    'permissions' => [
-                        self::PERMISSION_ACCESS => [
-                            'label' => Craft::t('component-guide', 'Access the component guide'),
-                        ],
-                    ],
+                    'permissions' => $permissions,
                 ];
             }
         );
+    }
+
+    /**
+     * Adds $children under the permission named $parent, wherever it sits in
+     * a group's tree. Craft nests the plugin-section permissions under
+     * “Access the control panel” on Pro, and lists them at the top on Team.
+     *
+     * @param array<string, mixed> $permissions
+     * @param array<string, mixed> $children
+     */
+    private static function nestUnder(array &$permissions, string $parent, array $children): bool
+    {
+        foreach ($permissions as $name => &$props) {
+            if (!is_array($props)) {
+                continue;
+            }
+            if ($name === $parent) {
+                $props['nested'] = array_merge(is_array($props['nested'] ?? null) ? $props['nested'] : [], $children);
+                return true;
+            }
+            if (isset($props['nested']) && is_array($props['nested']) && self::nestUnder($props['nested'], $parent, $children)) {
+                return true;
+            }
+        }
+        unset($props);
+
+        return false;
+    }
+
+    /**
+     * Whether the signed-in user may use the guide — its pages, previews and
+     * gallery. Either permission opens it: Craft's own “Access Component
+     * Guide” (the control-panel section, under General) or this plugin's
+     * gallery permission, for editors who never open the section. One
+     * checkbox per person, not two that mean the same.
+     */
+    public static function canAccess(): bool
+    {
+        $user = Craft::$app->getUser();
+
+        return $user->checkPermission('accessPlugin-component-guide')
+            || $user->checkPermission(self::PERMISSION_ACCESS);
     }
 
     /**
@@ -458,7 +619,7 @@ class Plugin extends BasePlugin
             View::class,
             View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             function (): void {
-                if (!Craft::$app->getUser()->checkPermission(self::PERMISSION_ACCESS)) {
+                if (!self::canAccess()) {
                     return;
                 }
 

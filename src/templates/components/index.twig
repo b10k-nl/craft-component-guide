@@ -1,5 +1,6 @@
 {% extends "_layouts/cp" %}
 {% import "_includes/forms" as forms %}
+{% from "component-guide/components/_tree" import reviewState %}
 
 {% set title = "Component Guide"|t('component-guide') %}
 {% set docTitle = title %}
@@ -11,6 +12,14 @@
 {% block sidebar %}
     {% include "component-guide/components/_tree" with {
         grouped: grouped,
+        reviewEnabled: reviewEnabled ?? false,
+        reviewStates: reviewStates ?? {},
+        reviewsNew: reviewsNew ?? 0,
+        reviewsTotal: reviewsTotal ?? 0,
+        canClearReviews: canClearReviews ?? false,
+        reviewsExportedOn: reviewsExportedOn ?? null,
+        contractErrors: contractErrors,
+        pro: pro,
         autofocus: true,
     } only %}
 {% endblock %}
@@ -59,7 +68,55 @@
                     {{ "ready for editors"|t('component-guide') }}
                 </span>
             {% endif %}
+
+            {# Where the client review stands, one click from the blocks behind
+               each number (it sets the sidebar's review filter). Only with
+               client review on. #}
+            {% if reviewEnabled %}
+                {% set reviewCounts = { review: 0, approved: 0, changes: 0 } %}
+                {% for groupComponents in grouped %}
+                    {% for component in groupComponents|filter(c => c.isDocumented) %}
+                        {% set state = reviewState(component, reviewStates) ~ '' %}
+                        {% set reviewCounts = reviewCounts|merge({ (state): reviewCounts[state] + 1 }) %}
+                    {% endfor %}
+                {% endfor %}
+                {# The same three counts per story, for “Variants as cards”:
+                   the numbers count what the cards show. #}
+                {% set storyCounts = { review: 0, approved: 0, changes: 0 } %}
+                {% for groupComponents in grouped %}
+                    {% for component in groupComponents|filter(c => c.isDocumented) %}
+                        {% for story in component.stories %}
+                            {% set state = reviewStates[component.id].stories[story.id].state ?? 'review' %}
+                            {% set storyCounts = storyCounts|merge({ (state): storyCounts[state] + 1 }) %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+                {% for mode, counts in { blocks: reviewCounts, stories: storyCounts } %}
+                    <span class="cg-stats__review" data-cg-counts="{{ mode }}"{% if mode == 'stories' %} hidden{% endif %}>
+                        <button type="button" class="cg-stat cg-stat--review cg-stat--changes" data-cg-review-stat="changes">
+                            <strong>{{ counts.changes }}</strong> {{ "changes requested"|t('component-guide') }}
+                        </button>
+                        <button type="button" class="cg-stat cg-stat--review cg-stat--approved" data-cg-review-stat="approved">
+                            <strong>{{ counts.approved }}</strong> {{ "approved"|t('component-guide') }}
+                        </button>
+                        <button type="button" class="cg-stat cg-stat--review" data-cg-review-stat="review">
+                            <strong>{{ counts.review }}</strong> {{ "to review"|t('component-guide') }}
+                        </button>
+                    </span>
+                {% endfor %}
+            {% endif %}
         </div>
+
+        {# “Variants as cards”, as in the editors' gallery (picker.js): a card
+           per story instead of per block — every story's own preview and,
+           with client review on, its own state. Only where some block
+           has more than one story — otherwise both views are the same. #}
+        {% if storyCount > componentCount - (undocumentedCount ?? 0) %}
+            <div class="cg-cards-mode">
+                <input type="checkbox" class="checkbox" id="cg-story-cards">
+                <label for="cg-story-cards">{{ "Variants as cards"|t('component-guide') }}</label>
+            </div>
+        {% endif %}
 
     </div>
 
@@ -118,7 +175,7 @@ hero{{ settings.twigStorySuffix() }}</div>
             </ol>
         </div>
     {% else %}
-        {% if not canScaffold and undocumentedCount %}
+        {% if not canScaffold and undocumentedCount and scaffoldBlockedReason != 'not-admin' %}
             {# Craft-style environment notice: an absent button is a mystery,
                a stated reason is information. #}
             <p class="cg-hint cg-hint--locked">
@@ -204,14 +261,15 @@ hero{{ settings.twigStorySuffix() }}</div>
                     {% if meta and meta.description %}
                         <p class="cg-group__desc light">{{ meta.description }}</p>
                     {% endif %}
-                    <ul class="cg-grid">
+                    <ul class="cg-grid" data-cg-cards="blocks">
                         {% for component in components %}
                             {# Handles split at their capitals (upcomingRides → upcoming Rides): the
                                search matches at word starts, and a handle is several words. #}
                             {% set search = [component.title, component.name, group, component.templatePath, component.status, component.description, component.isDocumented ? '' : 'undocumented']|join(' ')|replace('/([a-z0-9])([A-Z])/', '$1 $2')|lower %}
                             {% set statusBucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
-                            <li class="cg-card" id="cg-card-{{ component.id }}" data-card data-search="{{ search }}"
-                                data-card-status="{{ statusBucket }}">
+                            <li class="cg-card" id="cg-card-{{ component.id }}" data-card data-component-id="{{ component.id }}" data-search="{{ search }}"
+                                data-card-status="{{ statusBucket }}"
+                                data-card-review="{{ reviewState(component, reviewStates) }}">
                                 {% if not component.isDocumented %}
                                     {# Story-less template discovered via a marker file: no detail
                                        page or preview yet — an inert card with a hint instead. #}
@@ -286,6 +344,17 @@ hero{{ settings.twigStorySuffix() }}</div>
                                             {% set contractText = contract|map(e => e.message ~ (e.recommendation() ? ' ' ~ e.recommendation() : ''))|join("\n") %}
                                             <span class="cg-badge cg-badge--contract" title="{{ contractText }}">&ne;</span>
                                         {% endif %}
+                                        {# Where the client review stands, at the title's end like the
+                                           sidebar's column: ✓ every story approved, ! changes requested,
+                                           nothing while it is to review (only with client review on). #}
+                                        {% if reviewEnabled %}
+                                            {% set cardReview = reviewState(component, reviewStates) ~ '' %}
+                                            {% if cardReview == 'approved' %}
+                                                <span class="cg-card__review cg-card__review--approved" title="{{ 'Approved'|t('component-guide') }}">✓</span>
+                                            {% elseif cardReview == 'changes' %}
+                                                <span class="cg-card__review cg-card__review--changes" title="{{ 'Changes requested'|t('component-guide') }}">!</span>
+                                            {% endif %}
+                                        {% endif %}
                                     </span>
                                     {% if component.description %}
                                         <span class="cg-card__desc light">{{ component.description }}</span>
@@ -295,9 +364,11 @@ hero{{ settings.twigStorySuffix() }}</div>
                                         {% if previewUrl %}
                                             {# Live mini-preview of the first story: a real 1280px-viewport
                                                iframe scaled down by JS (fixed px on the iframe, scale on its
-                                               transform — same technique as the device preview). #}
-                                            <iframe src="{{ previewUrl }}"
-                                                    loading="lazy" tabindex="-1"
+                                               transform — same technique as the device preview).
+                                               `data-src`: the script loads it once the card is
+                                               near the screen (see component-guide.js). #}
+                                            <iframe data-src="{{ previewUrl }}"
+                                                    tabindex="-1"
                                                     title=""></iframe>
                                         {% endif %}
                                     </span>
@@ -309,10 +380,11 @@ hero{{ settings.twigStorySuffix() }}</div>
                                                   data-cg-status-chip>{{ component.status }}</span>
                                         {% endif %}
                                         {# Shown only for the components that actually made it across:
-                                           matched, stable, documented. A non-stable status is deliberately
-                                           disabled in the gallery, so it gets no chip. #}
+                                           matched to an entry type, and stable — the same rule as the
+                                           gallery (GalleryMatcher::isReadyForEditors()). A block with no
+                                           status, or any other, is unavailable there, so it gets no chip. #}
                                         {% set entryTypeName = entryTypeNames[component.id] ?? null %}
-                                        <span data-cg-gallery-chip{% if not (entryTypeName and (component.status is empty or component.status == 'stable')) %} hidden{% endif %}>
+                                        <span data-cg-gallery-chip{% if not (entryTypeName and component.status == 'stable') %} hidden{% endif %}>
                                             <span class="cg-chip cg-chip--gallery"
                                                   title="{{ entryTypeName
                                                       ? "Editors add this as the “{name}” block, from the blocks gallery on any page-builder field."|t('component-guide', { name: entryTypeName })
@@ -344,6 +416,84 @@ hero{{ settings.twigStorySuffix() }}</div>
                                 </div>
                                 {% endif %}
                             </li>
+                        {% endfor %}
+                    </ul>
+
+                    {# “Variants as cards”: the same blocks, a card for each
+                       story — its preview, and where its review stands. #}
+                    <ul class="cg-grid" data-cg-cards="stories" hidden>
+                        {% for component in components|filter(c => c.isDocumented) %}
+                            {% set blockSearch = [component.title, component.name, group, component.templatePath, component.status, component.description]|join(' ')|replace('/([a-z0-9])([A-Z])/', '$1 $2')|lower %}
+                            {% for story in component.stories %}
+                                {% set storyState = reviewStates[component.id].stories[story.id] ?? null %}
+                                {% set state = storyState.state ?? 'review' %}
+                                <li class="cg-card cg-card--story" data-card data-story-card
+                                    data-component-id="{{ component.id }}"
+                                    data-search="{{ blockSearch ~ ' ' ~ story.title|lower }}"
+                                    data-card-status="{{ component.status ?: '__nostatus' }}"
+                                    data-card-review="{{ state }}">
+                                    <div class="cg-card__link cg-card__link--interactive">
+                                        <a class="cg-card__hit" href="{{ cpUrl('component-guide/components/' ~ component.id ~ '/' ~ story.id) }}"
+                                           aria-label="{{ component.title ~ ' · ' ~ story.title }}"></a>
+                                        <span class="cg-card__title">
+                                            {{ component.title }}
+                                            <span class="cg-badge cg-badge--error" data-cg-render-badge hidden>!</span>
+                                            {# Who decided, and when, in the mark's tooltip
+                                               (ClientReview::state()): the cards stay quiet. #}
+                                            {% if reviewEnabled and state in ['approved', 'changes'] %}
+                                                {% set who = storyState.by ?? null %}
+                                                {% set when = (storyState.date ?? null) ? storyState.date|date('short') : null %}
+                                                {% set tip = state == 'approved'
+                                                    ? (who ? 'Approved by {name} on {date}'|t('component-guide', { name: who, date: when }) : 'Approved'|t('component-guide'))
+                                                    : (who ? 'Changes requested by {name} on {date}'|t('component-guide', { name: who, date: when }) : 'Changes requested'|t('component-guide')) %}
+                                                <span class="cg-card__review cg-card__review--{{ state }}" title="{{ tip }}">{{ state == 'approved' ? '✓' : '!' }}</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="cg-card__story">{{ story.title }}</span>
+                                        {# The story's own description, else the block's — as in the gallery. #}
+                                        {% if story.description or component.description %}
+                                            <span class="cg-card__desc light">{{ story.description ?: component.description }}</span>
+                                        {% endif %}
+                                        {% set storyUrl = storyPreviewUrls[component.id][story.id] ?? null %}
+                                        <span class="cg-card__thumb" data-cg-thumb aria-hidden="true">
+                                            {% if storyUrl %}
+                                                <iframe data-src="{{ storyUrl }}" tabindex="-1" title=""></iframe>
+                                            {% endif %}
+                                        </span>
+                                        <span class="cg-card__meta code">{{ component.templatePath }}</span>
+                                        <span class="cg-card__meta light">
+                                            {% if component.status %}
+                                                <span class="cg-chip cg-chip--status cg-chip--{{ component.status|lower|replace({' ': '-'}) }}"
+                                                      data-cg-status-chip>{{ component.status }}</span>
+                                            {% endif %}
+                                            {% set entryTypeName = entryTypeNames[component.id] ?? null %}
+                                            <span data-cg-gallery-chip{% if not (entryTypeName and component.status == 'stable') %} hidden{% endif %}>
+                                                <span class="cg-chip cg-chip--gallery"
+                                                      title="{{ entryTypeName
+                                                          ? "Editors add this as the “{name}” block, from the blocks gallery on any page-builder field."|t('component-guide', { name: entryTypeName })
+                                                          : '' }}">
+                                                    {{ "in gallery"|t('component-guide') }}
+                                                </span>
+                                            </span>
+                                        </span>
+                                        {# The block's status, from any of its story cards. #}
+                                        {% if canToggleStatus and component.status in ['draft', 'stable'] %}
+                                            <span class="cg-card__actions">
+                                                <button type="button" class="btn small"
+                                                        data-cg-status-toggle
+                                                        data-component-id="{{ component.id }}"
+                                                        data-status="{{ component.status }}"
+                                                        data-label-stable="{{ "Mark stable"|t('component-guide') }}"
+                                                        data-label-draft="{{ "Back to draft"|t('component-guide') }}">
+                                                    {{ component.status == 'draft'
+                                                        ? "Mark stable"|t('component-guide')
+                                                        : "Back to draft"|t('component-guide') }}
+                                                </button>
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </li>
+                            {% endfor %}
                         {% endfor %}
                     </ul>
                 </section>

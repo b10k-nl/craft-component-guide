@@ -15,6 +15,11 @@
 .cg-stat strong { color: #3f4d5a; font-size: 18px; }
 .cg-stat--editors { cursor: help; }
 .cg-stat--editors strong { color: #5334a8; }
+/* “Variants as cards”: a checkbox at the toolbar's end; the two sets of
+   cards and counts swap with `hidden`, which their display would outrank. */
+.cg-cards-mode { display: flex; align-items: center; margin-inline-start: auto; }
+.cg-grid[hidden], .cg-stats__review[hidden] { display: none; }
+.cg-card__story { font-size: 12px; font-weight: 600; color: #596673; margin-top: -4px; }
 .cg-toolbar__tools { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; }
 .cg-filters { display: flex; align-items: center; gap: 8px; }
 .cg-search { min-width: 200px; flex: 1; max-width: 360px; }
@@ -87,6 +92,9 @@
     border: 0; background: #fff; transform-origin: 0 0;
 }
 .cg-card__title { font-weight: 600; color: #1f2933; display: flex; align-items: center; gap: 6px; }
+.cg-card__review { margin-inline-start: auto; font-size: 15px; font-weight: 700; cursor: help; align-self: baseline; }
+.cg-card__review--approved { color: #16a34a; }
+.cg-card__review--changes { color: #d97706; }
 .cg-card__desc { font-size: 12px; color: #7a8794; line-height: 1.5; }
 /* `break-all` belongs to the template path, not to the prose next to it:
    applied to the whole element it splits ordinary words mid-letter
@@ -119,6 +127,8 @@
    editors through the blocks gallery. Deliberately quieter than a status
    chip — it is information, not a warning. */
 .cg-chip--gallery { background: #eae4fb; color: #5334a8; }
+.cg-chip--review { background: #e4e8ec; color: #4a5560; }
+
 .cg-badge {
     display: inline-flex;
     align-items: center;
@@ -162,9 +172,16 @@
 /* Component tree in the CP sidebar (detail page) */
 .cg-tree__filter { padding: 0 0 10px; }
 .cg-tree [hidden] { display: none; }
+.cg-tree a .label { flex: 1 1 auto; min-width: 0; }
 .cg-tree a .cg-tree__count {
     flex: none; margin-inline-start: 6px; font-size: 11px; color: var(--light-text-color, #8b97a3);
 }
+/* The review column: always there with client review on, so the counts to
+   its left line up whether or not a block has a mark. */
+.cg-tree a .cg-tree__review { flex: none; width: 14px; text-align: center; }
+/* With a long name wrapped over lines, the count and the mark stay level with
+   its first line, not in the middle of the block. */
+.cg-tree a .cg-tree__count, .cg-tree a .cg-tree__review { align-self: baseline; }
 .cg-tree a.cg-tree__open { font-weight: 600; }
 .cg-tree .cg-tree__stories { margin: 0 0 4px; }
 .cg-tree .cg-tree__stories a { padding-inline-start: calc(var(--xl, 24px) + 12px); font-size: 13px; min-height: 0; padding-block: 5px; }
@@ -366,3 +383,88 @@
 .cg-tree a .status { flex: none; margin-inline-end: 8px; }
 .cg-tree a .status.cg-status--none { background: transparent; border: 1px solid var(--gray-300, #a3afbb); }
 .cg-tree a.sel .status.cg-status--none { border-color: currentColor; }
+
+/* Client review (component page) */
+.cg-review { border: 1px solid #cdd8e4; border-radius: 8px; margin-bottom: 24px; }
+.cg-review .cg-controls__bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: #5f6c79; margin: 0; }
+.cg-review__decide { padding: 12px; border-bottom: 1px solid #eef1f4; }
+.cg-review__decide p { margin: 0 0 8px; font-size: 13px; }
+.cg-review__buttons { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.cg-review__list { list-style: none; margin: 0; padding: 4px 12px 8px; }
+.cg-review__item { padding: 10px 0; border-top: 1px solid #eef1f4; }
+.cg-review__item:first-child { border-top: 0; }
+.cg-review__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.cg-review__comment { margin: 8px 0 0; padding: 6px 10px; border-inline-start: 3px solid #f0e0b0; background: #fdf9ee; font-size: 13px; }
+.cg-review__actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.cg-review__state { padding: 12px; border-bottom: 1px solid #eef1f4; font-size: 13px; }
+.cg-review__state > p { margin: 0; }
+.cg-review__state--approved > p:first-child { color: #1c6b3c; }
+.cg-review__state--changes > p:first-child { color: #8a5f0b; }
+.cg-review__values { margin: 8px 0 0 !important; }
+.cg-review__history { padding: 8px 12px 12px; font-size: 13px; }
+/* Undo inside Craft's own notification (as in picker.css, which may not be
+   loaded here). */
+.cg-undo-notification .cg-undo { margin-top: 4px; }
+.cg-undo-notification .cg-undo__btn { font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.cg-review__history > summary { cursor: pointer; color: #5f6c79; }
+.cg-review__history .cg-review__list { padding: 4px 0 0; }
+.cg-tree a .cg-tree__review { margin-inline-start: 6px; font-size: 11px; font-weight: 700; }
+.cg-tree__review--approved { color: #16a34a; }
+.cg-tree__review--changes { color: #d97706; }
+.cg-tree a .cg-tree__review { font-size: 13px; }
+/* On the selected (dark) row the same colours, lighter, so they still read. */
+.cg-tree a.sel .cg-tree__review--approved { color: #86efac; }
+.cg-tree a.sel .cg-tree__review--changes { color: #fcd34d; }
+.cg-tree__export { margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.cg-tree__export-pending { display: flex; align-items: center; gap: 8px; }
+.cg-tree__export [hidden] { display: none; }
+.cg-tree__export-new { font-size: 12px; font-weight: 600; color: #1a5dab; cursor: help; }
+.cg-tree__export .light { font-size: 12px; line-height: 1.4; }
+.cg-tree__clear { margin: -6px 0 12px; font-size: 12px; }
+.cg-tree__clear a, .cg-review__clear a { color: var(--light-text-color, #8b97a3); }
+.cg-tree__clear a:hover, .cg-review__clear a:hover { color: #cf1124; }
+.cg-review__clear { margin: 0; padding: 8px 12px 0; font-size: 12px; text-align: end; }
+
+/* The story's tabs under the preview: Craft's pane and tabs, our panes. */
+.cg-story-tabs { margin-bottom: 24px; padding: 0; }
+.cg-story-tabs > .pane-header { margin: 0; display: flex; align-items: center; gap: 8px; }
+.cg-story-tabs > .pane-header > .pane-tabs { flex: 1 1 auto; min-width: 0; }
+.cg-tabs__toggle {
+    flex: none; margin-inline-end: 8px; width: 32px; height: 32px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    appearance: none; background: none; border: 0; border-radius: 6px; cursor: pointer; color: #5f6c79;
+}
+.cg-tabs__toggle:hover { background: rgba(96, 125, 159, .12); color: #1f2933; }
+/* A chevron: up while open (fold up), down while folded (unfold). */
+.cg-tabs__toggle::before {
+    content: ''; width: 8px; height: 8px; border: solid currentColor; border-width: 0 2px 2px 0;
+    transform: rotate(-135deg); margin-top: 4px; transition: transform .15s, margin .15s;
+}
+.cg-tabs__toggle[aria-expanded="false"]::before { transform: rotate(45deg); margin-top: -4px; }
+.cg-story-tabs.is-folded .cg-tabpane { display: none; }
+.cg-tabpane { padding: 12px; }
+.cg-tabpane.hidden { display: none; }
+.cg-tabpane > :first-child { margin-top: 0; }
+.cg-tabpane > :last-child { margin-bottom: 0; }
+.cg-tabpane .cg-code { margin: 0; }
+.cg-tabpane__actions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.cg-tab-changed { color: #8a5a00; font-weight: 400; }
+.cg-panel__row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; }
+.cg-review [hidden] { display: none; }
+.cg-review__summary { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+/* Controls inside its tab: no frame of its own. */
+.cg-tabpane > .cg-controls { border: 0; margin: -12px; border-radius: 0; }
+.cg-tabpane > .cg-controls .cg-controls__bar { border-radius: 0; }
+.cg-tree__none { padding: 8px var(--xl, 24px); font-size: 13px; }
+/* Client review counts on the index */
+.cg-stats__review { display: inline-flex; gap: 16px; margin-inline-start: 8px; padding-inline-start: 16px; border-inline-start: 1px solid #cdd8e4; }
+.cg-stat--review { appearance: none; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.cg-stat--review:hover { text-decoration: underline; }
+.cg-stat--changes strong { color: #b15c00; }
+.cg-stat--approved strong { color: #1c6b3c; }
+/* Contract mismatch on the component page and in the tree */
+.cg-contract { margin: 0 0 20px; border: 1px solid #f0d58a; background: #fdf8e6; border-radius: 8px; padding: 10px 12px; }
+.cg-contract__item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.cg-contract__item + .cg-contract__item { margin-top: 8px; }
+.cg-contract__msg { font-weight: 600; color: #5c4500; }
+.cg-tree a .cg-tree__contract { display: inline-block; vertical-align: 1px; margin-inline-start: 4px; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; background: #f2a900; color: #2b2200; font-size: 11px; font-weight: 700; }

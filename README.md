@@ -6,7 +6,7 @@
 
 For developers it is a **component library for Craft CMS** — a living style guide of every Twig component in the project, rendered with your site's own CSS and discovered from the templates you already have. No separate Storybook, no second environment to keep alive, no screenshots to maintain.
 
-For agencies it is **where a client tries the blocks of a sprint** before they are on any page: on staging, under each preview, the client changes the block's text, choices and pictures and watches it re-render — and sends back what they see, or a case the developer turns into a story.
+For agencies it is **where a client tries the blocks of a sprint** before they are on any page: on staging, under each preview, the client changes the block's text, choices and pictures and watches it re-render — then approves the story or asks for changes (Pro, when you turn it on), and the approval reaches the story files in git with their name and the date.
 
 It also catches previews that lie: a story can promise a field the entry type does not have, and the guide says so before an editor meets a card they can never reproduce.
 
@@ -20,7 +20,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.10.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.11.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -38,6 +38,8 @@ Nothing configured yet? The guide starts by explaining how to get there:
   normalized to one internal model.
 - Groups, lists and searches components in the CP, with the whole library in
   the sidebar and filters that stay set while you move between components.
+  **Variants as cards** shows a card per story instead of per block, each with
+  its own preview — and, with client review on, where it stands.
 - Renders each story in an isolated **iframe** with your front-end CSS, on a
   desktop, tablet or phone frame, cropped to the component's own height.
 - Generates a copy-pasteable Twig `{% include … with {…} only %}` snippet.
@@ -71,6 +73,10 @@ Nothing configured yet? The guide starts by explaining how to get there:
   can follow to document an existing library in one pass — marker file, one
   draft story per component, and a report of the blocks that do not match an
   entry-type handle.
+- **Client review** *(Pro, off by default)*: a client approves each story on
+  staging or asks for changes; the approvals are exported and written into
+  your story files, so production knows what was signed off. See
+  [Client review](#client-review) and [CLIENT-REVIEW.md](CLIENT-REVIEW.md).
 - **Promote from the control panel:** flip a reviewed component between `draft`
   and `stable` on its card, and the guide tells you which files it changed so
   nothing is written behind git's back.
@@ -140,6 +146,9 @@ in it:
   lands filled in, from the state whose preview they were looking at
 - **saving their own variants** — "Save as my variant…" on a block, and the
   card it becomes in the gallery (see below)
+- **client review** — turned on in the settings: a client approves a story or
+  asks for changes, and the approval reaches the story file in git (see
+  *Client review*)
 - **`stories/check`** — the contract check as a console command with an exit
   code, for CI. The edition comes from your committed `project.yaml`, so a CI
   runner reads Pro without needing a licence key of its own; under Lite the
@@ -195,6 +204,22 @@ Saving a variant is a Pro feature. It works in Matrix fields set to
 **Inline-editable blocks**; Cards and Index modes have no block menu to add it
 to.
 
+## Permissions
+
+- **Access Component Guide** — Craft's own, under *General → Access the
+  control panel*: the Component Guide section, with everything in it.
+  - **Approve blocks or ask for changes (client review)** — nested under it,
+    so it cannot be given without it (Pro, and only while client review is
+    on in the settings).
+  - **Clear the client review history** — beside it: for a developer who is
+    not an admin. Listed only where **Enable History Clearing** is on; saving
+    a user group where it is off drops it from that group.
+- **Use the blocks gallery on page-builder fields** — under *Component Guide*:
+  for editors who use the gallery on their entries but never open the section.
+
+Either Access Component Guide or the gallery permission lets someone use the
+guide; nobody needs both.
+
 ## Installation
 
 From the [Craft Plugin Store](https://plugins.craftcms.com/component-guide):
@@ -232,15 +257,26 @@ return [
     'previewCss' => ['/dist/css/app.css'], // string or array
     'previewJs' => ['/dist/js/app.js'],
     'previewTemplate' => '',               // site template rendered into the preview <head>
+    'enableScanCache' => true,
+    'enableClientReview' => false,         // Pro: approve stories / ask for changes
+    'enableReviewClearing' => false,       // the review history may be cleared in the CP
 ];
 ```
+
+The two client review switches take `true`, `false`, or the name of an
+environment variable (`'$CG_CLIENT_REVIEW'`) read as a boolean — in this file
+or in the settings screen, where each is a Yes / No / variable menu — so
+staging and production can differ while project config stays the same.
 
 | Setting | Default | Notes |
 |---|---|---|
 | `componentPath` | `''` (whole `templates/`) | Scan root relative to `templates/`. Empty scans everything; set e.g. `_components` to narrow. No absolute paths or `..`. |
 | `storySuffix` | `.stories.php` | Must end in `.php`. The Twig equivalent (`.stories.twig`) is derived from it automatically and discovered too — that's the format the scaffolder writes. |
-| `enableCpSection` | `true` | Show/hide the CP nav item. |
-| `enableIframePreview` | `true` | Isolated iframe vs. an "open preview" link. |
+| `enableCpSection` | `true` | Show/hide the CP nav item. The pages stay reachable by their address; the editors' gallery and the CLI keep working. |
+| `enableIframePreview` | `true` | On a component's page: the preview in an iframe (with Controls), or a link to it. |
+| `enableScanCache` | `true` | Cache the scan; it invalidates itself when a story, template or marker file changes. |
+| `enableClientReview` | `false` | Client review (Pro) — see *Client review*. Yes or No goes into project config, so every environment follows it; an environment variable lets each decide. |
+| `enableReviewClearing` | `false` | Lets admins, and users with the *Clear the client review history* permission, clear the review history from the CP. For staging only, point it at an environment variable (`'$CG_REVIEW_CLEARING'`) set only there. The console command works either way. |
 | `previewCss` / `previewJs` | `[]` | Front-end assets injected into the preview. |
 | `previewTemplate` | `''` | A site template rendered into the preview document's `<head>` — the right place for Vite/manifest asset tags (see below). |
 
@@ -369,7 +405,9 @@ return [
 ];
 ```
 
-Optional story keys: `args`, `description`, `background`, `viewport`, `tags`.
+Optional story keys: `args`, `description`, `background`, `viewport`, `tags`,
+`approval` (`{ by: 'username', date: 'YYYY-MM-DD', version: '…' }` — written by
+the client review import; see *Client review*).
 
 - **`viewport`** picks the device the preview opens in — `desktop` (default),
   `tablet` or `phone`. The reader can still switch; this just says which state
@@ -495,9 +533,128 @@ can send someone exactly what you see. A page opened from such an address
 asks before it shows the values — see *Security & trust model*.
 
 This is the part of the guide a client can use: give them a control-panel
-account with the `component-guide:access` permission on staging, and they can
+account on staging with **Access the control panel** and **Access Component
+Guide** (both under *General* in Craft's permissions), and they can
 open each block of the sprint and try it with their own words, without a page
 built around it.
+
+## Client review
+
+*Pro, off by default.* Turn it on in **Settings → Plugins → Component Guide →
+Client review** when you use it with your client. Step by step — accounts,
+the handover, the requests, the import — in
+[CLIENT-REVIEW.md](CLIENT-REVIEW.md). The setting is saved in
+project config, so staging and production follow it alike; with it off there
+is no review permission, nothing on the component page, no filter, no counts —
+not a word about it anywhere.
+
+A user with the **Approve blocks or ask for changes** permission (nested under
+Craft's **Access Component Guide**) sees, under the preview:
+
+- **Approve this story** — the story exactly as the developer wrote it. Values
+  changed in Controls cannot be approved: reset them, or send them with…
+- **Request changes** — a comment, and the values on screen if they were
+  changed, so the developer sees what was tried.
+
+Every story is in one of three states, the same for everyone:
+
+| | |
+|---|---|
+| **To review** | nobody has decided yet — or the block has changed since the last decision |
+| **Approved** | someone with the permission approved it |
+| **Changes requested** | someone asked for changes |
+
+**The latest decision decides, whoever made it.** A developer who finds
+something wrong in a story the client approved asks for changes, and the
+story is *Changes requested* for everyone; the client's approval of the fixed
+version makes it *Approved* again. Decisions are never withdrawn: each one is
+kept in the story's **History**, with who and when — nobody can later say they
+never approved a block that went live. The one exception is a slip of the
+mouse: right after **Approve** or **Request changes**, a notification offers
+**Undo** for a few seconds (an undone request puts its comment back in the
+box).
+
+**When the block changes**, the decision made on the earlier version no longer
+holds: each decision remembers the block as that story showed it — a short hash
+of the block's template and of the story's args. Change the template (every
+story of the block) or the story's args (that story) after a request for
+changes, and the story is back to *To review* — “the block has changed since, look at it again”; the same
+after an approval, since the client approved a block that looks different now.
+A fix outside the template — a partial it includes, the CSS — is not noticed by
+itself: an admin clicks **Mark as fixed** on the request (**Not fixed yet**
+takes it back).
+
+The sidebar marks ! where changes are requested and ✓ where a story is
+approved. A **block** is approved only when all its stories are — *Light*
+approved and *Dark* not yet leaves the block *To review* — and has changes
+requested as soon as one story has. The review filter and the counts on the
+index narrow the library by the block's state. A draft or deprecated block cannot be approved, but changes can be
+requested on it. The review state sits beside the developer's status and does
+not replace it: a stable block with changes requested can still be used.
+
+### From staging to the story files
+
+To start the client on a clean slate after your own trial runs — with
+**Enable History Clearing** on in the settings — an admin, or anyone with the
+**Clear the client review history** permission, can **Clear this
+block's review history…** (on its page) or **Clear review history…**
+(sidebar); or, with or without it, run `php craft component-guide/reviews/clear
+[--component=<id>]` — it asks first, is logged, and leaves the approvals in the
+story files alone.
+
+Decisions are made on staging and kept in each reviewer's own Craft user
+preferences — no table, no migration. Craft deletes a user's preferences with
+the user, so export before removing a client's staging account. To take them
+to the story files:
+
+1. On staging, an admin clicks **Export client reviews** (sidebar) and gets
+   one JSON file, which says the site and Craft environment it came from. The
+   button shows while there are decisions that admin has
+   not exported yet, with how many; after an export it becomes a quiet
+   “exported {date}, nothing new” line with an **Export again** link.
+2. Where the story files are written — usually locally:
+
+   ```sh
+   php craft component-guide/reviews/import --file=component-guide-reviews-staging.example.com-2026-10-30.json
+   ```
+
+   In DDEV (or any container) the command sees only the project folder, so
+   read the download from your machine through standard input:
+
+   ```sh
+   ddev craft component-guide/reviews/import --file=- < ~/Downloads/component-guide-reviews-staging.example.com-2026-10-30.json
+   ```
+
+   For each story, the latest decision:
+
+   - **approved** — the story gets one line, and nothing else in the file
+     changes:
+
+     ```twig
+     'Light': {
+         approval: { by: 'anna', date: '2026-10-30', version: '3f9c1a2b7d4e' },
+         args: { … },
+     },
+     ```
+
+     `by` is the approver's username — the user can always be found by it,
+     and the guide shows their full name where they are a user. (With Craft's
+     `useEmailAsUsername`, that is their email address, in your repository.)
+     A later approval replaces it. So production knows a story is approved
+     without anyone reviewing there — and that it no longer is, if the
+     template changes after it.
+   - **changes requested** — listed with the comment and the values tried:
+     that is the work. An `approval:` the story still has is taken out: it is
+     no longer the latest word.
+   - **approved on an earlier version** — the template or the story's args
+     here differ from what the reviewer saw —
+     not imported; ask for another look.
+
+   Importing the same file twice changes nothing. `--dry-run` shows what
+   would be written. A story written as bare args (without `args:`), or a PHP
+   story file, gets the line printed to add by hand.
+
+3. Review the diff, commit, deploy.
 
 ## Reviewing and promoting
 
@@ -751,7 +908,10 @@ php craft plugin/uninstall component-guide
 composer remove b10k/craft-component-guide
 ```
 
-That removes the plugin, its settings, its permission and its scan cache.
+That removes the plugin, its settings, its permission and its scan cache —
+and what it kept in Craft's user preferences (keys starting with
+`componentGuide.`): editors' own variants and clients' reviews. Export the
+reviews first if they have not reached the story files yet.
 
 ### 2. Decide what to do with your story files
 
@@ -813,10 +973,12 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   must live inside your templates folder.
 - Previews render only component/story **IDs** resolved through the repository —
   a request can never supply a raw template path.
-- Every CP/preview action requires login and the `component-guide:access`
-  permission.
+- Every CP/preview action requires login and either Craft's own **Access
+  Component Guide** permission (the control-panel section) or the plugin's
+  **Use the blocks gallery on page-builder fields** (`component-guide:access`),
+  for editors who only use the gallery.
 - The two actions that **write** into `templates/` — scaffolding a story and
-  changing a status — are POST-only, CSRF-protected, and gated on
+  changing a status — are admin-only, POST-only, CSRF-protected, and gated on
   `allowAdminChanges` plus a writable templates directory. A status change
   rewrites exactly one line. Every such write is recorded and surfaced on the
   index (see *What the guide changed*), because a control panel that edits
@@ -841,6 +1003,15 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   carry anything, and a template that prints a value inside a `<script>` or an
   `onclick` is not made safe by HTML escaping. The values are rendered, never
   stored.
+
+- Client review decisions are written only by users with the review
+  permission, only for themselves, POST-only and CSRF-protected, only in Pro
+  and only with client review turned on. They are read for everyone with
+  access to the guide — that is their purpose — from the preferences of users
+  who may review, and nobody else's. A reviewer's values are content, like
+  what an editor types into a field: they render through the same templates.
+  The import command writes only the `approval:` line of the story a decision
+  names, and nothing at all with `--dry-run`.
 
 Do **not** expose the plugin to untrusted users — story files are project code,
 not a sandbox.

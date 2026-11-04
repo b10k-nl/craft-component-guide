@@ -178,6 +178,9 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
 .cg-picker-panel .cg-chip--beta { background: #dbe9fb; color: #1a5dab; }
 .cg-picker-panel .cg-chip--wip { background: #fbeeca; color: #8a5f0b; }
 .cg-picker-panel .cg-chip--deprecated { background: #fcdcd8; color: #9a1f11; }
+.cg-picker-panel .cg-chip--review { cursor: help; }
+.cg-picker-panel .cg-chip--review-approved { background: #d8f0e0; color: #1c6b3c; }
+.cg-picker-panel .cg-chip--review-changes { background: #fbeeca; color: #8a5f0b; }
 
 /* Variant switcher -------------------------------------------------------
    Only appears when a component has more than one state an editor can

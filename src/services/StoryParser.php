@@ -20,7 +20,10 @@ use yii\base\Component;
 class StoryParser extends Component
 {
     /** Reserved keys recognized inside a rich story entry. */
-    private const STORY_KEYS = ['args', 'description', 'background', 'viewport', 'tags'];
+    private const STORY_KEYS = ['args', 'description', 'background', 'viewport', 'tags', 'approval'];
+
+    /** Keys that make an entry rich by themselves (see parseStory). */
+    private const RICH_MARKERS = ['args', 'description', 'background', 'viewport', 'tags'];
 
     /** Canonical component lifecycle statuses (what the UI color-codes). */
     public const STATUSES = ['stable', 'beta', 'draft', 'deprecated'];
@@ -241,7 +244,11 @@ class StoryParser extends Component
         }
 
         // Rich entry: has any reserved key. Otherwise the whole array is the args.
-        $isRich = array_intersect(self::STORY_KEYS, array_keys($definition)) !== [];
+        // `approval` alone does not make an entry rich: it arrived after
+        // projects had stories written as bare args, and one of those may
+        // well have an argument called “approval”. A sign-off is always
+        // written with `args:` beside it.
+        $isRich = array_intersect(self::RICH_MARKERS, array_keys($definition)) !== [];
 
         if ($isRich) {
             $args = $definition['args'] ?? [];
@@ -264,10 +271,12 @@ class StoryParser extends Component
                 $errors,
             );
             $tags = $this->normalizeTags($definition['tags'] ?? []);
+            $approval = $this->normalizeApproval($definition['approval'] ?? null, $name, $id, $relativeFile, $errors);
         } else {
             $args = $definition;
             $description = $background = $viewport = null;
             $tags = [];
+            $approval = null;
         }
 
         return new StoryDefinition(
@@ -279,7 +288,46 @@ class StoryParser extends Component
             background: $background,
             viewport: $viewport,
             tags: $tags,
+            approval: $approval,
         );
+    }
+
+    /**
+     * `approval: { by: 'anna', date: '2026-10-30', version: '…' }` — a
+     * client's approval, as a client review writes it: `by` is the approver's
+     * username, `version` the block's template it was given on
+     * (ClientReview::fingerprint()). A malformed one is reported
+     * rather than dropped: a story that claims an approval it cannot show is
+     * exactly the kind of record that must not fail quietly.
+     *
+     * @param ScanError[] $errors
+     * @return array{by: string, date: string, version: string|null}|null
+     */
+    private function normalizeApproval(mixed $approval, string $name, string $id, string $relativeFile, array &$errors): ?array
+    {
+        if ($approval === null) {
+            return null;
+        }
+
+        $by = is_array($approval) ? $this->stringOrNull($approval['by'] ?? null) : null;
+        $date = is_array($approval) ? $this->stringOrNull($approval['date'] ?? null) : null;
+        if ($by === null || $date === null || preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
+            $errors[] = new ScanError(
+                ScanError::INVALID_STORY_FORMAT,
+                sprintf('Story “%s” has an “approval” that is not { by: \'Name\', date: \'YYYY-MM-DD\' }.', $name),
+                $relativeFile,
+                storyId: $id,
+            );
+            return null;
+        }
+
+        $version = is_array($approval) ? $this->stringOrNull($approval['version'] ?? null) : null;
+
+        return [
+            'by' => $by,
+            'date' => $date,
+            'version' => $version !== null && preg_match('/^[a-f0-9]{8,40}$/', $version) === 1 ? $version : null,
+        ];
     }
 
     /**

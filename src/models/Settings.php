@@ -3,6 +3,7 @@
 namespace b10k\componentguide\models;
 
 use craft\base\Model;
+use craft\helpers\App;
 
 /**
  * Component Guide settings.
@@ -49,6 +50,24 @@ class Settings extends Model
     public bool $enableScanCache = true;
 
     /**
+     * @var bool Whether client review is on (Pro): approve a story or ask for
+     * changes, on the component page. Off by default — an agency decides to
+     * use it with its client, and the setting travels in project config, so
+     * staging and production agree.
+     */
+    public bool|string $enableClientReview = false;
+
+    /**
+     * @var bool Whether admins can clear the review history from the control
+     * panel. Off by default: the history is what an agency points to when a
+     * client remembers it differently. Turn it on to clear trial runs before
+     * the client starts — per environment with an env var in
+     * config/component-guide.php, if production should never allow it. The
+     * console command works either way.
+     */
+    public bool|string $enableReviewClearing = false;
+
+    /**
      * @var string[] Front-end CSS URLs injected into the preview document.
      */
     public array $previewCss = [];
@@ -77,10 +96,46 @@ class Settings extends Model
         return preg_replace('/\.php$/', '.twig', $this->storySuffix) ?? $this->storySuffix;
     }
 
+    /**
+     * The client review switches, which can also name an environment variable
+     * (`$CG_…`), so staging and production can differ while project config is
+     * the same — read them through isOn(), never directly. (Not `on()`: that
+     * name is Yii's, for events, on every component.)
+     */
+    public const SWITCHES = [
+        'enableClientReview' => false,
+        'enableReviewClearing' => false,
+    ];
+
+    /**
+     * Whether a switch is on: its value, or the environment variable it names
+     * read as a boolean (`yes`/`no`/`true`/`false`/`on`/`off`/`1`/`0`). An
+     * unset or unreadable variable gives the switch's default.
+     */
+    public function isOn(string $name): bool
+    {
+        if (!array_key_exists($name, self::SWITCHES)) {
+            throw new \InvalidArgumentException("Unknown setting “{$name}”.");
+        }
+
+        return App::parseBooleanEnv($this->$name) ?? self::SWITCHES[$name];
+    }
+
+    /**
+     * A switch as the settings form shows it: '1', '0', or the `$VARIABLE`.
+     */
+    public function formValue(string $name): string
+    {
+        $value = $this->$name;
+
+        return is_string($value) && str_starts_with($value, '$') ? $value : ($value ? '1' : '0');
+    }
+
     public function init(): void
     {
         parent::init();
         $this->normalizeAssetLists();
+        $this->normalizeSwitches();
     }
 
     public function beforeValidate(): bool
@@ -89,7 +144,26 @@ class Settings extends Model
         // from textareas — normalize again so the rest of the request (and the
         // persisted value) always sees string arrays.
         $this->normalizeAssetLists();
+        $this->normalizeSwitches();
         return parent::beforeValidate();
+    }
+
+    /**
+     * '1' / '0' / '' from the form, or true/false from config, to a bool; a
+     * `$VARIABLE` stays as it is, to be read when it is asked for.
+     */
+    private function normalizeSwitches(): void
+    {
+        foreach (array_keys(self::SWITCHES) as $name) {
+            $value = $this->$name;
+            if (is_string($value) && str_starts_with(trim($value), '$')) {
+                $this->$name = trim($value);
+            } elseif (is_string($value)) {
+                $this->$name = in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true);
+            } else {
+                $this->$name = (bool)$value;
+            }
+        }
     }
 
     private function normalizeAssetLists(): void
@@ -126,10 +200,22 @@ class Settings extends Model
             [['componentPath', 'storySuffix', 'previewTemplate'], 'trim'],
             [['storySuffix'], 'required'],
             [['enableCpSection', 'enableIframePreview', 'enableScanCache'], 'boolean'],
+            [array_keys(self::SWITCHES), 'validateSwitch'],
             [['previewCss', 'previewJs', 'previewTemplate'], 'safe'],
             ['storySuffix', 'match', 'pattern' => '/\.php$/', 'message' => 'The story suffix must end in “.php”.'],
             ['componentPath', 'validateComponentPath'],
         ];
+    }
+
+    /**
+     * A switch is on, off, or names an environment variable.
+     */
+    public function validateSwitch(string $attribute): void
+    {
+        $value = $this->$attribute;
+        if (!is_bool($value) && !(is_string($value) && preg_match('/^\$\w+$/', $value) === 1)) {
+            $this->addError($attribute, 'Choose Yes, No, or an environment variable.');
+        }
     }
 
     /**

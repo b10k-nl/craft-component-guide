@@ -27,8 +27,9 @@
         <input type="hidden" name="args" value="">
     </form>
 
+    {# The tab above names it (view.twig); this bar holds what acts on it. #}
     <header class="cg-controls__bar">
-        <h2 id="cg-controls-title">{{ "Controls"|t('component-guide') }}</h2>
+        <h2 id="cg-controls-title" class="visually-hidden">{{ "Controls"|t('component-guide') }}</h2>
         <span class="cg-controls__changed" data-cg-controls-changed hidden>
             {{ "Changed here only — nothing is saved."|t('component-guide') }}
         </span>
@@ -43,6 +44,8 @@
         <button type="button" class="btn submit" data-icon="eye" data-cg-controls-apply>{{ "Show them"|t('component-guide') }}</button>
         <button type="button" class="btn" data-cg-controls-ignore>{{ "Ignore"|t('component-guide') }}</button>
     </div>
+
+    <div id="cg-controls-body" data-cg-collapse-body>
 
     <div class="cg-controls__snippet" data-cg-controls-snippet hidden>
         <p class="light">{{ "The story as copied. It goes into {file}, inside the stories."|t('component-guide', { file: component.storyFilePath }) }}</p>
@@ -114,4 +117,5 @@
             {% endfor %}
         </div>
     {% endif %}
+    </div>
 </section>

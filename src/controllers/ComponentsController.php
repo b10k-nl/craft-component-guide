@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\controllers;
 
+use b10k\componentguide\helpers\ClientReview;
 use b10k\componentguide\helpers\StoryControls;
 use b10k\componentguide\helpers\UserStoryBuilder;
 use b10k\componentguide\models\AdapterBinding;
@@ -32,7 +33,9 @@ class ComponentsController extends Controller
             return false;
         }
         $this->requireCpRequest();
-        $this->requirePermission(Plugin::PERMISSION_ACCESS);
+        if (!Plugin::canAccess()) {
+            throw new \yii\web\ForbiddenHttpException('User is not permitted to perform this action.');
+        }
         return true;
     }
 
@@ -45,10 +48,15 @@ class ComponentsController extends Controller
         // One preview URL per documented component, built in the one place that
         // decides site-vs-CP, so the cards and the picker cannot drift apart.
         $previewUrls = [];
+        // And one per story, for “Variants as cards”.
+        $storyPreviewUrls = [];
         foreach ($components as $component) {
             $firstStory = $component->stories[0] ?? null;
             if ($firstStory !== null) {
                 $previewUrls[$component->id] = Plugin::previewUrl($component->id, $firstStory->id);
+            }
+            foreach ($component->stories as $story) {
+                $storyPreviewUrls[$component->id][$story->id] = Plugin::previewUrl($component->id, $story->id);
             }
         }
 
@@ -65,6 +73,7 @@ class ComponentsController extends Controller
         return $this->renderTemplate('component-guide/components/index', [
             'title' => \Craft::t('component-guide', 'Component Guide'),
             'grouped' => $repository->getGrouped(),
+            ...$this->reviewVars(),
             'componentCount' => $repository->componentCount(),
             'storyCount' => $repository->storyCount(),
             'scanErrors' => $repository->getErrors(),
@@ -91,8 +100,9 @@ class ComponentsController extends Controller
             // that changed state — see WriteJournal. Relative paths only: the
             // CP never echoes absolute paths.
             'previewUrls' => $previewUrls,
+            'storyPreviewUrls' => $storyPreviewUrls,
             'contractErrors' => $contractErrors,
-            'cpWrites' => $this->cpWrites(),
+            'cpWrites' => \Craft::$app->getUser()->getIsAdmin() ? $this->cpWrites() : [],
             // The status toggle writes into templates/ exactly like the
             // scaffolder, so it opens and closes with the same two gates.
             'canToggleStatus' => $this->canScaffold(),
@@ -143,6 +153,16 @@ class ComponentsController extends Controller
             'component' => $component,
             'grouped' => $plugin->getRepository()->getGrouped(),
             'controls' => $story !== null ? $this->controls($component, $story, $binding) : [],
+            // Client review, made on this page: where each story stands, read
+            // for everyone with access — the developer is who has to see it.
+            ...$this->reviewVars($component->id, $story),
+            // The card's ≠ badge has to be on the page and in the sidebar
+            // too: someone moving between blocks there never sees the cards.
+            'contractErrors' => $plugin->getContractInspector()->inspect(
+                $plugin->getRepository()->getAll(),
+                Craft::$app->getPath()->getSiteTemplatesPath(),
+            ),
+            'pro' => $plugin->isPro(),
             'entryTypeName' => $matcher->matchedEntryType($component),
             'readyForEditors' => $matcher->isReadyForEditors($component),
             'story' => $story,
@@ -290,10 +310,56 @@ class ComponentsController extends Controller
      * an absent button with no reason is a mystery, and the two reasons call
      * for different actions.
      *
-     * @return null|'admin-changes'|'read-only' Null when scaffolding is available.
+     * @return null|'not-admin'|'admin-changes'|'read-only' Null when scaffolding is available.
      */
+    /**
+     * What the templates need about client review. With it off (the default)
+     * or in Lite: nothing — no states, no counts, no export.
+     *
+     * @return array<string, mixed>
+     */
+    private function reviewVars(?string $componentId = null, ?StoryDefinition $story = null): array
+    {
+        $plugin = Plugin::getInstance();
+        if (!$plugin->clientReviewEnabled()) {
+            return ['reviewEnabled' => false, 'reviewStates' => [], 'reviewHistory' => [], 'canReview' => false, 'reviewsNew' => 0, 'reviewsExportedOn' => null, 'reviewsTotal' => 0, 'reviewsOnBlock' => 0, 'canClearReviews' => false];
+        }
+
+        $reviews = $plugin->getClientReviews();
+
+        return [
+            'reviewEnabled' => true,
+            'reviewStates' => $reviews->states(),
+            // Each decision says whether it carries values other than the
+            // story's own — what the reviewer tried in Controls.
+            'reviewHistory' => $componentId !== null && $story !== null
+                ? array_map(
+                    static fn(array $r): array => $r + ['tried' => !ClientReview::sameArgs($r['args'], $story->args)],
+                    $reviews->history($componentId, $story->id),
+                )
+                : [],
+            'canReview' => $reviews->canReview(),
+            'reviewsNew' => $reviews->newSinceExport(),
+            'reviewsExportedOn' => $reviews->exportedOn(),
+            // “Clear history”, where the settings allow it, for whoever has
+            // the permission (admins do): how much there is to clear.
+            'canClearReviews' => $plugin->getSettings()->isOn('enableReviewClearing')
+                && Craft::$app->getUser()->checkPermission(Plugin::PERMISSION_CLEAR_REVIEWS),
+            'reviewsTotal' => count($reviews->all()),
+            'reviewsOnBlock' => $componentId !== null
+                ? count(array_filter($reviews->all(), static fn(array $r): bool => $r['componentId'] === $componentId))
+                : 0,
+        ];
+    }
+
     private function scaffoldBlockedReason(): ?string
     {
+        // Writing project files is a developer's act. A client reviewing
+        // blocks, or an editor, sees the guide — not buttons that change git.
+        if (!\Craft::$app->getUser()->getIsAdmin()) {
+            return 'not-admin';
+        }
+
         // Craft's own signal for “this environment may change project files”:
         // true on local and staging by convention, false on production.
         if (!\Craft::$app->getConfig()->getGeneral()->allowAdminChanges) {
@@ -329,9 +395,11 @@ class ComponentsController extends Controller
         $this->requirePostRequest();
 
         if (!$this->canScaffold()) {
-            throw new ForbiddenHttpException($this->scaffoldBlockedReason() === 'read-only'
-                ? 'The templates directory is read-only on this environment, so story files cannot be created here.'
-                : 'Story scaffolding is disabled in this environment (allowAdminChanges).');
+            throw new ForbiddenHttpException(match ($this->scaffoldBlockedReason()) {
+                'not-admin' => 'Only an admin can write story files.',
+                'read-only' => 'The templates directory is read-only on this environment, so story files cannot be created here.',
+                default => 'Story scaffolding is disabled in this environment (allowAdminChanges).',
+            });
         }
 
         $componentId = (string)$this->request->getRequiredBodyParam('componentId');
@@ -387,9 +455,11 @@ class ComponentsController extends Controller
         $this->requirePostRequest();
 
         if (!$this->canScaffold()) {
-            throw new ForbiddenHttpException($this->scaffoldBlockedReason() === 'read-only'
-                ? 'The templates directory is read-only on this environment, so story files cannot be changed here.'
-                : 'Changing story files is disabled in this environment (allowAdminChanges).');
+            throw new ForbiddenHttpException(match ($this->scaffoldBlockedReason()) {
+                'not-admin' => 'Only an admin can write story files.',
+                'read-only' => 'The templates directory is read-only on this environment, so story files cannot be changed here.',
+                default => 'Changing story files is disabled in this environment (allowAdminChanges).',
+            });
         }
 
         $componentId = (string)$this->request->getRequiredBodyParam('componentId');
@@ -456,6 +526,7 @@ class ComponentsController extends Controller
     public function actionMarkReviewed(): Response
     {
         $this->requirePostRequest();
+        $this->requireAdmin(false);
 
         $relative = $this->request->getBodyParam('file');
         $journal = Plugin::getInstance()->getWriteJournal();

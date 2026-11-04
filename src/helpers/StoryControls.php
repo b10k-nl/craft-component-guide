@@ -172,6 +172,8 @@ final class StoryControls
             $story->background,
             $story->viewport,
             $story->tags,
+            // A changed story is not the version anyone approved.
+            null,
         );
     }
 

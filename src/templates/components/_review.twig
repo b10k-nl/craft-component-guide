@@ -1,0 +1,162 @@
+{#
+    Client review: approve this story as written, or ask for changes.
+
+    Three states, the same for everyone: to review, approved, changes
+    requested. The latest decision on the story decides, whoever made it; a
+    decision made on an earlier version of the block's template goes back to
+    review (ClientReview::state()). Decisions are never withdrawn (a decision can be
+    undone from the notification for a few seconds after the click) — the earlier
+    ones are the story's history.
+
+    Only an approval of the story as written: values changed in Controls go
+    with a request for changes, for the developer to see what was tried.
+
+    Decisions are kept in the reviewer's own user preferences; Export (in the
+    sidebar) takes them to where the story files are written.
+#}
+{% set state = storyState.state ?? 'review' %}
+{% set reason = storyState.reason ?? 'new' %}
+{% set latest = storyState.review ?? null %}
+{% set approvable = component.status not in ['draft', 'deprecated'] %}
+{% set labels = {
+    review: 'To review'|t('component-guide'),
+    approved: 'Approved'|t('component-guide'),
+    changes: 'Changes requested'|t('component-guide'),
+} %}
+{% set chips = { review: 'cg-chip--review', approved: 'cg-chip--stable', changes: 'cg-chip--draft' } %}
+
+<section class="cg-review" data-cg-review
+         data-component-id="{{ component.id }}"
+         data-story-id="{{ story.id }}"
+         data-msg-need-comment="{{ 'Say what should change — your developer will read exactly this.'|t('component-guide') }}"
+         data-msg-error="{{ 'Could not record the decision.'|t('component-guide') }}"
+         data-msg-approved="{{ 'Approved.'|t('component-guide') }}"
+         data-msg-sent="{{ 'Changes requested.'|t('component-guide') }}"
+         data-msg-undo="{{ 'Undo'|t('component-guide') }}"
+         data-msg-fixed="{{ 'Mark this request as fixed? The story goes back to review.'|t('component-guide') }}"
+         aria-labelledby="cg-review-title">
+
+    <header class="cg-controls__bar">
+        {# Always open, under the tabs: the comment and the buttons stay in
+           view while values are tried in Controls. #}
+        <h2 id="cg-review-title">{{ "Client review"|t('component-guide') }}</h2>
+        <span class="cg-review__summary">
+            <span class="cg-chip {{ chips[state] }}">
+                {{- labels[state] -}}
+                {%- if state != 'review' and storyState.by %} · {{ storyState.by }}, {{ storyState.date|date('short') }}{% endif -%}
+            </span>
+        </span>
+    </header>
+
+    <div id="cg-review-body">
+        {# Where the story stands, in one sentence. #}
+        <div class="cg-review__state cg-review__state--{{ state }}">
+            {% if state == 'approved' %}
+                <p>{{ "Approved by {name} on {date}"|t('component-guide', { name: storyState.by, date: storyState.date|date('short') }) }}</p>
+            {% elseif state == 'changes' %}
+                <p><strong>{{ "{name} asked for changes on {date}:"|t('component-guide', { name: latest.by, date: latest.date|date('short') }) }}</strong></p>
+                <blockquote class="cg-review__comment">{{ latest.comment|nl2br }}</blockquote>
+            {% elseif reason == 'changed' %}
+                <p>{{ "Approved by {name} on {date}, but the block or this story has changed since. Look at it again."|t('component-guide', { name: storyState.by, date: storyState.date|date('short') }) }}</p>
+            {% elseif reason == 'updated' %}
+                <p>{{ "{name} asked for changes on {date}, and the block or this story has changed since. Look at it again."|t('component-guide', { name: latest.by, date: latest.date|date('short') }) }}</p>
+                <blockquote class="cg-review__comment">{{ latest.comment|nl2br }}</blockquote>
+            {% elseif reason == 'fixed' %}
+                <p>{{ "{name} asked for changes on {date}; {developer} marked them fixed on {fixedDate}. Look at it again."|t('component-guide', { name: latest.by, date: latest.date|date('short'), developer: latest.fixed.by, fixedDate: latest.fixed.date|date('short') }) }}</p>
+                <blockquote class="cg-review__comment">{{ latest.comment|nl2br }}</blockquote>
+            {% else %}
+                <p class="light">{{ "Nobody has decided on this story yet."|t('component-guide') }}</p>
+            {% endif %}
+
+            {# What the reviewer tried in Controls, and the developer's side of
+               a request: done. “Mark as fixed” is only needed for a fix outside
+               the block's template — a change to the template is noticed by
+               itself. #}
+            {% if latest and latest.decision == 'changes' %}
+                {% set latestTried = (history|filter(h => h.id == latest.id)|first).tried ?? false %}
+                {% set canFix = currentUser.admin and reason != 'updated' %}
+                {% if latestTried or canFix %}
+                    <p class="cg-review__actions" data-cg-review-item
+                       data-review-id="{{ latest.id }}"
+                       data-review-args="{{ latest.args|json_encode }}">
+                        {% if latestTried %}
+                            <button type="button" class="btn small" data-icon="eye" data-cg-review-show>{{ "Show the values tried"|t('component-guide') }}</button>
+                        {% endif %}
+                        {% if canFix and reason == 'fixed' %}
+                            <button type="button" class="btn small" data-cg-review-fixed="0">{{ "Not fixed yet"|t('component-guide') }}</button>
+                        {% elseif canFix %}
+                            <button type="button" class="btn small" data-icon="check" data-cg-review-fixed="1">{{ "Mark as fixed"|t('component-guide') }}</button>
+                        {% endif %}
+                    </p>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {% if canReview %}
+            <div class="cg-review__decide">
+                {# Both notes, and Approve, are on the page whatever the status:
+                   “Mark stable” above swaps them without a reload. #}
+                <p class="light" data-cg-review-unapprovable="draft"{% if component.status != 'draft' %} hidden{% endif %}>
+                    {{- "This block is still a draft. It can be approved once it is marked stable; you can already ask for changes."|t('component-guide') -}}
+                </p>
+                <p class="light" data-cg-review-unapprovable="deprecated"{% if component.status != 'deprecated' %} hidden{% endif %}>
+                    {{- "This block is deprecated, so it is not approved any more; you can still ask for changes."|t('component-guide') -}}
+                </p>
+                <textarea class="text fullwidth" rows="2" data-cg-review-comment
+                          placeholder="{{ 'Comment — required when you ask for changes'|t('component-guide') }}"
+                          aria-label="{{ 'Comment'|t('component-guide') }}"></textarea>
+                <div class="cg-review__buttons">
+                    {% if state != 'approved' %}
+                        <button type="button" class="btn submit" data-icon="check" data-cg-review-decide="approved"{% if not approvable %} hidden{% endif %}
+                                {% if state == 'changes' %}data-cg-review-confirm="{{ 'Changes are requested on this story. Approve it as it is?'|t('component-guide') }}"{% endif %}>
+                            {{- "Approve this story"|t('component-guide') -}}
+                        </button>
+                    {% endif %}
+                    <button type="button" class="btn" data-cg-review-decide="changes">{{ "Request changes"|t('component-guide') }}</button>
+                </div>
+                <p class="light cg-review__values" data-cg-review-values hidden>
+                    {{ "You changed values above: they go with a request for changes. Only the story as written can be approved — reset them to approve it."|t('component-guide') }}
+                </p>
+            </div>
+        {% endif %}
+
+        {# Clearing a block's trial runs before the client starts: every
+           decision on every story of this block, by everyone. For admins and
+           the clear permission, where the settings allow it. #}
+        {% if (canClearReviews ?? false) and (reviewsOnBlock ?? 0) > 0 %}
+            <p class="cg-review__clear">
+                <a href="#" data-cg-review-clear data-component-id="{{ component.id }}"
+                   data-confirm="{{ 'Delete all {count} review decisions on “{block}”, on every story, by everyone? This cannot be undone — export them first if you may need them.'|t('component-guide', { count: reviewsOnBlock, block: component.title }) }}">
+                    {{- 'Clear this block’s review history…'|t('component-guide') -}}
+                </a>
+            </p>
+        {% endif %}
+
+        {% if history is not empty %}
+            {# Every decision on this story, newest first. Nothing is
+               withdrawn: this is what was decided, by whom, and when. #}
+            <details class="cg-review__history">
+                <summary>{{ "History"|t('component-guide') }} · {{ history|length }}</summary>
+                <ul class="cg-review__list">
+                    {% for review in history %}
+                        {% set approved = review.decision == 'approved' %}
+                        <li class="cg-review__item" data-cg-review-item
+                            data-review-id="{{ review.id }}"
+                            data-review-args="{{ review.args|json_encode }}">
+                            <div class="cg-review__head">
+                                <span class="cg-chip {{ approved ? 'cg-chip--stable' : 'cg-chip--draft' }}">{{ approved ? labels.approved : labels.changes }}</span>
+                                <span class="light">{{ 'by {name}, {date}'|t('component-guide', { name: review.by, date: review.dateCreated|datetime('short') }) }}</span>
+                                {% if review.tried %}
+                                    <button type="button" class="btn small" data-icon="eye" data-cg-review-show>{{ "Show the values tried"|t('component-guide') }}</button>
+                                {% endif %}
+                            </div>
+                            {% if review.comment %}
+                                <blockquote class="cg-review__comment">{{ review.comment|nl2br }}</blockquote>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </details>
+        {% endif %}
+    </div>
+</section>

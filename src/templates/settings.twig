@@ -17,12 +17,12 @@
     errors: settings.getErrors('componentPath'),
     disabled: overrides.componentPath is defined,
     warning: overrides.componentPath is defined ? overrideWarning : null,
-    placeholder: '(entire templates directory)',
+    placeholder: '(entire templates directory)'|t('component-guide'),
 }) }}
 
 {{ forms.textField({
     label: "Story File Suffix"|t('component-guide'),
-    instructions: "Suffix that identifies a story definition file. The Twig equivalent ({twigSuffix}) is discovered automatically — and is what the “Add stories” button writes."|t('component-guide', {
+    instructions: "Suffix that identifies a story definition file. The Twig equivalent ({twigSuffix}) is discovered automatically — and is what the “Add story” button writes."|t('component-guide', {
         twigSuffix: settings.twigStorySuffix(),
     }),
     id: 'storySuffix',
@@ -88,7 +88,7 @@
 
 {{ forms.lightswitchField({
     label: "Isolated Iframe Preview"|t('component-guide'),
-    instructions: "Render previews inside a sandboxed iframe so project CSS and CP CSS stay isolated. Turning this off replaces previews with a link."|t('component-guide'),
+    instructions: "On a component's page, render the preview inside an iframe, so your site's CSS and the control panel's stay apart. Turned off, the page links to the preview instead — and Controls, which change the preview in place, go with it."|t('component-guide'),
     id: 'enableIframePreview',
     name: 'enableIframePreview',
     on: settings.enableIframePreview,
@@ -102,10 +102,36 @@
 
 {{ forms.lightswitchField({
     label: "Enable Control-Panel Section"|t('component-guide'),
-    instructions: "Show the Component Guide item in the CP navigation. The CLI keeps working either way."|t('component-guide'),
+    instructions: "Show Component Guide in the control panel's navigation. Turned off, its pages are still there for whoever has the address; the editors' blocks gallery and the CLI keep working."|t('component-guide'),
     id: 'enableCpSection',
     name: 'enableCpSection',
     on: settings.enableCpSection,
     disabled: overrides.enableCpSection is defined,
     warning: overrides.enableCpSection is defined ? overrideWarning : null,
+}) }}
+
+<hr>
+
+<h2>{{ "Client review"|t('component-guide') }}</h2>
+
+{{ forms.booleanMenuField({
+    label: "Enable Client Review"|t('component-guide') ~ (plugin.isPro() ? '' : ' (Pro)'),
+    instructions: "On a component's page, users with the “Approve blocks or ask for changes” permission approve a story as written, or ask for changes, and everyone with access sees where each story stands. Off by default: turn it on when you use it with your client. Yes or No is saved in project config, so every environment follows it; an environment variable lets each one decide."|t('component-guide'),
+    id: 'enableClientReview',
+    name: 'enableClientReview',
+    value: settings.formValue('enableClientReview'),
+    includeEnvVars: true,
+    disabled: overrides.enableClientReview is defined,
+    warning: overrides.enableClientReview is defined ? overrideWarning : (not plugin.isPro() and settings.isOn('enableClientReview') ? "Client review is a Pro feature: it stays off in Lite."|t('component-guide') : null),
+}) }}
+
+{{ forms.booleanMenuField({
+    label: "Enable History Clearing"|t('component-guide'),
+    instructions: "Lets admins — and anyone given “Clear the client review history” in user permissions — clear the review history — of one block, or of all — from the control panel: your own trial runs, before the client starts. Off by default, because the history is what you point to when someone remembers a decision differently. To allow it on staging but never on production, choose an environment variable, e.g. $CG_REVIEW_CLEARING, and set it only on staging. The console command (php craft component-guide/reviews/clear) works either way."|t('component-guide'),
+    id: 'enableReviewClearing',
+    name: 'enableReviewClearing',
+    value: settings.formValue('enableReviewClearing'),
+    includeEnvVars: true,
+    disabled: overrides.enableReviewClearing is defined,
+    warning: overrides.enableReviewClearing is defined ? overrideWarning : null,
 }) }}

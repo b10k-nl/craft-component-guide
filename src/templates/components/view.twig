@@ -13,6 +13,14 @@
 {% block sidebar %}
     {% include "component-guide/components/_tree" with {
         grouped: grouped,
+        reviewEnabled: reviewEnabled ?? false,
+        reviewStates: reviewStates ?? {},
+        reviewsNew: reviewsNew ?? 0,
+        reviewsTotal: reviewsTotal ?? 0,
+        canClearReviews: canClearReviews ?? false,
+        reviewsExportedOn: reviewsExportedOn ?? null,
+        contractErrors: contractErrors,
+        pro: pro,
         current: component,
         story: story,
     } only %}
@@ -48,18 +56,18 @@
                     </button>
                 {% endif %}
             </div>
-            {% if readyForEditors %}
+            {% if entryTypeName %}
                 {# The other half of this component's life, which is otherwise
-                   invisible from the control panel. #}
-                <p class="cg-detail__editors light">
+                   invisible from the control panel. Both sentences are on the
+                   page, so the status toggle can swap them without a reload. #}
+                {% set unavailable = "Marked “{status}”, so the blocks gallery shows editors the “{name}” block as unavailable." %}
+                <p class="cg-detail__editors light" data-cg-editors-ready{% if not readyForEditors %} hidden{% endif %}>
                     {{ "Editors add this as the “{name}” block, from the blocks gallery on any page-builder field — with this story's content already filled in."|t('component-guide', { name: entryTypeName }) }}
                 </p>
-            {% elseif entryTypeName and component.status and component.status != 'stable' %}
-                <p class="cg-detail__editors light">
-                    {{ "Marked “{status}”, so the blocks gallery shows editors the “{name}” block as unavailable."|t('component-guide', {
-                        status: component.status,
-                        name: entryTypeName,
-                    }) }}
+                <p class="cg-detail__editors light" data-cg-editors-unavailable
+                   data-template="{{ unavailable|t('component-guide', { status: '{status}', name: entryTypeName }) }}"
+                   {%- if readyForEditors or not component.status or component.status == 'stable' %} hidden{% endif %}>
+                    {{ unavailable|t('component-guide', { status: component.status, name: entryTypeName }) }}
                 </p>
             {% endif %}
             {% if component.description %}
@@ -68,6 +76,25 @@
         </header>
 
         {% include "component-guide/components/_errors" with { errors: component.errors } only %}
+
+        {# The contract mismatch the index card marks with ≠, said in full:
+           nothing is broken, but a card promises what no editor can produce. #}
+        {% set contract = contractErrors[component.id] ?? [] %}
+        {% if contract is not empty %}
+            <div class="cg-contract">
+                {% for error in contract %}
+                    <div class="cg-contract__item">
+                        <span class="cg-badge cg-badge--contract" aria-hidden="true">&ne;</span>
+                        <div>
+                            <div class="cg-contract__msg">{{ error.message }}</div>
+                            {% if error.recommendation() %}
+                                <div class="light">{{ error.recommendation() }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
 
         {% if component.stories is empty %}
             <div class="cg-empty zilch">
@@ -113,54 +140,104 @@
                         {% endif %}
                     </div>
 
+                    {#
+                        Under the preview, one set of tabs for the story — what
+                        changes it (Controls), what it is, its args, how to use
+                        it — Craft's own tabs, the last one chosen remembered in
+                        this browser. Client review sits below them, always
+                        open: values tried in Controls and the decision belong
+                        on screen together.
+                    #}
+                    {% set hasAbout = story.description or story.tags is not empty or story.viewport %}
+                    {% set tabs = {} %}
                     {% if enableIframePreview %}
-                        {% include "component-guide/components/_controls" with {
-                            controls: controls,
-                            component: component,
-                            story: story,
-                            previewUrl: previewUrl,
-                        } only %}
+                        {% set tabs = tabs|merge({ 'cg-tab-controls': { label: 'Controls'|t('component-guide'), url: '#cg-tab-controls' } }) %}
                     {% endif %}
+                    {% if hasAbout %}
+                        {% set tabs = tabs|merge({ 'cg-tab-about': { label: 'About this story'|t('component-guide'), url: '#cg-tab-about' } }) %}
+                    {% endif %}
+                    {% set tabs = tabs|merge({ 'cg-tab-args': { label: 'Story args'|t('component-guide'), url: '#cg-tab-args' } }) %}
+                    {% if snippet %}
+                        {% set tabs = tabs|merge({ 'cg-tab-usage': { label: 'Twig usage'|t('component-guide'), url: '#cg-tab-usage' } }) %}
+                    {% endif %}
+                    {% set firstTab = tabs|keys|first %}
 
-                    <div class="cg-info">
-                        {% if story.description %}
-                            <div class="cg-info__block">
-                                <h3>{{ "Description"|t('component-guide') }}</h3>
-                                <p>{{ story.description }}</p>
+                    <div class="pane cg-story-tabs" data-cg-tabs data-msg-changed="{{ 'changed'|t('component-guide') }}">
+                        <header class="pane-header">
+                            {% include '_includes/tabs' with {
+                                tabs: tabs,
+                                tablistLabel: 'Story'|t('component-guide'),
+                            } %}
+                            {# Folds the panes away — the tabs stay — so the preview
+                               and the client review below fit on one screen. #}
+                            <button type="button" class="cg-tabs__toggle" data-cg-tabs-toggle
+                                    aria-expanded="true"
+                                    data-label-hide="{{ 'Collapse'|t('component-guide') }}"
+                                    data-label-show="{{ 'Expand'|t('component-guide') }}"
+                                    title="{{ 'Collapse'|t('component-guide') }}"
+                                    aria-label="{{ 'Collapse'|t('component-guide') }}"></button>
+                        </header>
+
+                        {% if enableIframePreview %}
+                            <div id="cg-tab-controls" class="cg-tabpane{{ firstTab != 'cg-tab-controls' ? ' hidden' }}" role="tabpanel" aria-labelledby="tab-cg-tab-controls">
+                                {% include "component-guide/components/_controls" with {
+                                    controls: controls,
+                                    component: component,
+                                    story: story,
+                                    previewUrl: previewUrl,
+                                } only %}
                             </div>
                         {% endif %}
 
-                        {% if story.tags is not empty %}
-                            <div class="cg-info__block">
-                                <h3>{{ "Tags"|t('component-guide') }}</h3>
-                                <div class="cg-tags">
-                                    {% for tag in story.tags %}<span class="cg-chip">{{ tag }}</span>{% endfor %}
-                                </div>
+                        {% if hasAbout %}
+                            <div id="cg-tab-about" class="cg-tabpane{{ firstTab != 'cg-tab-about' ? ' hidden' }}" role="tabpanel" aria-labelledby="tab-cg-tab-about">
+                                {% if story.description %}
+                                    <p>{{ story.description }}</p>
+                                {% endif %}
+                                {% if story.tags is not empty %}
+                                    <div class="cg-panel__row">
+                                        <span class="light">{{ "Tags"|t('component-guide') }}</span>
+                                        <div class="cg-tags">
+                                            {% for tag in story.tags %}<span class="cg-chip">{{ tag }}</span>{% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                {% if story.viewport %}
+                                    <div class="cg-panel__row">
+                                        <span class="light">{{ "Viewport"|t('component-guide') }}</span>
+                                        <span class="code">{{ story.viewport }}</span>
+                                    </div>
+                                {% endif %}
                             </div>
                         {% endif %}
 
-                        {% if story.viewport %}
-                            <div class="cg-info__block">
-                                <h3>{{ "Viewport"|t('component-guide') }}</h3>
-                                <p class="code">{{ story.viewport }}</p>
-                            </div>
-                        {% endif %}
-
-                        <div class="cg-info__block">
-                            <h3>{{ "Story args"|t('component-guide') }}</h3>
+                        <div id="cg-tab-args" class="cg-tabpane{{ firstTab != 'cg-tab-args' ? ' hidden' }}" role="tabpanel" aria-labelledby="tab-cg-tab-args">
                             <pre class="cg-code">{{ story.args|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
                         </div>
 
                         {% if snippet %}
-                            <div class="cg-info__block">
-                                <h3>
-                                    {{ "Twig usage"|t('component-guide') }}
-                                    <button type="button" class="btn small" data-icon="clipboard" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
-                                </h3>
+                            <div id="cg-tab-usage" class="cg-tabpane hidden" role="tabpanel" aria-labelledby="tab-cg-tab-usage">
+                                <div class="cg-tabpane__actions">
+                                    <button type="button" class="btn" data-icon="clipboard" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
+                                </div>
                                 <pre class="cg-code" data-cg-snippet>{{ snippet }}</pre>
                             </div>
                         {% endif %}
                     </div>
+
+                    {# Only with client review on (Pro, turned on in the settings):
+                       otherwise not a word about it, on staging or production. #}
+                    {% if reviewEnabled %}
+                        {% include "component-guide/components/_review" with {
+                            component: component,
+                            story: story,
+                            storyState: reviewStates[component.id].stories[story.id] ?? null,
+                            history: reviewHistory,
+                            canReview: canReview,
+                            reviewsOnBlock: reviewsOnBlock,
+                            canClearReviews: canClearReviews,
+                        } only %}
+                    {% endif %}
                 </div>
             </div>
         {% endif %}

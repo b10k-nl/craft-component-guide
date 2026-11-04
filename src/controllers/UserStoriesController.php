@@ -32,7 +32,9 @@ class UserStoriesController extends Controller
             return false;
         }
         $this->requireCpRequest();
-        $this->requirePermission(Plugin::PERMISSION_ACCESS);
+        if (!Plugin::canAccess()) {
+            throw new \yii\web\ForbiddenHttpException('User is not permitted to perform this action.');
+        }
         $this->requirePostRequest();
         $this->requireAcceptsJson();
         return true;

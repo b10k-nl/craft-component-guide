@@ -10,6 +10,7 @@
     var search = document.getElementById('cg-search');
     var groupFilter = document.getElementById('cg-filter-group');
     var statusFilter = document.getElementById('cg-filter-status');
+    var reviewFilter = document.getElementById('cg-filter-review');
 
     // Assigned below when the index is on screen; the status toggle calls it
     // after a component changes state, from further down this file.
@@ -36,7 +37,7 @@
     // whether there were any.
     var cgPreview = { reload: null, post: null, frameName: 'cg-preview-frame' };
 
-    if (search || groupFilter || statusFilter) {
+    if (search || groupFilter || statusFilter || reviewFilter) {
         // Two pages, one set of filters. On the index they narrow the cards and
         // the tree follows the cards; on a component page there are no cards,
         // so they narrow the tree itself. Either way the same three questions
@@ -57,6 +58,30 @@
         var statusOf = function (el) {
             return el.getAttribute(onIndex ? 'data-card-status' : 'data-tree-status') || '__nostatus';
         };
+        // The client's verdict, beside the developer's status (see _tree).
+        var reviewOf = function (el) {
+            return el.getAttribute(onIndex ? 'data-card-review' : 'data-tree-review') || 'review';
+        };
+
+        // “Variants as cards”: the index shows either the block cards or the
+        // story cards, and only those count. Remembered in this browser.
+        var MODE_STORE = 'componentGuide.storyCards';
+        var modeToggle = document.getElementById('cg-story-cards');
+        var storyMode = false;
+        if (modeToggle) {
+            try { storyMode = window.localStorage.getItem(MODE_STORE) === '1'; } catch (e) { /* no storage */ }
+            modeToggle.checked = storyMode;
+        }
+        var inMode = function (el) {
+            return !onIndex || el.hasAttribute('data-story-card') === storyMode;
+        };
+        var applyMode = function () {
+            var mode = storyMode ? 'stories' : 'blocks';
+            Array.prototype.forEach.call(document.querySelectorAll('[data-cg-cards], [data-cg-counts]'), function (el) {
+                el.hidden = (el.getAttribute('data-cg-cards') || el.getAttribute('data-cg-counts')) !== mode;
+            });
+        };
+        applyMode();
 
         var filteredNotes = Array.prototype.slice.call(document.querySelectorAll('[data-cg-filtered]'));
         var clearButtons = Array.prototype.slice.call(document.querySelectorAll('[data-cg-filters-clear]'));
@@ -77,40 +102,51 @@
             var termMatches = termMatcher(term);
             var wantGroup = groupFilter ? groupFilter.value : '';
             var wantStatus = statusFilter ? statusFilter.value : '';
-            var active = term !== '' || wantGroup !== '' || wantStatus !== '';
+            var wantReview = reviewFilter ? reviewFilter.value : '';
+            var active = term !== '' || wantGroup !== '' || wantStatus !== '' || wantReview !== '';
             var shown = 0;
 
-            save({ term: search ? search.value : '', group: wantGroup, status: wantStatus });
+            save({ term: search ? search.value : '', group: wantGroup, status: wantStatus, review: wantReview });
 
+            var visibleIds = {};
             subjects.forEach(function (el) {
                 var match = termMatches(el.getAttribute('data-search'))
                     && (wantGroup === '' || groupOf(el) === wantGroup)
-                    && (wantStatus === '' || statusOf(el) === wantStatus);
-                if (match) { shown++; }
+                    && (wantStatus === '' || statusOf(el) === wantStatus)
+                    && (wantReview === '' || reviewOf(el) === wantReview);
+                if (match && inMode(el)) {
+                    shown++;
+                    if (onIndex) { visibleIds[el.getAttribute('data-component-id')] = true; }
+                }
                 if (onIndex) {
                     el.classList.toggle('hidden', !match);
                 } else {
-                    // The page you are on stays in the tree, filtered or not.
-                    el.hidden = !match && !el.hasAttribute('data-tree-current');
+                    // Filters mean what they say, the page you are on included:
+                    // “Approved · 0” with an unapproved block in the list read
+                    // as a filter that does not work.
+                    el.hidden = !match;
                 }
             });
 
             if (onIndex) {
                 groups.forEach(function (group) {
-                    group.classList.toggle('hidden', !group.querySelector('[data-card]:not(.hidden)'));
+                    group.classList.toggle('hidden', !group.querySelector('[data-cg-cards]:not([hidden]) [data-card]:not(.hidden)'));
                 });
                 if (noResults) { noResults.classList.toggle('hidden', shown > 0); }
 
-                // The tree shows exactly the cards that are left.
+                // The tree shows exactly the blocks whose cards are left.
                 treeItems.forEach(function (item) {
-                    var card = document.getElementById('cg-card-' + item.getAttribute('data-component-id'));
-                    item.hidden = !card || card.classList.contains('hidden');
+                    item.hidden = !visibleIds[item.getAttribute('data-component-id')];
                 });
             }
 
             treeGroups.forEach(function (group) {
                 group.hidden = !group.querySelector('[data-cg-tree-item]:not([hidden])');
             });
+            var treeNone = document.querySelector('[data-cg-tree-none]');
+            if (treeNone) {
+                treeNone.hidden = !treeItems.length || treeItems.some(function (item) { return !item.hidden; });
+            }
 
             filteredNotes.forEach(function (note) {
                 note.hidden = !active;
@@ -119,14 +155,53 @@
             });
         };
 
-        if (search) { search.addEventListener('input', filter); }
-        if (groupFilter) { groupFilter.addEventListener('change', filter); }
-        if (statusFilter) { statusFilter.addEventListener('change', filter); }
+        // On a component page, a filter the editor just set that leaves this
+        // component out means they are looking for something else: take them
+        // to the list, with the filters as they set them. Only on their own
+        // change — a link to a block always opens it, whatever filters were
+        // left set in this tab — and, while typing, once they pause.
+        var current = onIndex ? null : document.querySelector('[data-tree-current]');
+        var tree = document.querySelector('[data-cg-index-url]');
+        var leaveTimer = null;
+        var leaveIfFilteredOut = function (delay) {
+            clearTimeout(leaveTimer);
+            if (!current || !tree || !current.hidden) { return; }
+            leaveTimer = setTimeout(function () {
+                if (current.hidden) { window.location.href = tree.getAttribute('data-cg-index-url'); }
+            }, delay);
+        };
+        var filterByUser = function (event) {
+            filter();
+            leaveIfFilteredOut(event && event.type === 'input' ? 900 : 0);
+        };
+
+        if (modeToggle) {
+            modeToggle.addEventListener('change', function () {
+                storyMode = modeToggle.checked;
+                try { window.localStorage.setItem(MODE_STORE, storyMode ? '1' : '0'); } catch (e) { /* no storage */ }
+                applyMode();
+                filter();
+            });
+        }
+        if (search) { search.addEventListener('input', filterByUser); }
+        if (groupFilter) { groupFilter.addEventListener('change', filterByUser); }
+        if (statusFilter) { statusFilter.addEventListener('change', filterByUser); }
+        if (reviewFilter) { reviewFilter.addEventListener('change', filterByUser); }
+        // The review counts on the index set the same filter.
+        Array.prototype.forEach.call(document.querySelectorAll('[data-cg-review-stat]'), function (button) {
+            button.addEventListener('click', function () {
+                if (!reviewFilter) { return; }
+                var value = button.getAttribute('data-cg-review-stat');
+                reviewFilter.value = reviewFilter.value === value ? '' : value;
+                filter();
+            });
+        });
         clearButtons.forEach(function (button) {
             button.addEventListener('click', function () {
                 if (search) { search.value = ''; }
                 if (groupFilter) { groupFilter.value = ''; }
                 if (statusFilter) { statusFilter.value = ''; }
+                if (reviewFilter) { reviewFilter.value = ''; }
                 filter();
                 if (search) { search.focus(); }
             });
@@ -180,9 +255,16 @@
         var hasOption = function (select, value) {
             return Array.prototype.some.call(select.options, function (o) { return o.value === value; });
         };
-        if (search && typeof saved.term === 'string') { search.value = saved.term; }
+        if (search && typeof saved.term === 'string') {
+            search.value = saved.term;
+            // Arrived here mid-search: keep typing where it left off.
+            if (document.activeElement === search && search.setSelectionRange) {
+                search.setSelectionRange(search.value.length, search.value.length);
+            }
+        }
         if (groupFilter && saved.group && hasOption(groupFilter, saved.group)) { groupFilter.value = saved.group; }
         if (statusFilter && saved.status && hasOption(statusFilter, saved.status)) { statusFilter.value = saved.status; }
+        if (reviewFilter && saved.review && hasOption(reviewFilter, saved.review)) { reviewFilter.value = saved.review; }
         filter();
     }
 
@@ -191,20 +273,54 @@
     // thumb box width (the box's 16:10 aspect matches 1280×800, so it fills).
     var thumbs = Array.prototype.slice.call(document.querySelectorAll('[data-cg-thumb]'));
     if (thumbs.length) {
-        var scaleThumbs = function () {
-            thumbs.forEach(function (thumb) {
-                var iframe = thumb.querySelector('iframe');
-                if (iframe && thumb.clientWidth > 0) {
-                    iframe.style.transform = 'scale(' + (thumb.clientWidth / 1280) + ')';
-                }
-            });
+        // Each thumbnail is a request that renders a story in Craft. Only the
+        // cards near the screen load: `loading="lazy"` loads hidden frames
+        // anyway (the other set of cards, cards a filter hides) and reaches
+        // far below the fold, which made 80 requests out of 15 cards.
+        var loadThumb = function (thumb) {
+            var iframe = thumb.querySelector('iframe[data-src]');
+            if (iframe && !iframe.getAttribute('src')) { iframe.setAttribute('src', iframe.getAttribute('data-src')); }
         };
-        var thumbRaf = null;
-        window.addEventListener('resize', function () {
-            if (thumbRaf) { return; }
-            thumbRaf = requestAnimationFrame(function () { thumbRaf = null; scaleThumbs(); });
-        });
-        scaleThumbs();
+        if (window.IntersectionObserver) {
+            var thumbLoader = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        loadThumb(entry.target);
+                        thumbLoader.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '300px 0px' });
+            thumbs.forEach(function (thumb) { thumbLoader.observe(thumb); });
+        } else {
+            thumbs.forEach(loadThumb);
+        }
+
+        var scaleThumb = function (thumb) {
+            var iframe = thumb.querySelector('iframe');
+            if (iframe && thumb.clientWidth > 0) {
+                iframe.style.transform = 'scale(' + (thumb.clientWidth / 1280) + ')';
+            }
+        };
+        // Watched one by one: a card hidden by a filter has no width to
+        // scale to, and the grid reflows when the filter changes — so each
+        // thumb is scaled whenever its own box changes size, including the
+        // moment a filter shows it again.
+        if (window.ResizeObserver) {
+            var thumbObserver = new ResizeObserver(function (entries) {
+                entries.forEach(function (entry) { scaleThumb(entry.target); });
+            });
+            thumbs.forEach(function (thumb) { thumbObserver.observe(thumb); });
+        } else {
+            var thumbRaf = null;
+            var scaleAll = function () { thumbs.forEach(scaleThumb); };
+            window.addEventListener('resize', function () {
+                if (thumbRaf) { return; }
+                thumbRaf = requestAnimationFrame(function () { thumbRaf = null; scaleAll(); });
+            });
+            document.addEventListener('change', function () { requestAnimationFrame(scaleAll); });
+            document.addEventListener('input', function () { requestAnimationFrame(scaleAll); });
+        }
+        thumbs.forEach(scaleThumb);
     }
 
     // --- Detail: copy Twig snippet ---
@@ -660,9 +776,23 @@
             return true;
         };
 
+        // For the client review below: what is on screen, and a way to put
+        // a reviewed version back on screen.
+        cgPreview.overrides = function () { return current; };
+        cgPreview.apply = function (values) {
+            lastValid = {};
+            rows.forEach(function (row) {
+                var name = nameOf(row);
+                write(row, Object.prototype.hasOwnProperty.call(values, name) ? values[name] : (isSet(row) ? original(row) : null));
+            });
+            refresh();
+        };
+
         var refresh = function () {
             current = collect();
             if (changedNote) { changedNote.hidden = !current; }
+            // The client review below only approves the story as written.
+            document.dispatchEvent(new CustomEvent('cg-controls-change', { detail: { changed: !!current } }));
             enable(resetBtn, !!current);
             enable(copyBtn, !!current);
             remember(current);
@@ -863,6 +993,337 @@
         }
     })();
 
+    // --- Detail: the story's tabs ---
+    // Craft's own tab manager (Craft.Tabs) does the tabs — selection, focus,
+    // arrow keys, the overflow menu; this shows the matching pane and
+    // remembers the last tab chosen in this browser.
+    (function () {
+        var root = document.querySelector('[data-cg-tabs]');
+        if (!root) { return; }
+        var KEY = 'componentGuide.tab';
+        var paneOf = function (tab) { return tab ? document.getElementById(tab.getAttribute('data-id')) : null; };
+        var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
+        var show = function (tab) {
+            tabs.forEach(function (t) {
+                var pane = paneOf(t);
+                if (pane) { pane.classList.toggle('hidden', t !== tab); }
+            });
+            try { window.localStorage.setItem(KEY, tab.getAttribute('data-id')); } catch (e) { /* not remembered */ }
+        };
+
+        var remembered = null;
+        try { remembered = window.localStorage.getItem(KEY); } catch (e) { remembered = null; }
+        var start = tabs.filter(function (t) { return t.getAttribute('data-id') === remembered; })[0] || null;
+
+        var container = root.querySelector('.pane-tabs');
+        if (window.Craft && Craft.Tabs && container && window.jQuery) {
+            var manager = new Craft.Tabs(container);
+            manager.on('selectTab', function (event) { show(event.$tab[0]); });
+            if (start) { manager.selectTab(start, false); }
+        } else {
+            // Without Craft's manager: the same, by hand.
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    tabs.forEach(function (t) {
+                        t.classList.toggle('sel', t === tab);
+                        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+                    });
+                    show(tab);
+                });
+            });
+            if (start) { start.click(); }
+        }
+
+        // Fold the panes away (the tabs stay), remembered in this browser;
+        // choosing a tab unfolds them.
+        var FOLD_KEY = 'componentGuide.tabsFolded';
+        var toggle = root.querySelector('[data-cg-tabs-toggle]');
+        var fold = function (folded, remember) {
+            root.classList.toggle('is-folded', folded);
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', folded ? 'false' : 'true');
+                var label = toggle.getAttribute(folded ? 'data-label-show' : 'data-label-hide');
+                toggle.setAttribute('title', label);
+                toggle.setAttribute('aria-label', label);
+            }
+            if (remember) {
+                try { window.localStorage.setItem(FOLD_KEY, folded ? '1' : '0'); } catch (e) { /* not remembered */ }
+            }
+        };
+        var folded = false;
+        try { folded = window.localStorage.getItem(FOLD_KEY) === '1'; } catch (e) { folded = false; }
+        fold(folded, false);
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                fold(!root.classList.contains('is-folded'), true);
+            });
+        }
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                if (root.classList.contains('is-folded')) { fold(false, true); }
+            });
+        });
+
+        // Controls changed: the tab says so, wherever you are.
+        var controlsTab = tabs.filter(function (t) { return t.getAttribute('data-id') === 'cg-tab-controls'; })[0];
+        var label = controlsTab ? controlsTab.querySelector('.tab-label') : null;
+        if (label) {
+            var dot = document.createElement('span');
+            dot.className = 'cg-tab-changed';
+            dot.textContent = ' · ' + (root.getAttribute('data-msg-changed') || 'changed');
+            dot.hidden = true;
+            label.appendChild(dot);
+            document.addEventListener('cg-controls-change', function (event) {
+                dot.hidden = !(event.detail && event.detail.changed);
+            });
+        }
+    })();
+
+    // --- Client review: export ---
+    // The file comes as a download, which leaves the page as it was; once
+    // the browser has it, say so instead of offering “N new” again.
+    (function () {
+        var box = document.querySelector('[data-cg-export]');
+        if (!box) { return; }
+        var pending = box.querySelector('[data-cg-export-pending]');
+        var done = box.querySelector('[data-cg-export-done]');
+        var text = box.querySelector('[data-cg-export-text]');
+        Array.prototype.forEach.call(box.querySelectorAll('[data-cg-export-link]'), function (link) {
+            link.addEventListener('click', function () {
+                // A failed export would have taken the page away with its
+                // error; still here a moment later means the file came.
+                window.setTimeout(function () {
+                    if (pending) { pending.hidden = true; }
+                    if (done) { done.hidden = false; }
+                    if (text) { text.textContent = text.getAttribute('data-just-now') || text.textContent; }
+                }, 800);
+            });
+        });
+    })();
+
+    // --- Client review: an admin clears the history (one block, or all) ---
+    (function () {
+        if (!window.Craft || !Craft.sendActionRequest) { return; }
+        Array.prototype.forEach.call(document.querySelectorAll('[data-cg-review-clear]'), function (link) {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (link.getAttribute('aria-disabled') === 'true') { return; }
+                if (!window.confirm(link.getAttribute('data-confirm'))) { return; }
+                link.setAttribute('aria-disabled', 'true');
+                var data = {};
+                if (link.getAttribute('data-component-id')) { data.componentId = link.getAttribute('data-component-id'); }
+                Craft.sendActionRequest('POST', 'component-guide/reviews/clear', { data: data })
+                    .then(function (response) {
+                        var message = ((response && response.data) || {}).message;
+                        if (message && Craft.cp) { Craft.cp.displayNotice(message); }
+                        window.location.reload();
+                    })
+                    .catch(function () {
+                        link.removeAttribute('aria-disabled');
+                        if (Craft.cp) { Craft.cp.displayError(); }
+                    });
+            });
+        });
+    })();
+
+    // --- Detail: client review ---
+    // Approve the story as written, or ask for changes; see _review.twig.
+    (function () {
+        var root = document.querySelector('[data-cg-review]');
+        if (!root || !window.Craft || !Craft.sendActionRequest) { return; }
+
+        var componentId = root.getAttribute('data-component-id');
+        var storyId = root.getAttribute('data-story-id');
+        var comment = root.querySelector('[data-cg-review-comment]');
+        var approveBtn = root.querySelector('[data-cg-review-decide="approved"]');
+        var valuesNote = root.querySelector('[data-cg-review-values]');
+        var notice = function (m) { if (m && Craft.cp && Craft.cp.displayNotice) { Craft.cp.displayNotice(m); } };
+        var failure = function (m) { if (m && Craft.cp && Craft.cp.displayError) { Craft.cp.displayError(m); } };
+        var messageOf = function (error) {
+            var body = error && error.response && error.response.data;
+            return (body && body.message) || root.getAttribute('data-msg-error');
+        };
+
+        // Back to this page without changed values in its address — the
+        // decision is recorded, and the page now shows it.
+        var reload = function () {
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('args');
+                window.location.replace(url.toString());
+            } catch (e) {
+                window.location.reload();
+            }
+        };
+
+        // Only the story as written is approved: with values changed in
+        // Controls, Approve waits and says why.
+        var syncApprove = function (changed) {
+            if (valuesNote) { valuesNote.hidden = !changed; }
+            if (approveBtn) {
+                approveBtn.disabled = changed;
+                approveBtn.classList.toggle('disabled', changed);
+            }
+        };
+        document.addEventListener('cg-controls-change', function (event) {
+            syncApprove(!!(event.detail && event.detail.changed));
+        });
+        syncApprove(!!(cgPreview.overrides && cgPreview.overrides()));
+
+        // “Mark stable” / “Back to draft” in the header: Approve comes and
+        // goes with it, and so does the note saying why it is not there.
+        document.addEventListener('cg-status-change', function (event) {
+            var detail = event.detail || {};
+            if (detail.componentId !== componentId) { return; }
+            Array.prototype.forEach.call(root.querySelectorAll('[data-cg-review-unapprovable]'), function (note) {
+                note.hidden = note.getAttribute('data-cg-review-unapprovable') !== detail.status;
+            });
+            if (approveBtn) { approveBtn.hidden = detail.status === 'draft' || detail.status === 'deprecated'; }
+        });
+
+        Array.prototype.forEach.call(root.querySelectorAll('[data-cg-review-decide]'), function (button) {
+            button.addEventListener('click', function () {
+                var decision = button.getAttribute('data-cg-review-decide');
+                var confirmText = button.getAttribute('data-cg-review-confirm');
+                if (confirmText && !window.confirm(confirmText)) { return; }
+                var text = comment ? comment.value.trim() : '';
+                if (decision === 'changes' && text === '') {
+                    failure(root.getAttribute('data-msg-need-comment'));
+                    if (comment) { comment.focus(); }
+                    return;
+                }
+                var values = cgPreview.overrides ? cgPreview.overrides() : null;
+                button.disabled = true;
+                Craft.sendActionRequest('POST', 'component-guide/reviews/decide', {
+                    data: {
+                        componentId: componentId,
+                        storyId: storyId,
+                        decision: decision,
+                        comment: text,
+                        args: JSON.stringify(decision === 'changes' ? (values || {}) : {})
+                    }
+                }).then(function (response) {
+                    var data = (response && response.data) || {};
+                    if (data.review && data.review.id) {
+                        // A slip of the mouse can be undone — for a few seconds,
+                        // on the page that reloads with the decision on it.
+                        offerUndo(data.review.id, decision, text);
+                    } else {
+                        notice(data.message);
+                    }
+                    reload();
+                }).catch(function (error) {
+                    failure(messageOf(error));
+                    button.disabled = false;
+                });
+            });
+        });
+
+        // --- Undo a decision, right after the click ---
+        // In Craft's own notification, as the gallery's Undo is (picker.js):
+        // a link in its details, not a button, so it does not pull focus.
+        // The server allows it for ClientReviews::UNDO_SECONDS; the offer
+        // only has to survive the reload that shows the approval.
+        var UNDO_KEY = 'componentGuide.undo';
+        var UNDO_MS = 15000;
+        var DRAFT_KEY = 'componentGuide.reviewDraft';
+        var offerUndo = function (id, decision, text) {
+            try {
+                window.sessionStorage.setItem(UNDO_KEY, JSON.stringify({
+                    id: id, decision: decision, comment: text || '',
+                    componentId: componentId, storyId: storyId, until: Date.now() + UNDO_MS
+                }));
+            } catch (e) { /* no storage: the decision stands, as it would anyway */ }
+        };
+        var showUndo = function (offer) {
+            if (!Craft.cp || !Craft.cp.displayNotice) { return; }
+            var details = document.createElement('div');
+            details.className = 'cg-undo';
+            var link = document.createElement('a');
+            link.className = 'cg-undo__btn';
+            link.href = '#';
+            link.textContent = root.getAttribute('data-msg-undo');
+            details.appendChild(link);
+
+            var notification = Craft.cp.displayNotice(root.getAttribute(offer.decision === 'changes' ? 'data-msg-sent' : 'data-msg-approved'), {
+                details: details, class: 'cg-undo-notification'
+            });
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (link.getAttribute('aria-disabled') === 'true') { return; }
+                link.setAttribute('aria-disabled', 'true');
+                Craft.sendActionRequest('POST', 'component-guide/reviews/undo', { data: { id: offer.id } })
+                    .then(function (response) {
+                        if (notification && notification.close) { notification.close(); }
+                        notice(((response && response.data) || {}).message);
+                        // The comment comes back into the box, to fix and send again.
+                        if (offer.comment) {
+                            try {
+                                window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+                                    componentId: componentId, storyId: storyId, comment: offer.comment
+                                }));
+                            } catch (e) { /* the comment is lost with the decision */ }
+                        }
+                        reload();
+                    })
+                    .catch(function (error) {
+                        if (notification && notification.close) { notification.close(); }
+                        failure(messageOf(error));
+                    });
+            });
+        };
+        try {
+            var draft = JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || 'null');
+            window.sessionStorage.removeItem(DRAFT_KEY);
+            if (draft && comment && draft.componentId === componentId && draft.storyId === storyId) {
+                comment.value = draft.comment;
+                comment.focus();
+            }
+        } catch (e) { /* nothing to put back */ }
+        try {
+            var offer = JSON.parse(window.sessionStorage.getItem(UNDO_KEY) || 'null');
+            window.sessionStorage.removeItem(UNDO_KEY);
+            if (offer && offer.componentId === componentId && offer.storyId === storyId && offer.until > Date.now()) {
+                showUndo(offer);
+            }
+        } catch (e) { /* no storage, nothing offered */ }
+
+        Array.prototype.forEach.call(root.querySelectorAll('[data-cg-review-item]'), function (item) {
+            // The values a request carried, back on screen in Controls.
+            var showBtn = item.querySelector('[data-cg-review-show]');
+            if (showBtn) {
+                showBtn.addEventListener('click', function () {
+                    var values = {};
+                    try { values = JSON.parse(item.getAttribute('data-review-args') || '{}') || {}; } catch (e) { values = {}; }
+                    if (cgPreview.apply) { cgPreview.apply(values); }
+                    var frame = document.querySelector('.cg-preview');
+                    if (frame && frame.scrollIntoView) { frame.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+                });
+            }
+
+            // The developer's mark on a request for changes: fixed (outside
+            // the template, where it is not noticed by itself), or not yet.
+            var fixedBtn = item.querySelector('[data-cg-review-fixed]');
+            if (fixedBtn) {
+                fixedBtn.addEventListener('click', function () {
+                    var fixed = fixedBtn.getAttribute('data-cg-review-fixed') === '1';
+                    if (fixed && !window.confirm(root.getAttribute('data-msg-fixed'))) { return; }
+                    fixedBtn.disabled = true;
+                    Craft.sendActionRequest('POST', 'component-guide/reviews/mark-fixed', {
+                        data: { id: item.getAttribute('data-review-id'), fixed: fixed ? 1 : 0 }
+                    }).then(function (response) {
+                        notice(((response && response.data) || {}).message);
+                        reload();
+                    }).catch(function (error) {
+                        failure(messageOf(error));
+                        fixedBtn.disabled = false;
+                    });
+                });
+            }
+        });
+    })();
+
     // --- Status toggle: draft <-> stable, without leaving the page ---
     // A reviewer working through forty generated drafts is somewhere in the
     // middle of a long list. A form post would reload and send them back to
@@ -924,6 +1385,15 @@
             // from the page as it was rendered, not as it is.
             var card = scope.closest ? scope.closest('[data-card]') : null;
             if (card && data.status) { card.setAttribute('data-card-status', data.status); }
+
+            // On a detail page: what editors see of it, in one sentence.
+            var ready = scope.querySelector('[data-cg-editors-ready]');
+            var unavailable = scope.querySelector('[data-cg-editors-unavailable]');
+            if (ready) { ready.hidden = !data.inGallery; }
+            if (unavailable && data.status) {
+                unavailable.hidden = !!data.inGallery || data.status === 'stable';
+                unavailable.textContent = (unavailable.getAttribute('data-template') || '').replace('{status}', data.status);
+            }
         };
 
         statusToggles.forEach(function (button) {
@@ -945,13 +1415,24 @@
                     var data = (response && response.data) || {};
                     var status = data.status || next;
 
-                    button.setAttribute('data-status', status);
-                    button.textContent = status === 'draft'
-                        ? button.getAttribute('data-label-stable')
-                        : button.getAttribute('data-label-draft');
+                    var idSelector = '[data-component-id="' + CSS.escape(button.getAttribute('data-component-id') || '') + '"]';
 
-                    // The card on the index, or the whole header on a detail page.
-                    repaint(button.closest('.cg-card') || document, data);
+                    // Every toggle of this block — its card and each of its
+                    // story cards (“Variants as cards”) has one.
+                    Array.prototype.forEach.call(document.querySelectorAll('[data-cg-status-toggle]' + idSelector), function (toggle) {
+                        toggle.setAttribute('data-status', status);
+                        toggle.textContent = status === 'draft'
+                            ? toggle.getAttribute('data-label-stable')
+                            : toggle.getAttribute('data-label-draft');
+                    });
+
+                    // Its cards on the index, or the whole header on a detail page.
+                    var blockCards = document.querySelectorAll('[data-card]' + idSelector);
+                    if (blockCards.length) {
+                        Array.prototype.forEach.call(blockCards, function (card) { repaint(card, data); });
+                    } else {
+                        repaint(document, data);
+                    }
 
                     // The sidebar's status filter reads the tree on a
                     // component page, so the tree has to move with it too.
@@ -961,7 +1442,8 @@
                         treeItem.setAttribute('data-tree-status', status);
                         var dot = treeItem.querySelector('[data-cg-tree-dot]');
                         if (dot) {
-                            var colors = { stable: 'green', beta: 'blue', draft: 'orange', deprecated: 'red' };
+                            // The same classes as _tree.twig: colour, and Craft's shape.
+                            var colors = { stable: 'green', beta: 'blue', draft: 'orange pending', deprecated: 'red expired' };
                             dot.className = 'status ' + (colors[status] || 'cg-status--none');
                             dot.title = status;
                         }
@@ -978,6 +1460,11 @@
                     }
 
                     if (data.writes) { repaintWrites(data.writes); }
+                    // For the client review below, which can be approved only
+                    // on a stable block.
+                    document.dispatchEvent(new CustomEvent('cg-status-change', {
+                        detail: { componentId: button.getAttribute('data-component-id'), status: status }
+                    }));
                     notice(data.message);
                 }).catch(function (error) {
                     var body = error && error.response && error.response.data;
@@ -1017,13 +1504,14 @@
             // Trust our own frames only, whatever origin they were served from:
             // matching the source window is exact, and needs no origin plumbing.
             var frames = document.querySelectorAll('[data-cg-thumb] iframe');
-            var known = false;
+            var frame = null;
             for (var i = 0; i < frames.length; i++) {
-                if (frames[i].contentWindow === event.source) { known = true; break; }
+                if (frames[i].contentWindow === event.source) { frame = frames[i]; break; }
             }
-            if (!known) { return; }
+            if (!frame) { return; }
 
-            var card = document.getElementById('cg-card-' + data.componentId);
+            // The card the frame is in: a block's, or one story's.
+            var card = frame.closest('[data-card]');
             var badge = card && card.querySelector('[data-cg-render-badge]');
             if (!badge) { return; }
 

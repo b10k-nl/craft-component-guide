@@ -125,7 +125,7 @@ class ReviewsController extends Controller
         $componentId = $this->request->getBodyParam('componentId');
         $componentId = is_string($componentId) && $componentId !== '' ? $this->component($componentId)->id : null;
         $user = Craft::$app->getUser()->getIdentity();
-        $removed = Plugin::getInstance()->getClientReviews()->clear($componentId, (string)($user?->username ?? 'unknown'));
+        $removed = Plugin::getInstance()->getClientReviews()->clear($componentId, (string)($user->username ?? 'unknown'));
 
         return $this->asJson([
             'removed' => $removed,

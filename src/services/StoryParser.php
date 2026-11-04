@@ -19,9 +19,6 @@ use yii\base\Component;
  */
 class StoryParser extends Component
 {
-    /** Reserved keys recognized inside a rich story entry. */
-    private const STORY_KEYS = ['args', 'description', 'background', 'viewport', 'tags', 'approval'];
-
     /** Keys that make an entry rich by themselves (see parseStory). */
     private const RICH_MARKERS = ['args', 'description', 'background', 'viewport', 'tags'];
 

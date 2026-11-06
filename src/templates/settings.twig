@@ -114,15 +114,16 @@
 
 <h2>{{ "Client review"|t('component-guide') }}</h2>
 
+{% if plugin.isPro() %}
 {{ forms.booleanMenuField({
-    label: "Enable Client Review"|t('component-guide') ~ (plugin.isPro() ? '' : ' (Pro)'),
+    label: "Enable Client Review"|t('component-guide'),
     instructions: "On a component's page, users with the “Approve blocks or ask for changes” permission approve a story as written, or ask for changes, and everyone with access sees where each story stands. Off by default: turn it on when you use it with your client. Yes or No is saved in project config, so every environment follows it; an environment variable lets each one decide."|t('component-guide'),
     id: 'enableClientReview',
     name: 'enableClientReview',
     value: settings.formValue('enableClientReview'),
     includeEnvVars: true,
     disabled: overrides.enableClientReview is defined,
-    warning: overrides.enableClientReview is defined ? overrideWarning : (not plugin.isPro() and settings.isOn('enableClientReview') ? "Client review is a Pro feature: it stays off in Lite."|t('component-guide') : null),
+    warning: overrides.enableClientReview is defined ? overrideWarning : null,
 }) }}
 
 {{ forms.booleanMenuField({
@@ -135,3 +136,12 @@
     disabled: overrides.enableReviewClearing is defined,
     warning: overrides.enableReviewClearing is defined ? overrideWarning : null,
 }) }}
+{% else %}
+    {# Lite: nothing to switch on, so no switch. Not posted, the two settings
+       drop out of project config on the next save — off, their default —
+       and are chosen afresh when the site moves to Pro. #}
+    <p class="light">
+        {{ "Client review is part of Component Guide Pro: a client approves each story or asks for changes on staging, and the approvals are written into your story files."|t('component-guide') }}
+        <a href="{{ cpUrl('plugin-store/component-guide') }}">{{ "See Pro in the Plugin Store"|t('component-guide') }}</a>
+    </p>
+{% endif %}

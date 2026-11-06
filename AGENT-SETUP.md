@@ -3,7 +3,7 @@
 This file is written for a coding agent, not for a person. Point your agent at
 it — "read AGENT-SETUP.md in this package and follow it" — and it will document
 a component library that already exists: one marker file, one story per
-component.
+component, and the site's CSS in the previews.
 
 A human then reviews the result **in the guide, on the rendered previews**, and
 promotes what is correct. Nothing here is meant to run unattended.
@@ -23,6 +23,7 @@ for the format; this file only tells you how to apply it.
 - **Block templates that read the block themselves**
 - **Best practice: adapters + presentational components** — a recommendation,
   not something to impose; document the project as it is
+- **Preview asset configuration**
 
 If anything below contradicts the README, the README wins. Say so in your report
 rather than guessing.
@@ -235,6 +236,43 @@ tell you the shape of the real arguments (plain text → string, assets → imag
 URL, matrix or entries → list of objects). Use it to get the argument shapes
 right instead of guessing from variable names.
 
+## Step 5 — Make the previews look like the site
+
+Without the site's CSS every preview is unstyled — serif text, no layout — and
+the human reviewing your stories cannot tell a wrong argument from a missing
+stylesheet. Do this step in the same pass, before you report.
+
+Skip it if `config/component-guide.php` already sets `previewCss` or
+`previewTemplate`. Otherwise:
+
+1. Find how the site's layout loads its assets: open the template the pages
+   extend (often `_layouts/…`) and read its `<head>`. Look for
+   `craft.vite.script(…)`, `craft.vite.asset(…)`, `<link rel="stylesheet">`,
+   web fonts, and any inline `<style>` the components rely on.
+2. If the assets come from a build tool with a manifest (Vite, Mix, Encore…),
+   write `templates/_component-guide-preview.twig` with **the same tags the
+   layout uses** — the same helper calls, the same font links. Nothing else:
+   no markup, no `<body>`.
+3. If they are plain static files, a `previewCss` URL is enough instead.
+4. Create `config/component-guide.php` with that one setting:
+
+   ```php
+   <?php
+
+   return [
+       'previewTemplate' => '_component-guide-preview',
+   ];
+   ```
+
+   If the file already exists, add the key and change nothing else in it.
+
+Copy what the layout does; do not guess an asset path. If you cannot tell how
+the layout loads its CSS, say so in the report instead of writing a template.
+
+On a dev setup, a build tool's dev server may have to be running for the
+previews to get their styles — the same as for the front end. Say so in the
+report if the layout relies on one.
+
 ---
 
 ## Content rules
@@ -271,13 +309,25 @@ omitted, and any edge case the guards in the template hint at.
 Do not write more than four stories for one component without a reason. More is
 noise.
 
+## Descriptions — only where they say something
+
+A `description` on the component (in `meta`) and on a story is shown to editors
+on the gallery card and to anyone reading the guide. Write one only when it
+states something the template does not: when to use the block, or a rule the
+project follows — "One per page, near the bottom", "Use on pages that open into
+a dark section". Then make it complete: a rule that leaves out its condition
+will be broken for a good reason.
+
+Do not restate the template ("Displays a heading and a button") and do not
+invent rules. No description is better than a filler one.
+
 ## Status — always `draft`
 
 Every story you write gets `status: 'draft'`.
 
 This matters. The statuses are `stable`, `beta`, `draft` and `deprecated`, and
-only `stable` — or no status at all — makes a component addable in the editors'
-gallery. So after your pass:
+only `stable` makes a component addable in the editors' gallery — a block with
+any other status, or none, shows there as unavailable. So after your pass:
 
 - the **developer's** index is fully populated, with previews
 - the **editors'** gallery stays quiet until a human promotes each component
@@ -291,18 +341,24 @@ Never promote a status yourself.
 ## Hard rules
 
 - **Do not modify component templates.** If a component looks broken, report it.
-- **Do not touch `config/project/`** or any Craft configuration.
+- **Do not touch `config/project/`** or any Craft configuration — except
+  `config/component-guide.php` for the preview assets (Step 5).
 - **Do not rename anything.**
 - **Do not commit, tag or push.** Leave the working tree dirty; the diff is the
   point.
-- **Do not delete or rewrite an existing `*.stories.twig`.** If one is already
-  there, leave it alone and note it in your report.
+- **Do not delete or rewrite an existing story file** (`*.stories.twig` or
+  `*.stories.php`). If one is already there, leave it alone and note it in your
+  report.
+- **Never write an `approval:` key** in a story, and never remove one. Approvals
+  are a client's sign-off; only the client review import writes them (README,
+  *Client review*).
 
 ## When you are done
 
 Report, in this order:
 
-1. Components documented, with counts.
+1. Components documented, with counts — and how the previews get the site's
+   CSS (Step 5), or why they do not.
 2. The dispatcher, and for each block type the template that renders it —
    directly, or through which adapter to which presentational component. That
    is the map a human cannot get from the file tree.
@@ -317,16 +373,28 @@ Then tell the human, in these words or close to them:
 > Open the control panel → **Component Guide**. Every component now has a
 > preview rendered from its own template. Look at them: the ones that render
 > wrong have a story with wrong arguments, and fixing the story is a two-line
-> edit. When a component looks right, change its status to `stable` — that is
-> what puts it in front of editors.
+> edit. When a component looks right, mark it stable — **Mark stable** on its
+> card or page (admins), or `status: 'stable'` in its story file. That is what
+> puts it in front of editors.
 
 That review pass is the whole point. You produced drafts; the previews are how a
 human checks them in minutes instead of reading a large diff.
 
 ### Report failures, never a pass rate
 
-You may render your stories to find mistakes, and you should report every error
-you find — with the file and the message. **Do not report how many rendered
+Three commands help you find mistakes (prefix with `ddev` on a DDEV project):
+
+- `php craft component-guide/components/scan` — what the guide discovered, with
+  each component's id, its group, its story count, and any story file it could
+  not read. Run it first: a story the scan does not list does not exist for the
+  guide.
+- `php craft component-guide/components/render <componentId> <storyId>` — one
+  story's preview document, or the error it fails with. The story id is its
+  name in lower case with hyphens: `'Heading only'` → `heading-only`.
+- `php craft component-guide/stories/check` — stories that set a field the
+  entry type behind them does not have. Pro; under Lite it says so and exits 0.
+
+You should report every error you find — with the file and the message. **Do not report how many rendered
 cleanly.** “34 of 34 render without error” reads as verification, and it invites
 someone to skip the review pass that is the entire point of this file.
 

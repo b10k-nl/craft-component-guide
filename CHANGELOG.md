@@ -3,6 +3,16 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.11.1 - 2026-11-06
+
+### Fixed
+
+- In Lite, the plugin settings no longer offer **Enable Client Review** and **Enable History Clearing**: client review is a Pro feature and stayed off whatever they said. A line says what it is and where to get Pro instead.
+
+### Changed
+
+- `AGENT-SETUP.md`: a new step sets up the preview assets (`previewTemplate` with the same tags as the site's layout), so the stories are reviewed on styled previews — agents used to skip it until asked. Also: only `stable` puts a block in the editors' gallery (a block with no status is shown as unavailable, since 1.11.0); descriptions only where they state a rule; never write or remove an `approval:` key; the `scan`, `render` and `stories/check` commands for checking the pass.
+
 ## 1.11.0 - 2026-11-04
 
 ### Added

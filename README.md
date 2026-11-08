@@ -10,11 +10,13 @@ For agencies it is **where a client tries the blocks of a sprint** before they a
 
 It also catches previews that lie: a story can promise a field the entry type does not have, and the guide says so before an editor meets a card they can never reproduce.
 
-![The component index: live preview cards with status and gallery chips, a status filter, and a count of blocks ready for editors](docs/images/index.png)
+![The component index with Variants as cards: a card per story, client review marks in the sidebar, and counts of blocks ready for editors, approved and to review](docs/images/index.png)
 
-![A component page: three stories with Dark selected, the viewport switcher, and an isolated preview rendered with the site's own CSS](docs/images/component.png)
+![A component page: the preview rendered with the site's own CSS, and Client review with the client's request for changes](docs/images/component.png)
 
-![The blocks gallery open over an entry in Live Preview: real rendered previews where editors pick the block they add](docs/images/picker.png)
+![The blocks gallery open over an entry in Live Preview: a card per variant, with what the client approved or asked to change](docs/images/picker.png)
+
+![Used on: the pages a block is on, opened in Craft's side panel with a click](docs/images/used-on.png)
 
 Nothing configured yet? The guide starts by explaining how to get there:
 

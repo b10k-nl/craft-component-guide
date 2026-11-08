@@ -85,8 +85,7 @@ final class BlockOwners
      */
     public static function isNested(mixed $element): bool
     {
-        return isset($element->fieldId, $element->primaryOwnerId)
-            && $element->fieldId !== null
-            && $element->primaryOwnerId !== null;
+        // isset() is false for null too: both set and not null.
+        return isset($element->fieldId, $element->primaryOwnerId);
     }
 }

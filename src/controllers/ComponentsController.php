@@ -50,13 +50,16 @@ class ComponentsController extends Controller
         $previewUrls = [];
         // And one per story, for “Variants as cards”.
         $storyPreviewUrls = [];
+        // Versioned, so the browser keeps thumbnails until something they are
+        // made from changes (PreviewRenderer::version()).
+        $version = ['v' => Plugin::getInstance()->getPreviewRenderer()->version()];
         foreach ($components as $component) {
             $firstStory = $component->stories[0] ?? null;
             if ($firstStory !== null) {
-                $previewUrls[$component->id] = Plugin::previewUrl($component->id, $firstStory->id);
+                $previewUrls[$component->id] = Plugin::previewUrl($component->id, $firstStory->id, $version);
             }
             foreach ($component->stories as $story) {
-                $storyPreviewUrls[$component->id][$story->id] = Plugin::previewUrl($component->id, $story->id);
+                $storyPreviewUrls[$component->id][$story->id] = Plugin::previewUrl($component->id, $story->id, $version);
             }
         }
 
@@ -101,6 +104,8 @@ class ComponentsController extends Controller
             // CP never echoes absolute paths.
             'previewUrls' => $previewUrls,
             'storyPreviewUrls' => $storyPreviewUrls,
+            // Used on a page or not, for the sidebar filter (matched blocks only).
+            'usage' => Plugin::getInstance()->getBlockUsage()->usage(),
             'contractErrors' => $contractErrors,
             'cpWrites' => \Craft::$app->getUser()->getIsAdmin() ? $this->cpWrites() : [],
             // The status toggle writes into templates/ exactly like the
@@ -166,6 +171,10 @@ class ComponentsController extends Controller
             'entryTypeName' => $matcher->matchedEntryType($component),
             'readyForEditors' => $matcher->isReadyForEditors($component),
             'story' => $story,
+            // Where the block is: pages, and any other element an editor
+            // opens. Null for a component no entry type matches.
+            'usedOn' => $plugin->getBlockUsage()->of($component),
+            'usage' => $plugin->getBlockUsage()->usage(),
             'previewUrl' => $story !== null
                 ? Plugin::previewUrl($component->id, $story->id)
                 : null,

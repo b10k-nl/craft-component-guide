@@ -1011,12 +1011,23 @@
         });
     };
 
+    // Craft overlays (modal, slideout, HUD) that are open — see trackOverlays.
+    // The panel steps below only the ones opened after it: a field inside a
+    // slideout opens the panel over that slideout, not behind it.
+    var openOverlays = [];
+    var overlaysUnderPanel = 0;
+    var flagOverlays = function () {
+        document.body.classList.toggle('cg-overlay-open', openOverlays.length > overlaysUnderPanel);
+    };
+
     var closePanel = function () {
         if (activePanel) {
             activePanel.el.remove();
-            document.removeEventListener('keydown', activePanel.onKey);
+            document.removeEventListener('keydown', activePanel.onKey, true);
             activePanel = null;
         }
+        overlaysUnderPanel = 0;
+        flagOverlays();
     };
 
     /**
@@ -1163,6 +1174,9 @@
             // Garnish will close it; closing the hidden panel too would be
             // surprising.
             if (e.key === 'Escape' && !document.body.classList.contains('cg-overlay-open')) {
+                // Over a slideout, Escape closes the panel only — not the
+                // slideout under it too (Garnish listens on the document).
+                if (overlaysUnderPanel > 0) { e.stopPropagation(); }
                 closeByEditor();
             }
         };
@@ -1266,7 +1280,9 @@
             var head = document.createElement('div');
             head.className = 'card-titlebar';
             var headFlex = document.createElement('div');
-            headFlex.className = 'flex flex-nowrap flex-gap-s';
+            // Wraps, so the chips move under the name rather than squeezing it
+            // onto two lines next to the story dropdown.
+            headFlex.className = 'flex flex-gap-s cg-picker-card__headline';
 
             // Reuse the entry type's icon from the native menu item; carry its
             // color class over so Craft tints it exactly like the block does.
@@ -1687,7 +1703,11 @@
         panel.appendChild(searchWrap);
         panel.appendChild(grid);
         if (!isPro) { panel.appendChild(buildUpgradeNote()); }
+        // Appended last, so at the same z-index it stacks above the overlays
+        // already open (a slideout the field lives in); later ones go above it.
         document.body.appendChild(panel);
+        overlaysUnderPanel = openOverlays.length;
+        flagOverlays();
         search.focus();
         activePanel = { el: panel, onKey: onKey, source: source, key: key };
 
@@ -1702,7 +1722,8 @@
         });
 
         closeBtn.addEventListener('click', closeByEditor);
-        document.addEventListener('keydown', onKey);
+        // Capture phase: ahead of Garnish's own Escape handling (see onKey).
+        document.addEventListener('keydown', onKey, true);
     };
 
     // Components keyed by the entry-type handle they answer to. What "answers
@@ -1856,20 +1877,25 @@
     var trackOverlays = function () {
         if (!window.Garnish || typeof Garnish.on !== 'function') { return; }
 
-        var open = [];
-        var flag = function () {
-            document.body.classList.toggle('cg-overlay-open', open.length > 0);
-        };
         var track = function (cls, showEvent, hideEvent) {
             if (!cls) { return; }
             Garnish.on(cls, showEvent, function (ev) {
-                if (open.indexOf(ev.target) === -1) { open.push(ev.target); }
-                flag();
+                if (openOverlays.indexOf(ev.target) === -1) { openOverlays.push(ev.target); }
+                flagOverlays();
             });
             Garnish.on(cls, hideEvent, function (ev) {
-                var i = open.indexOf(ev.target);
-                if (i !== -1) { open.splice(i, 1); }
-                flag();
+                var i = openOverlays.indexOf(ev.target);
+                if (i !== -1) {
+                    openOverlays.splice(i, 1);
+                    // The panel was opened over this overlay — for a field
+                    // inside it, the only one that could be clicked. The
+                    // field is gone with it, so the panel goes too.
+                    if (i < overlaysUnderPanel) {
+                        closePanel();
+                        return;
+                    }
+                }
+                flagOverlays();
             });
         };
 

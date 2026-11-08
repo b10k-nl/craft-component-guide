@@ -3,6 +3,27 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.12.0 - 2026-11-08
+
+### Added
+
+- **Works with Craft's MCP server** (Craft 5.12 and later; nothing changes on earlier versions). An agent connected to the site through MCP is told which blocks are ready for editors and which stories a client approved, in the instructions `info.get` returns, and gets two read-only tools: `component-guide.stories` — the blocks and their stories, and with Pro the field values to fill a new block with — and `component-guide.render`, which renders a block from your own templates, with a story's values or changed ones, and returns its HTML or the error the template throws. The contract check joins Craft's `content-model.audit` as `component-guide-contract`. Shown only to users who may open the guide.
+- Should a later Craft change what its MCP accepts, Component Guide leaves its tools or its check out and logs why, rather than stopping the site's MCP server.
+- `AGENT-SETUP.md` asks, when the page-builder field groups its block types, whether the stories should carry those groups — so the guide and the gallery can read like the editors' “New block” menu.
+- **Used on**, a tab on a block's page: every page — and any other element an editor opens — that holds a block of its entry type, in a Matrix field, in CKEditor or inside another block, with how many times and where it lives. A click opens the page in Craft's side panel; ⌘/Ctrl-click in a new tab. Drafts and revisions are left out, and so is anything you cannot open. For blocks matched to an entry type.
+- A **usage filter** in the sidebar — used on pages, or not used yet — for blocks matched to an entry type: what the library has that no page uses.
+- The sidebar marks a component whose preview fails to render with a red **!**, as its card on the index does — on every page of the guide, for as long as the browser tab is open, until it renders again.
+
+### Fixed
+
+- The **Blocks gallery** button now works on a Matrix field inside a side panel (an entry opened in a slideout): the gallery opened behind the panel. It now opens over it, Escape closes the gallery alone, and closing the panel closes its gallery.
+
+### Changed
+
+- **Thumbnails are kept by the browser** on the index and in the blocks gallery: reopening the gallery or the index no longer renders every preview again. Their address carries a version of what they are made from — the files in the templates folder, saved content, the preview settings — so any change brings fresh ones; at most an hour otherwise. The component page's own preview still renders every time.
+- Changes requested is marked **✎** in the sidebar and on the cards, not **!** — the red ! is a template that fails to render, and the two read alike.
+- Previews in the editors' blocks gallery no longer show “This preview is incomplete…”: the note is for the developer, and an editor choosing a block can do nothing about it. The guide's own pages still show it.
+
 ## 1.11.1 - 2026-11-06
 
 ### Fixed

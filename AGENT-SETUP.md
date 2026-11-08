@@ -193,7 +193,9 @@ in plain words instead of marking it up.
 **First, ask which format to use.** Stories come in two languages with the same
 shape — Twig (`*.stories.twig`) and PHP (`*.stories.php`). Ask the human which
 they want, and **ask it together with the Step 1 question, in one message**, so
-you interrupt once rather than twice.
+you interrupt once rather than twice. If the page builder groups its block types
+(see *Groups from the page builder* below), the group question goes into the
+same message.
 
 If they have no preference, two things decide it:
 
@@ -235,6 +237,28 @@ When a matching entry type does exist, read its field layout: the field types
 tell you the shape of the real arguments (plain text → string, assets → image
 URL, matrix or entries → list of objects). Use it to get the argument shapes
 right instead of guessing from variable names.
+
+### Groups from the page builder
+
+A Matrix field can sort its block types into groups — the editor's "New block"
+menu then shows *Actions*, *Cards & Grids*, *Content* instead of one long list.
+Look in the page-builder field's file in `config/project/fields/`: under
+`settings.entryTypes`, an entry type with a `group` next to its `uid` is in that
+group.
+
+If the field has groups, **ask** whether the guide should use them — in the same
+message as the Step 1 question. Some teams want the guide and the editors'
+gallery to read like the menu editors know; others want the folder's group from
+the marker file. Do not decide for them.
+
+- **Yes** → give each story file `group: '<the group's name>'` in its `meta`,
+  spelled exactly as in the field. The guide and the gallery then group the
+  blocks the same way.
+- **No**, or no groups in the field → write no `group`; the folder's marker
+  names the group.
+
+If one block type sits in different groups in two page-builder fields, write no
+`group` for it and list it in the report.
 
 ## Step 5 — Make the previews look like the site
 

@@ -51,7 +51,7 @@
     {% endfor %}
 
     <div class="cg-sidebar-filters">
-        {% if grouped|length > 1 or statusBuckets is not empty or (reviewEnabled ?? false) %}
+        {% if grouped|length > 1 or statusBuckets is not empty or (reviewEnabled ?? false) or (usage ?? {}) is not empty %}
             <div class="cg-filters"
                  data-label-nostory="{{ "No story"|t('component-guide') }}"
                  data-label-nostatus="{{ "No status"|t('component-guide') }}">
@@ -96,6 +96,21 @@
                             { label: "Changes requested"|t('component-guide'), value: 'changes' },
                         ],
                         label: "Client review"|t('component-guide'),
+                        labelHidden: true,
+                    }) }}
+                {% endif %}
+
+                {# Whether a block is on any page (blocks matched to an entry
+                   type; see BlockUsage::usage()). #}
+                {% if (usage ?? {}) is not empty %}
+                    {{ forms.select({
+                        id: 'cg-filter-usage',
+                        options: [
+                            { label: "Used and unused"|t('component-guide'), value: '' },
+                            { label: "Used on pages"|t('component-guide'), value: 'used' },
+                            { label: "Not used yet"|t('component-guide'), value: 'unused' },
+                        ],
+                        label: "Usage"|t('component-guide'),
                         labelHidden: true,
                     }) }}
                 {% endif %}
@@ -165,6 +180,7 @@
                                 data-tree-group="{{ group }}"
                                 data-tree-status="{{ not c.isDocumented ? '__nostory' : (c.status ?: '__nostatus') }}"
                                 data-tree-review="{{ _self.reviewState(c, reviewStates ?? {}) }}"
+                                data-tree-usage="{{ (usage ?? {})[c.id] ?? '' }}"
                                 {% if isCurrent %}data-tree-current{% endif %}>
                                 <a href="{{ cpUrl('component-guide/components/' ~ c.id) }}"
                                    class="{{ isCurrent and not expanded ? 'sel' }}{{ expanded ? ' cg-tree__open' }}"
@@ -187,16 +203,20 @@
                                         {{- c.title -}}
                                         {%- if contract is not empty %} <span class="cg-tree__contract"
                                               title="{{ contract|map(e => e.message)|join("\n") }}">&ne;</span>{% endif -%}
+                                        {#- A story that fails to render, as the card's red ! — set by
+                                            the script from what the thumbnails report. -#}
+                                        <span class="cg-tree__error" data-cg-tree-error hidden>!</span>
                                     </span>
                                     {% if not expanded and c.stories|length > 1 %}
                                         <span class="cg-tree__count" title="{{ '{count} stories'|t('component-guide', { count: c.stories|length }) }}">{{ c.stories|length }}</span>
                                     {% endif %}
                                     {% if reviewEnabled ?? false %}
-                                        {# ! is work, ✓ approved (every story); empty while to review. #}
+                                        {# ✎ is work (changes requested), ✓ approved (every story); empty while to
+                                           review. Not ! — that is a render error. #}
                                         {% set state = _self.reviewState(c, reviewStates ?? {}) ~ '' %}
                                         <span class="cg-tree__review{{ state == 'changes' ? ' cg-tree__review--changes' : (state == 'approved' ? ' cg-tree__review--approved') }}"
                                               {% if state == 'changes' %}title="{{ 'Changes requested'|t('component-guide') }}"{% elseif state == 'approved' %}title="{{ 'Approved'|t('component-guide') }}"{% endif %}>
-                                            {{- state == 'changes' ? '!' : (state == 'approved' ? '✓') -}}
+                                            {{- state == 'changes' ? '✎' : (state == 'approved' ? '✓') -}}
                                         </span>
                                     {% endif %}
                                 </a>
@@ -214,7 +234,7 @@
                                                         {% set st = storyState ? storyState.state : 'review' %}
                                                         <span class="cg-tree__review{{ st == 'changes' ? ' cg-tree__review--changes' : (st == 'approved' ? ' cg-tree__review--approved') }}"
                                                               {% if st == 'changes' %}title="{{ 'Changes requested by {name}, {date}'|t('component-guide', { name: storyState.by, date: storyState.date|date('short') }) }}"{% elseif st == 'approved' %}title="{{ 'Approved by {name}, {date}'|t('component-guide', { name: storyState.by, date: storyState.date|date('short') }) }}"{% endif %}>
-                                                            {{- st == 'changes' ? '!' : (st == 'approved' ? '✓') -}}
+                                                            {{- st == 'changes' ? '✎' : (st == 'approved' ? '✓') -}}
                                                         </span>
                                                     {% endif %}
                                                 </a>

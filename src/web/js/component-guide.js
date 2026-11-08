@@ -11,6 +11,7 @@
     var groupFilter = document.getElementById('cg-filter-group');
     var statusFilter = document.getElementById('cg-filter-status');
     var reviewFilter = document.getElementById('cg-filter-review');
+    var usageFilter = document.getElementById('cg-filter-usage');
 
     // Assigned below when the index is on screen; the status toggle calls it
     // after a component changes state, from further down this file.
@@ -37,7 +38,7 @@
     // whether there were any.
     var cgPreview = { reload: null, post: null, frameName: 'cg-preview-frame' };
 
-    if (search || groupFilter || statusFilter || reviewFilter) {
+    if (search || groupFilter || statusFilter || reviewFilter || usageFilter) {
         // Two pages, one set of filters. On the index they narrow the cards and
         // the tree follows the cards; on a component page there are no cards,
         // so they narrow the tree itself. Either way the same three questions
@@ -61,6 +62,10 @@
         // The client's verdict, beside the developer's status (see _tree).
         var reviewOf = function (el) {
             return el.getAttribute(onIndex ? 'data-card-review' : 'data-tree-review') || 'review';
+        };
+        // On a page or not; empty for a component no entry type matches.
+        var usageOf = function (el) {
+            return el.getAttribute(onIndex ? 'data-card-usage' : 'data-tree-usage') || '';
         };
 
         // “Variants as cards”: the index shows either the block cards or the
@@ -103,17 +108,19 @@
             var wantGroup = groupFilter ? groupFilter.value : '';
             var wantStatus = statusFilter ? statusFilter.value : '';
             var wantReview = reviewFilter ? reviewFilter.value : '';
-            var active = term !== '' || wantGroup !== '' || wantStatus !== '' || wantReview !== '';
+            var wantUsage = usageFilter ? usageFilter.value : '';
+            var active = term !== '' || wantGroup !== '' || wantStatus !== '' || wantReview !== '' || wantUsage !== '';
             var shown = 0;
 
-            save({ term: search ? search.value : '', group: wantGroup, status: wantStatus, review: wantReview });
+            save({ term: search ? search.value : '', group: wantGroup, status: wantStatus, review: wantReview, usage: wantUsage });
 
             var visibleIds = {};
             subjects.forEach(function (el) {
                 var match = termMatches(el.getAttribute('data-search'))
                     && (wantGroup === '' || groupOf(el) === wantGroup)
                     && (wantStatus === '' || statusOf(el) === wantStatus)
-                    && (wantReview === '' || reviewOf(el) === wantReview);
+                    && (wantReview === '' || reviewOf(el) === wantReview)
+                    && (wantUsage === '' || usageOf(el) === wantUsage);
                 if (match && inMode(el)) {
                     shown++;
                     if (onIndex) { visibleIds[el.getAttribute('data-component-id')] = true; }
@@ -187,6 +194,7 @@
         if (groupFilter) { groupFilter.addEventListener('change', filterByUser); }
         if (statusFilter) { statusFilter.addEventListener('change', filterByUser); }
         if (reviewFilter) { reviewFilter.addEventListener('change', filterByUser); }
+        if (usageFilter) { usageFilter.addEventListener('change', filterByUser); }
         // The review counts on the index set the same filter.
         Array.prototype.forEach.call(document.querySelectorAll('[data-cg-review-stat]'), function (button) {
             button.addEventListener('click', function () {
@@ -202,6 +210,7 @@
                 if (groupFilter) { groupFilter.value = ''; }
                 if (statusFilter) { statusFilter.value = ''; }
                 if (reviewFilter) { reviewFilter.value = ''; }
+                if (usageFilter) { usageFilter.value = ''; }
                 filter();
                 if (search) { search.focus(); }
             });
@@ -265,6 +274,7 @@
         if (groupFilter && saved.group && hasOption(groupFilter, saved.group)) { groupFilter.value = saved.group; }
         if (statusFilter && saved.status && hasOption(statusFilter, saved.status)) { statusFilter.value = saved.status; }
         if (reviewFilter && saved.review && hasOption(reviewFilter, saved.review)) { reviewFilter.value = saved.review; }
+        if (usageFilter && saved.usage && hasOption(usageFilter, saved.usage)) { usageFilter.value = saved.usage; }
         filter();
     }
 
@@ -1491,15 +1501,78 @@
         }
     }
 
+    // --- “Used on”: open the page in Craft's side panel ----------------------
+    // A plain click opens the element where the editor would edit it, without
+    // leaving the guide; ⌘/Ctrl/Shift-click and the middle button keep the
+    // link's own behaviour (a new tab).
+    (function () {
+        var pane = document.getElementById('cg-tab-used-on');
+        if (!pane || !window.Craft || !Craft.createElementEditor) { return; }
+
+        // After a save in the side panel the list may be out of date — a block
+        // disabled, removed, added. Read this page again and take its “Used
+        // on”, rather than reloading: Controls and the scroll stay as they are.
+        var refresh = function () {
+            if (!window.fetch || !window.DOMParser) { return; }
+            fetch(window.location.href, { credentials: 'same-origin' })
+                .then(function (response) { return response.ok ? response.text() : Promise.reject(response); })
+                .then(function (html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var fresh = doc.getElementById('cg-tab-used-on');
+                    if (fresh) { pane.innerHTML = fresh.innerHTML; }
+                    var tab = document.getElementById('tab-cg-tab-used-on');
+                    var freshTab = doc.getElementById('tab-cg-tab-used-on');
+                    if (tab && freshTab) { tab.innerHTML = freshTab.innerHTML; }
+                })
+                .catch(function () { /* the list stays as it was; a reload brings it up to date */ });
+        };
+
+        // Delegated on the pane, which stays: the list inside is replaced.
+        pane.addEventListener('click', function (event) {
+            var link = event.target.closest('[data-cg-open-element]');
+            if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) { return; }
+            event.preventDefault();
+            try {
+                var slideout = Craft.createElementEditor(link.getAttribute('data-element-type'), {
+                    elementId: parseInt(link.getAttribute('data-element-id'), 10),
+                    siteId: parseInt(link.getAttribute('data-site-id'), 10)
+                });
+                if (slideout && slideout.on) { slideout.on('submit', refresh); }
+            } catch (e) {
+                window.location.href = link.href;
+            }
+        });
+    })();
+
     // --- Render errors reported by preview frames ---------------------------
 
     (function () {
-        var badges = document.querySelectorAll('[data-cg-render-badge]');
-        if (!badges.length) { return; }
+        // Remembered for the browser tab, so the sidebar can show a broken
+        // component on every page — not only on the index, where the frames
+        // render. A later render of the same story that works clears it.
+        var STORE = 'componentGuide.renderErrors';
+        var load = function () {
+            try { return JSON.parse(window.sessionStorage.getItem(STORE) || '{}') || {}; } catch (e) { return {}; }
+        };
+        var save = function (map) {
+            try { window.sessionStorage.setItem(STORE, JSON.stringify(map)); } catch (e) { /* no storage — the cards still show it */ }
+        };
+        var paintTree = function (map) {
+            Array.prototype.forEach.call(document.querySelectorAll('[data-cg-tree-item]'), function (item) {
+                var badge = item.querySelector('[data-cg-tree-error]');
+                if (!badge) { return; }
+                var stories = map[item.getAttribute('data-component-id')] || {};
+                var messages = Object.keys(stories).map(function (id) { return stories[id]; });
+                badge.hidden = messages.length === 0;
+                // Messages rendered by the server, passed through as-is.
+                badge.title = messages.join('\n');
+            });
+        };
+        paintTree(load());
 
         window.addEventListener('message', function (event) {
             var data = event.data;
-            if (!data || data.source !== 'component-guide' || data.state !== 'error') { return; }
+            if (!data || data.source !== 'component-guide' || !data.componentId) { return; }
 
             // Trust our own frames only, whatever origin they were served from:
             // matching the source window is exact, and needs no origin plumbing.
@@ -1509,6 +1582,21 @@
                 if (frames[i].contentWindow === event.source) { frame = frames[i]; break; }
             }
             if (!frame) { return; }
+
+            var map = load();
+            var componentId = String(data.componentId);
+            var storyId = String(data.storyId || '');
+            if (data.state === 'error') {
+                map[componentId] = map[componentId] || {};
+                map[componentId][storyId] = data.message || '';
+            } else if (map[componentId]) {
+                delete map[componentId][storyId];
+                if (!Object.keys(map[componentId]).length) { delete map[componentId]; }
+            }
+            save(map);
+            paintTree(map);
+
+            if (data.state !== 'error') { return; }
 
             // The card the frame is in: a block's, or one story's.
             var card = frame.closest('[data-card]');

@@ -65,7 +65,14 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
 
 .cg-picker-panel__head {
     display: flex; align-items: center; gap: 10px;
-    padding: 14px 20px; border-bottom: 1px solid #e4e8ec; font-size: 15px;
+    /* Same height and hairline as Craft's own header (#global-header), so
+       the two lines meet across the screen. */
+    box-sizing: content-box;
+    flex: none; /* a flex column would squeeze it below its height */
+    height: var(--header-height, 44px);
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-hairline, #e4e8ec);
+    font-size: 15px;
 }
 .cg-picker-panel__hint { flex: 1; font-size: 12px; color: #8b97a3; }
 .cg-picker-panel__close {
@@ -320,3 +327,11 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
     border-radius: 4px; background: #f3f5f7;
     font-size: 11px; line-height: 1.5; white-space: pre;
 }
+
+/* Card titlebar: the block's name stays on one line; the status and review
+   chips wrap under it when the story dropdown leaves no room. */
+.cg-picker-card__headline { flex-wrap: wrap; row-gap: 4px; min-width: 0; }
+.cg-picker-card__headline .card-titlebar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* On the titlebar's tinted background the light chips blur into it: a soft
+   shadow underneath lifts them off. */
+.cg-picker-card__headline .cg-chip { box-shadow: 0 1px 2px rgba(31, 41, 51, .16); }

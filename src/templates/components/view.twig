@@ -19,6 +19,7 @@
         reviewsTotal: reviewsTotal ?? 0,
         canClearReviews: canClearReviews ?? false,
         reviewsExportedOn: reviewsExportedOn ?? null,
+        usage: usage ?? {},
         contractErrors: contractErrors,
         pro: pro,
         current: component,
@@ -160,6 +161,10 @@
                     {% if snippet %}
                         {% set tabs = tabs|merge({ 'cg-tab-usage': { label: 'Twig usage'|t('component-guide'), url: '#cg-tab-usage' } }) %}
                     {% endif %}
+                    {% set usedOn = usedOn ?? null %}
+                    {% if usedOn %}
+                        {% set tabs = tabs|merge({ 'cg-tab-used-on': { label: 'Used on · {count}'|t('component-guide', { count: usedOn.pages|length + usedOn.notShown }), url: '#cg-tab-used-on' } }) %}
+                    {% endif %}
                     {% set firstTab = tabs|keys|first %}
 
                     <div class="pane cg-story-tabs" data-cg-tabs data-msg-changed="{{ 'changed'|t('component-guide') }}">
@@ -221,6 +226,55 @@
                                     <button type="button" class="btn" data-icon="clipboard" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
                                 </div>
                                 <pre class="cg-code" data-cg-snippet>{{ snippet }}</pre>
+                            </div>
+                        {% endif %}
+
+                        {% if usedOn %}
+                            {# Every element that holds this block — a page, a
+                               service, a category… — opened in Craft's side
+                               panel on a click, or in its own tab with ⌘/Ctrl. #}
+                            <div id="cg-tab-used-on" class="cg-tabpane hidden" role="tabpanel" aria-labelledby="tab-cg-tab-used-on">
+                                {% if usedOn.pages is empty %}
+                                    <p class="light">
+                                        {{- usedOn.notShown
+                                            ? '“{name}” blocks are on {count, plural, one{# page} other{# pages}} you cannot open.'|t('component-guide', { name: usedOn.entryType, count: usedOn.notShown })
+                                            : 'No page has a “{name}” block yet.'|t('component-guide', { name: usedOn.entryType }) -}}
+                                    </p>
+                                {% else %}
+                                    <ul class="cg-used-on" data-cg-used-on>
+                                        {% for page in usedOn.pages %}
+                                            {% set allOff = page.disabled == page.count %}
+                                            <li{% if allOff %} class="cg-used-on__off"{% endif %}>
+                                                {# The page's own status, as Craft shows it; the
+                                                   blocks' come after the name. #}
+                                                <span class="status {{ page.status }}" title="{{ 'Page: {status}'|t('component-guide', { status: page.status }) }}"></span>
+                                                {% if page.url %}
+                                                    <a href="{{ page.url }}" data-cg-open-element
+                                                       data-element-type="{{ page.type }}"
+                                                       data-element-id="{{ page.id }}"
+                                                       data-site-id="{{ page.siteId }}">{{ page.title }}</a>
+                                                {% else %}
+                                                    <span>{{ page.title }}</span>
+                                                {% endif %}
+                                                {% if page.context %}<span class="light">{{ page.context }}</span>{% endif %}
+                                                {% if page.count > 1 %}
+                                                    <span class="light" title="{{ '{count} “{name}” blocks on this page'|t('component-guide', { count: page.count, name: usedOn.entryType }) }}">× {{ page.count }}</span>
+                                                {% endif %}
+                                                {% if allOff %}
+                                                    <span class="cg-used-on__note">{{ (page.count == 1 ? 'disabled' : 'all disabled')|t('component-guide') }}</span>
+                                                {% elseif page.disabled %}
+                                                    <span class="cg-used-on__note">{{ '{count} disabled'|t('component-guide', { count: page.disabled }) }}</span>
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% if usedOn.notShown %}
+                                        <p class="light">{{ '…and on {count, plural, one{# page} other{# pages}} you cannot open.'|t('component-guide', { count: usedOn.notShown }) }}</p>
+                                    {% endif %}
+                                {% endif %}
+                                {% if usedOn.truncated %}
+                                    <p class="light">{{ 'Counted from the first {count} blocks.'|t('component-guide', { count: usedOn.blocks }) }}</p>
+                                {% endif %}
                             </div>
                         {% endif %}
                     </div>

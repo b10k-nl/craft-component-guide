@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\controllers;
 
+use b10k\componentguide\helpers\Prefill;
 use b10k\componentguide\helpers\UserStoryBuilder;
 use b10k\componentguide\models\AdapterBinding;
 use b10k\componentguide\models\ComponentDefinition;
@@ -27,6 +28,24 @@ use yii\web\Response;
  */
 class PickerController extends Controller
 {
+    /**
+     * Previews in the editors' gallery leave out what is for the developer —
+     * the “this preview is incomplete” note (see preview/document.twig).
+     */
+    private const FOR_GALLERY = ['for' => 'gallery'];
+
+    /**
+     * The gallery's preview parameters: for editors, and versioned so the
+     * browser keeps a preview between openings until something it is made
+     * from changes (PreviewRenderer::version()).
+     *
+     * @return array<string, string>
+     */
+    private function galleryParams(): array
+    {
+        return self::FOR_GALLERY + ['v' => Plugin::getInstance()->getPreviewRenderer()->version()];
+    }
+
     protected array|bool|int $allowAnonymous = false;
 
     public function beforeAction($action): bool
@@ -153,7 +172,7 @@ class PickerController extends Controller
                 // Shown on the story's own card when the gallery splits
                 // variants into cards.
                 'description' => $story->description,
-                'previewUrl' => Plugin::previewUrl($component->id, $story->id),
+                'previewUrl' => Plugin::previewUrl($component->id, $story->id, $this->galleryParams()),
                 // Lite sees the card and the preview; it does not receive the
                 // field values, because filling the block in is the paid half.
                 // Held back on the server, never merely hidden in the browser.
@@ -171,7 +190,7 @@ class PickerController extends Controller
                 'id' => $first->id,
                 'title' => $first->title,
                 'description' => $first->description,
-                'previewUrl' => Plugin::previewUrl($component->id, $first->id),
+                'previewUrl' => Plugin::previewUrl($component->id, $first->id, $this->galleryParams()),
                 'prefill' => $pro ? ($this->prefill($component, $first, $binding) ?: null) : null,
                 'review' => $this->review($reviews[$first->id] ?? null),
             ];
@@ -240,7 +259,7 @@ class PickerController extends Controller
                 'userStoryId' => $record['id'],
                 'title' => $record['title'],
                 'description' => null,
-                'previewUrl' => Plugin::userStoryPreviewUrl($component->id, $record['id']),
+                'previewUrl' => Plugin::userStoryPreviewUrl($component->id, $record['id'], self::FOR_GALLERY),
                 'prefill' => $prefill ?: null,
                 'mine' => true,
             ];
@@ -250,12 +269,7 @@ class PickerController extends Controller
     }
 
     /**
-     * Scalar args become the block's starting content, keyed by the field they
-     * actually belong to.
-     *
-     * The adapter states that mapping; until 1.4.0 the browser guessed it from
-     * a naming convention of our own invention, so a project that named its
-     * field anything else got an empty block and no explanation.
+     * The block's starting content — see Prefill.
      *
      * @return array<string, mixed>
      */
@@ -264,34 +278,6 @@ class PickerController extends Controller
         StoryDefinition $story,
         ?AdapterBinding $binding,
     ): array {
-        // Resolve with the same seed the preview uses, so the block a click
-        // adds contains exactly the text its gallery card shows.
-        $resolved = Plugin::getInstance()->getPlaceholderResolver()
-            ->resolveArgs($story->args, $component->id . '/' . $story->id);
-
-        $prefill = [];
-
-        foreach ($resolved as $key => $value) {
-            // An argument built from two fields has no single target, and
-            // picking one of them is the guessing this replaced.
-            $handle = $binding !== null ? $binding->fieldFor((string)$key) : (string)$key;
-            if ($handle === null) {
-                continue;
-            }
-
-            // Rich and nested values can't be mapped onto fields reliably, and
-            // data-URI placeholders would paste a whole image into a text box.
-            if (is_bool($value) || is_int($value) || is_float($value)) {
-                $prefill[$handle] = $value;
-            } elseif (is_string($value)
-                && $value !== ''
-                && mb_strlen($value) <= 500
-                && !str_starts_with($value, 'data:')
-            ) {
-                $prefill[$handle] = $value;
-            }
-        }
-
-        return $prefill;
+        return Prefill::fields($component, $story, $binding);
     }
 }

@@ -20,7 +20,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.11.1` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.12.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -50,6 +50,11 @@ Nothing configured yet? The guide starts by explaining how to get there:
   **Copy as story**, or send the page's address to show what you see. Handy
   when a client reviews blocks on staging, long before launch.
 - Surfaces per-component errors without breaking the rest of the guide.
+- **Used on:** a block's page lists every page that holds it — in a Matrix
+  field, in CKEditor or inside another block — with how many times, and which
+  of them are disabled; a click opens the page in Craft's side panel. A
+  **usage filter** in the sidebar shows the blocks no page uses yet: what the
+  library could do without.
 - Lists story-less templates via **marker files** (`GUIDE.md` / `BLOCKS.md` /
   `COMPONENTS.md`), so the guide doubles as a full component inventory.
 - **Blocks gallery for editors:** a "Blocks gallery" button on every Matrix
@@ -69,6 +74,9 @@ Nothing configured yet? The guide starts by explaining how to get there:
   entry itself — `{{ block.heading }}`, `block.cards.all()`, `block.image.one().url`
   — previews from a story written in field handles; the guide builds the block
   it reads, in the shape Craft gives each field. No adapter needed to start.
+- **Craft's MCP server** (Craft 5.12+): an agent learns which blocks are
+  ready for editors, reads their stories and renders them from your own
+  templates. See [Craft's MCP server](#crafts-mcp-server).
 - **Bulk setup with a coding agent:** a recipe in `AGENT-SETUP.md` any agent
   can follow to document an existing library in one pass — marker file, one
   draft story per component, and a report of the blocks that do not match an
@@ -137,6 +145,10 @@ in it:
 - the contract check and its badge — a story promising a field the entry type
   does not have
 - loud render errors, rather than a silent broken thumbnail
+- **Used on** and the usage filter — where each block is on the site, and
+  which blocks no page uses
+- on Craft's MCP server: the instructions, `component-guide.render`, the
+  stories and the contract check in `content-model.audit`
 - the story scaffolder, including the whole-library pass
 - the write journal
 
@@ -149,6 +161,8 @@ in it:
 - **client review** — turned on in the settings: a client approves a story or
   asks for changes, and the approval reaches the story file in git (see
   *Client review*)
+- **field values for agents** — `component-guide.stories` on Craft's MCP
+  server gives the values to fill a new block with, as the gallery does
 - **`stories/check`** — the contract check as a console command with an exit
   code, for CI. The edition comes from your committed `project.yaml`, so a CI
   runner reads Pro without needing a licence key of its own; under Lite the
@@ -584,7 +598,7 @@ A fix outside the template — a partial it includes, the CSS — is not noticed
 itself: an admin clicks **Mark as fixed** on the request (**Not fixed yet**
 takes it back).
 
-The sidebar marks ! where changes are requested and ✓ where a story is
+The sidebar marks ✎ where changes are requested and ✓ where a story is
 approved. A **block** is approved only when all its stories are — *Light*
 approved and *Dark* not yet leaves the block *To review* — and has changes
 requested as soon as one story has. The review filter and the counts on the
@@ -872,6 +886,31 @@ instead of silently rendering nothing.
 Rules of thumb: a component never touches an Entry; an adapter never contains
 markup; adding a block = entry type + adapter + component (+ story when it
 earns one).
+
+## Craft's MCP server
+
+On Craft 5.12 and later, an agent connected to the site through
+[Craft's MCP server](https://craftcms.com/docs/5.x/system/mcp) can use what
+the guide knows about your blocks — what the content model alone cannot tell
+it. Nothing to set up: it appears wherever MCP is on, for users who may open
+the guide, and on earlier Craft versions nothing changes.
+
+- **Instructions.** `info.get` lists the blocks ready for editors (stable,
+  documented, matched to an entry type) with their stories, and — with client
+  review on — which stories the client approved, so an agent filling a page
+  reaches for those.
+- **`component-guide.stories`** — the blocks, or one block's stories with
+  their values. With Pro, also the field values to fill a new block with; asset
+  and relation fields are left out, since a story's picture is a stand-in.
+- **`component-guide.render`** — a block rendered from your own templates with
+  a story's values, or changed ones, as Controls does: its HTML, or the error
+  the template throws. Nothing is saved.
+- **`content-model.audit`** runs the contract check too, as
+  `component-guide-contract`, next to Craft's own checks (admins).
+
+Both tools only read. If a later Craft changes what its MCP server accepts,
+the guide leaves its own parts out and logs why (`component-guide` category)
+rather than taking the server down with it.
 
 ## Preview asset configuration
 

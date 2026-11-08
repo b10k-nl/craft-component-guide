@@ -72,7 +72,9 @@ class PreviewController extends Controller
             $story = StoryControls::withOverrides($story, $overrides);
         }
 
-        return $this->document($component, $story);
+        $versioned = !$request->getIsPost() && is_string($request->getQueryParam('v'));
+
+        return $this->document($component, $story, $versioned);
     }
 
     /**
@@ -105,11 +107,14 @@ class PreviewController extends Controller
         return $this->document($component, $story);
     }
 
-    private function document(ComponentDefinition $component, StoryDefinition $story): Response
+    private function document(ComponentDefinition $component, StoryDefinition $story, bool $versioned = false): Response
     {
         $renderer = Plugin::getInstance()->getPreviewRenderer();
         $result = $renderer->render($component, $story);
-        $html = $renderer->renderDocument($component, $story, $result);
+        // The gallery's previews are for editors: no notes meant for the
+        // developer (see PickerController::FOR_GALLERY).
+        $forGallery = Craft::$app->getRequest()->getQueryParam('for') === 'gallery';
+        $html = $renderer->renderDocument($component, $story, $result, $forGallery);
 
         $response = Craft::$app->getResponse();
         $response->format = Response::FORMAT_RAW;
@@ -117,7 +122,17 @@ class PreviewController extends Controller
         $response->getHeaders()
             ->set('Content-Type', 'text/html; charset=UTF-8')
             ->set('X-Robots-Tag', 'noindex, nofollow')
-            ->set('Cache-Control', 'no-store');
+            // A versioned URL (thumbnails, the gallery) changes whenever what
+            // the preview is made from changes, so the browser may keep it —
+            // for an hour, since a front-end build can change asset names
+            // without the version noticing. Anything else: every time anew.
+            ->set('Cache-Control', $versioned ? 'private, max-age=3600' : 'no-store');
+        if ($versioned && !headers_sent()) {
+            // Starting the session made PHP queue its own “never cache”
+            // headers (session.cache_limiter); they would argue with ours.
+            header_remove('Expires');
+            header_remove('Pragma');
+        }
 
         return $response;
     }

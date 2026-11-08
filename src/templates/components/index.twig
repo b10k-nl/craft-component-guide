@@ -18,6 +18,7 @@
         reviewsTotal: reviewsTotal ?? 0,
         canClearReviews: canClearReviews ?? false,
         reviewsExportedOn: reviewsExportedOn ?? null,
+        usage: usage ?? {},
         contractErrors: contractErrors,
         pro: pro,
         autofocus: true,
@@ -269,7 +270,8 @@ hero{{ settings.twigStorySuffix() }}</div>
                             {% set statusBucket = not component.isDocumented ? '__nostory' : (component.status ?: '__nostatus') %}
                             <li class="cg-card" id="cg-card-{{ component.id }}" data-card data-component-id="{{ component.id }}" data-search="{{ search }}"
                                 data-card-status="{{ statusBucket }}"
-                                data-card-review="{{ reviewState(component, reviewStates) }}">
+                                data-card-review="{{ reviewState(component, reviewStates) }}"
+                                data-card-usage="{{ (usage ?? {})[component.id] ?? '' }}">
                                 {% if not component.isDocumented %}
                                     {# Story-less template discovered via a marker file: no detail
                                        page or preview yet — an inert card with a hint instead. #}
@@ -345,14 +347,14 @@ hero{{ settings.twigStorySuffix() }}</div>
                                             <span class="cg-badge cg-badge--contract" title="{{ contractText }}">&ne;</span>
                                         {% endif %}
                                         {# Where the client review stands, at the title's end like the
-                                           sidebar's column: ✓ every story approved, ! changes requested,
+                                           sidebar's column: ✓ every story approved, ✎ changes requested,
                                            nothing while it is to review (only with client review on). #}
                                         {% if reviewEnabled %}
                                             {% set cardReview = reviewState(component, reviewStates) ~ '' %}
                                             {% if cardReview == 'approved' %}
                                                 <span class="cg-card__review cg-card__review--approved" title="{{ 'Approved'|t('component-guide') }}">✓</span>
                                             {% elseif cardReview == 'changes' %}
-                                                <span class="cg-card__review cg-card__review--changes" title="{{ 'Changes requested'|t('component-guide') }}">!</span>
+                                                <span class="cg-card__review cg-card__review--changes" title="{{ 'Changes requested'|t('component-guide') }}">✎</span>
                                             {% endif %}
                                         {% endif %}
                                     </span>
@@ -431,7 +433,8 @@ hero{{ settings.twigStorySuffix() }}</div>
                                     data-component-id="{{ component.id }}"
                                     data-search="{{ blockSearch ~ ' ' ~ story.title|lower }}"
                                     data-card-status="{{ component.status ?: '__nostatus' }}"
-                                    data-card-review="{{ state }}">
+                                    data-card-review="{{ state }}"
+                                    data-card-usage="{{ (usage ?? {})[component.id] ?? '' }}">
                                     <div class="cg-card__link cg-card__link--interactive">
                                         <a class="cg-card__hit" href="{{ cpUrl('component-guide/components/' ~ component.id ~ '/' ~ story.id) }}"
                                            aria-label="{{ component.title ~ ' · ' ~ story.title }}"></a>
@@ -446,7 +449,7 @@ hero{{ settings.twigStorySuffix() }}</div>
                                                 {% set tip = state == 'approved'
                                                     ? (who ? 'Approved by {name} on {date}'|t('component-guide', { name: who, date: when }) : 'Approved'|t('component-guide'))
                                                     : (who ? 'Changes requested by {name} on {date}'|t('component-guide', { name: who, date: when }) : 'Changes requested'|t('component-guide')) %}
-                                                <span class="cg-card__review cg-card__review--{{ state }}" title="{{ tip }}">{{ state == 'approved' ? '✓' : '!' }}</span>
+                                                <span class="cg-card__review cg-card__review--{{ state }}" title="{{ tip }}">{{ state == 'approved' ? '✓' : '✎' }}</span>
                                             {% endif %}
                                         </span>
                                         <span class="cg-card__story">{{ story.title }}</span>

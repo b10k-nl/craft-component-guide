@@ -139,7 +139,7 @@ Something like:
 
 ## 5. Work through the requests
 
-The sidebar marks **!** where changes are requested; the review filter
+The sidebar marks **✎** where changes are requested; the review filter
 **Changes requested** and the count on the index list them. A block counts as
 approved only when every one of its stories is; one approved story of two
 leaves it *To review*.

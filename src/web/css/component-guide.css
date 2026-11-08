@@ -467,4 +467,14 @@
 .cg-contract__item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
 .cg-contract__item + .cg-contract__item { margin-top: 8px; }
 .cg-contract__msg { font-weight: 600; color: #5c4500; }
+.cg-tree a .cg-tree__error { display: inline-block; vertical-align: 1px; margin-inline-start: 4px; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; background: #cf1124; color: #fff; font-size: 11px; font-weight: 700; }
+.cg-tree a .cg-tree__error[hidden] { display: none; }
 .cg-tree a .cg-tree__contract { display: inline-block; vertical-align: 1px; margin-inline-start: 4px; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; background: #f2a900; color: #2b2200; font-size: 11px; font-weight: 700; }
+
+/* “Used on”: one line per page — status, link, where it lives, how many. */
+.cg-used-on { margin: 0; padding: 0; list-style: none; }
+.cg-used-on li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e3e8ee; }
+.cg-used-on li:last-child { border-bottom: 0; }
+.cg-used-on .status { flex: none; align-self: center; }
+.cg-used-on__note { font-size: 12px; color: #9a6b00; }
+.cg-used-on__off > a, .cg-used-on__off > span:not(.cg-used-on__note) { opacity: .6; }

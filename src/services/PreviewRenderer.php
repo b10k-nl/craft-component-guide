@@ -119,8 +119,10 @@ class PreviewRenderer extends Component
      * own templates live); the component HTML and the preview-head markup were
      * both rendered in SITE mode and are injected as trusted strings. Shared
      * by the web preview controller and the CLI diagnostics.
+     *
+     * @param bool $forGallery In the editors' gallery: leave out the notes meant for the developer.
      */
-    public function renderDocument(ComponentDefinition $component, StoryDefinition $story, RenderResult $result): string
+    public function renderDocument(ComponentDefinition $component, StoryDefinition $story, RenderResult $result, bool $forGallery = false): string
     {
         $settings = Plugin::getInstance()->getSettings();
 
@@ -133,6 +135,7 @@ class PreviewRenderer extends Component
             'previewHead' => $this->renderPreviewHead($settings->previewTemplate),
             'devMode' => Craft::$app->getConfig()->getGeneral()->devMode,
             'parentOrigin' => $this->cpOrigin(),
+            'forGallery' => $forGallery,
         ], View::TEMPLATE_MODE_CP);
     }
 
@@ -168,6 +171,60 @@ class PreviewRenderer extends Component
      * asset tags) in SITE mode, returning its markup — or '' if unset,
      * missing or failed. Errors are logged, never fatal.
      */
+    /** Memoized for the request — see version(). */
+    private ?string $version = null;
+
+    /**
+     * A short hash of what a preview is made from, for its URL (`v=`), so the
+     * browser can keep a preview and ask again only when something changed:
+     * any file under the templates folder (components, partials, layouts, the
+     * preview head template), any element saved (stories that query content),
+     * the preview settings and the plugin's version.
+     *
+     * Not in it: a front-end build that changes asset names without touching
+     * a template — hence the hour-long cache, not a permanent one (see
+     * PreviewController).
+     */
+    public function version(): string
+    {
+        if ($this->version !== null) {
+            return $this->version;
+        }
+
+        $files = [];
+        $root = Craft::$app->getPath()->getSiteTemplatesPath();
+        if (is_dir($root)) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveCallbackFilterIterator(
+                    new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+                    static fn(\SplFileInfo $file): bool => !str_starts_with($file->getFilename(), '.') && $file->getFilename() !== 'node_modules',
+                ),
+            );
+            foreach ($iterator as $file) {
+                /** @var \SplFileInfo $file */
+                $files[] = $file->getPathname() . '|' . $file->getMTime();
+            }
+            sort($files);
+        }
+
+        try {
+            $updated = (string)(new \craft\db\Query())->from(\craft\db\Table::ELEMENTS)->max('dateUpdated');
+        } catch (\Throwable) {
+            $updated = '';
+        }
+
+        $settings = Plugin::getInstance()->getSettings();
+
+        return $this->version = substr(md5((string)json_encode([
+            $files,
+            $updated,
+            $settings->previewCss,
+            $settings->previewJs,
+            $settings->previewTemplate,
+            Plugin::getInstance()->getVersion(),
+        ])), 0, 12);
+    }
+
     private function renderPreviewHead(string $template): string
     {
         if ($template === '') {

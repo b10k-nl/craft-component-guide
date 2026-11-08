@@ -5,6 +5,12 @@ on:
     branches: [main]
     tags: ['*']
   pull_request:
+  # Weekly, against the newest Craft and MCP SDK: there is no composer.lock,
+  # so a Craft release that no longer fits (the MCP attributes, the content-model
+  # check interface) turns this red before a client site meets it.
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
 
 jobs:
   check:

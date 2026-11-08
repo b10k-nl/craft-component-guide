@@ -61,7 +61,7 @@
         </div>
     {% else %}
         {{ result.html|raw }}
-        {% if result.notes is not empty %}
+        {% if result.notes is not empty and not (forGallery ?? false) %}
             {# The template read the block itself and asked for things the story
                could not supply. Shown with the preview rather than logged, so
                nobody mistakes the gaps for the block. #}

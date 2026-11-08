@@ -2,7 +2,12 @@
 
 namespace b10k\componentguide;
 
+use b10k\componentguide\helpers\ClientReview;
 use b10k\componentguide\helpers\OwnPreferences;
+use b10k\componentguide\mcp\ContractCheck;
+use b10k\componentguide\mcp\McpBrief;
+use b10k\componentguide\mcp\McpCompat;
+use b10k\componentguide\mcp\Tools;
 use b10k\componentguide\models\Settings;
 use b10k\componentguide\services\AdapterResolver;
 use b10k\componentguide\services\ComponentRepository;
@@ -17,6 +22,7 @@ use b10k\componentguide\services\StoryScaffolder;
 use b10k\componentguide\services\StoryStatusWriter;
 use b10k\componentguide\services\TwigSnippetGenerator;
 use b10k\componentguide\services\TwigStoryLoader;
+use b10k\componentguide\services\BlockUsage;
 use b10k\componentguide\services\ClientReviews;
 use b10k\componentguide\services\UserStories;
 use b10k\componentguide\services\WriteJournal;
@@ -167,6 +173,7 @@ class Plugin extends BasePlugin
                 'placeholderResolver' => PlaceholderResolver::class,
                 'userStories' => UserStories::class,
                 'clientReviews' => ClientReviews::class,
+                'blockUsage' => BlockUsage::class,
                 'snippetGenerator' => TwigSnippetGenerator::class,
                 'storyScaffolder' => StoryScaffolder::class,
                 'storyStatusWriter' => StoryStatusWriter::class,
@@ -201,6 +208,7 @@ class Plugin extends BasePlugin
         $this->registerSiteRoutes();
         $this->registerBlockPicker();
         $this->registerCacheOption();
+        $this->registerMcp();
     }
 
     /**
@@ -357,6 +365,13 @@ class Plugin extends BasePlugin
         return $journal;
     }
 
+    public function getBlockUsage(): BlockUsage
+    {
+        /** @var BlockUsage $usage */
+        $usage = $this->get('blockUsage');
+        return $usage;
+    }
+
     public function getClientReviews(): ClientReviews
     {
         /** @var ClientReviews $reviews */
@@ -421,6 +436,126 @@ class Plugin extends BasePlugin
                 ];
             }
         );
+    }
+
+    /**
+     * Craft's MCP server (Craft 5.12+): the tools `component-guide.stories`
+     * and `component-guide.render`, the contract check in
+     * `content-model.audit`, and a word in `info.get` on which blocks are
+     * ready for editors. Nothing on an older Craft — the classes are only named, never
+     * loaded — and nothing on an ordinary request: both run when an MCP
+     * server is built, never on a page.
+     *
+     * Whatever goes wrong here is logged and left out: Component Guide must
+     * not be the reason a site's MCP server stops answering.
+     */
+    private function registerMcp(): void
+    {
+        if (!class_exists(\craft\services\Mcp::class)) {
+            return;
+        }
+
+        // Checks have no event of their own; capability types are collected
+        // once per server, before any tool can run — the audit included.
+        Event::on(
+            \craft\services\Mcp::class,
+            \craft\services\Mcp::EVENT_REGISTER_CAPABILITY_TYPES,
+            static function ($event): void {
+                // Untyped: a handler whose type no longer matches would throw
+                // inside Craft, not here.
+                if (!$event instanceof \craft\events\RegisterComponentTypesEvent) {
+                    return;
+                }
+                if (McpCompat::toolsFit()) {
+                    $event->types[] = Tools::class;
+                }
+                if (!McpCompat::checkFits()) {
+                    return;
+                }
+                try {
+                    $checks = Craft::$app->get('mcp')->getCheckRegistry();
+                    if (!in_array(McpBrief::CHECK_ID, $checks->ids(), true)) {
+                        $checks->register(ContractCheck::class);
+                    }
+                } catch (\Throwable $e) {
+                    Craft::warning('Component Guide could not add its check to Craft’s MCP server: ' . $e->getMessage(), 'component-guide');
+                }
+            }
+        );
+
+        // The tools ask for control-panel access; the guide's own access is
+        // either of two permissions, which an attribute cannot say.
+        Event::on(
+            \craft\services\Mcp::class,
+            \craft\services\Mcp::EVENT_DISCOVERING_CAPABILITY,
+            static function ($event): void {
+                if (!$event instanceof \craft\mcp\events\DiscoveringCapability) {
+                    return;
+                }
+                try {
+                    $handler = $event->reference->handler;
+                    if (is_array($handler) && $handler[0] === Tools::class && !self::canAccess()) {
+                        $event->allowed = false;
+                    }
+                } catch (\Throwable $e) {
+                    Craft::warning('Component Guide could not check access to its MCP tools: ' . $e->getMessage(), 'component-guide');
+                }
+            }
+        );
+
+        Event::on(
+            \craft\mcp\AdminInstructions::class,
+            \craft\mcp\AdminInstructions::EVENT_COLLECT_INSTRUCTIONS,
+            function ($event): void {
+                if (!$event instanceof \craft\mcp\events\CollectingAdminInstructions || !self::canAccess()) {
+                    return;
+                }
+                try {
+                    $event->instructions[] = $this->mcpBrief();
+                } catch (\Throwable $e) {
+                    Craft::warning('Component Guide could not add its MCP instructions: ' . $e->getMessage(), 'component-guide');
+                }
+            }
+        );
+    }
+
+    /**
+     * The blocks for McpBrief: ready for editors (stable, documented,
+     * matched), in the guide's order, with the stories a client approved.
+     */
+    private function mcpBrief(): string
+    {
+        $matcher = $this->getGalleryMatcher();
+        $review = $this->clientReviewEnabled();
+        $states = $review ? $this->getClientReviews()->states() : [];
+
+        $blocks = [];
+        $notReady = 0;
+        foreach ($this->getRepository()->getAll() as $component) {
+            $handle = $matcher->matchedEntryTypeHandle($component);
+            if ($handle === null) {
+                continue;
+            }
+            if (!$matcher->isReadyForEditors($component)) {
+                $notReady++;
+                continue;
+            }
+            $approved = [];
+            foreach ($component->stories as $story) {
+                if (($states[$component->id]['stories'][$story->id]['state'] ?? null) === ClientReview::STATE_APPROVED) {
+                    $approved[] = $story->title;
+                }
+            }
+            $blocks[] = [
+                'title' => $component->title,
+                'entryType' => $handle,
+                'group' => $component->effectiveGroup(),
+                'stories' => array_values(array_map(static fn($story): string => $story->title, $component->stories)),
+                'approved' => $approved,
+            ];
+        }
+
+        return McpBrief::text($blocks, $notReady, $review, McpCompat::toolsFit());
     }
 
     private function registerPermissions(): void
@@ -545,25 +680,31 @@ class Plugin extends BasePlugin
      * Headless installs have no site routing at all, so there the CP route
      * stands in.
      */
-    public static function previewUrl(string $componentId, string $storyId): string
+    /**
+     * @param array<string, string> $params Query parameters, e.g. `for=gallery`.
+     */
+    public static function previewUrl(string $componentId, string $storyId, array $params = []): string
     {
         $path = self::PREVIEW_PATH . "/$componentId/$storyId";
 
         return Craft::$app->getConfig()->getGeneral()->headlessMode
-            ? UrlHelper::cpUrl($path)
-            : UrlHelper::siteUrl($path);
+            ? UrlHelper::cpUrl($path, $params)
+            : UrlHelper::siteUrl($path, $params);
     }
 
     /**
      * An editor's own variant — same site/CP choice as previewUrl().
      */
-    public static function userStoryPreviewUrl(string $componentId, string $userStoryId): string
+    /**
+     * @param array<string, string> $params Query parameters, e.g. `for=gallery`.
+     */
+    public static function userStoryPreviewUrl(string $componentId, string $userStoryId, array $params = []): string
     {
         $path = self::PREVIEW_PATH . "/mine/$componentId/$userStoryId";
 
         return Craft::$app->getConfig()->getGeneral()->headlessMode
-            ? UrlHelper::cpUrl($path)
-            : UrlHelper::siteUrl($path);
+            ? UrlHelper::cpUrl($path, $params)
+            : UrlHelper::siteUrl($path, $params);
     }
 
     /**

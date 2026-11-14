@@ -108,16 +108,32 @@
             {% endif %}
         </div>
 
-        {# “Variants as cards”, as in the editors' gallery (picker.js): a card
-           per story instead of per block — every story's own preview and,
-           with client review on, its own state. Only where some block
-           has more than one story — otherwise both views are the same. #}
-        {% if storyCount > componentCount - (undocumentedCount ?? 0) %}
-            <div class="cg-cards-mode">
-                <input type="checkbox" class="checkbox" id="cg-story-cards">
-                <label for="cg-story-cards">{{ "Variants as cards"|t('component-guide') }}</label>
-            </div>
-        {% endif %}
+        <div class="cg-view">
+            {# Card size, relative to the window: how wide a card may get, not
+               how many fit — the grid fills the row with as many as fit.
+               Remembered in this browser (component-guide.js). #}
+            {% if componentCount > 0 %}
+                <div class="cg-card-size" role="group" aria-label="{{ 'Card size'|t('component-guide') }}" data-cg-card-size hidden>
+                    <span class="cg-card-size__label" aria-hidden="true">{{ "Card size"|t('component-guide') }}</span>
+                    <div class="btngroup small">
+                        <button type="button" class="btn small" data-size="s" aria-pressed="false" title="{{ 'Smaller cards, more in a row'|t('component-guide') }}">S</button>
+                        <button type="button" class="btn small" data-size="m" aria-pressed="false" title="{{ 'The default size'|t('component-guide') }}">M</button>
+                        <button type="button" class="btn small" data-size="l" aria-pressed="false" title="{{ 'Larger cards, fewer in a row'|t('component-guide') }}">L</button>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# “Variants as cards”, as in the editors' gallery (picker.js): a card
+               per story instead of per block — every story's own preview and,
+               with client review on, its own state. Only where some block
+               has more than one story — otherwise both views are the same. #}
+            {% if storyCount > componentCount - (undocumentedCount ?? 0) %}
+                <div class="cg-cards-mode">
+                    <input type="checkbox" class="checkbox" id="cg-story-cards">
+                    <label for="cg-story-cards">{{ "Variants as cards"|t('component-guide') }}</label>
+                </div>
+            {% endif %}
+        </div>
 
     </div>
 

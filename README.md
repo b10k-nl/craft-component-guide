@@ -22,7 +22,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ![The onboarding panel shown before any components are discovered](docs/images/onboarding.png)
 
-> **Status:** `1.12.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
+> **Status:** `1.13.0` — stable. **Lite is free**, on any site, including production. Pro is $99 per site plus $39/year for updates after the first year, and is free to run in development and staging. New to it? [GETTING-STARTED.md](GETTING-STARTED.md) is a five-minute walkthrough.
 
 ---
 
@@ -41,7 +41,9 @@ Nothing configured yet? The guide starts by explaining how to get there:
 - Groups, lists and searches components in the CP, with the whole library in
   the sidebar and filters that stay set while you move between components.
   **Variants as cards** shows a card per story instead of per block, each with
-  its own preview — and, with client review on, where it stands.
+  its own preview — and, with client review on, where it stands. **Card size**
+  (S, M, L) fits more or fewer previews in a row, and resting the mouse on a
+  preview opens a larger copy beside the card.
 - Renders each story in an isolated **iframe** with your front-end CSS, on a
   desktop, tablet or phone frame, cropped to the component's own height.
 - Generates a copy-pasteable Twig `{% include … with {…} only %}` snippet.
@@ -1011,7 +1013,9 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   Treat them like any other template. They are only ever discovered inside the
   configured `componentPath`.
 - The scanner refuses absolute paths and `..` traversal; the resolved directory
-  must live inside your templates folder.
+  must live inside your templates folder. A symbolic link that leads back to a
+  folder already scanned is skipped and named among the scan errors, rather
+  than walked in circles.
 - Previews render only component/story **IDs** resolved through the repository —
   a request can never supply a raw template path.
 - Every CP/preview action requires login and either Craft's own **Access
@@ -1023,7 +1027,10 @@ anything: **Utilities → Caches → Component Guide scan cache**.
   `allowAdminChanges` plus a writable templates directory. A status change
   rewrites exactly one line. Every such write is recorded and surfaced on the
   index (see *What the guide changed*), because a control panel that edits
-  project files silently is worse than one that cannot.
+  project files silently is worse than one that cannot. A story file is
+  written whole or not at all — the new contents go to a temporary file that
+  replaces it in one step — and a new one is created only if none exists, even
+  when two scaffolds race. The approvals import writes the same way.
 - Previews render in a separate iframe document, so project CSS and JS never
   mix with the control panel's. It is not a `sandbox`ed iframe: it shares the
   control panel's origin, which is how the gallery and the component page

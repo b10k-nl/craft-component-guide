@@ -17,7 +17,16 @@
 .cg-stat--editors strong { color: #5334a8; }
 /* “Variants as cards”: a checkbox at the toolbar's end; the two sets of
    cards and counts swap with `hidden`, which their display would outrank. */
-.cg-cards-mode { display: flex; align-items: center; margin-inline-start: auto; }
+.cg-view { display: flex; align-items: center; gap: 20px; margin-inline-start: auto; }
+.cg-cards-mode { display: flex; align-items: center; }
+/* Card size: S, M, L — the narrowest a card may get; the grid fits as many
+   as the window allows. */
+.cg-card-size { display: flex; align-items: center; gap: 8px; }
+.cg-card-size[hidden] { display: none; }
+.cg-card-size__label { color: #596673; }
+.cg-card-size .btn[aria-pressed="true"] { background-color: var(--gray-500, #606d7b); color: #fff; }
+[data-cg-card-size-value="s"] .cg-grid { --cg-card-min: 180px; }
+[data-cg-card-size-value="l"] .cg-grid { --cg-card-min: 340px; }
 .cg-grid[hidden], .cg-stats__review[hidden] { display: none; }
 .cg-card__story { font-size: 12px; font-weight: 600; color: #596673; margin-top: -4px; }
 .cg-toolbar__tools { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; }
@@ -29,7 +38,7 @@
 .cg-group__title { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: #8b97a3; margin: 0 0 12px; }
 .cg-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--cg-card-min, 240px), 1fr));
     gap: 12px;
     margin: 0;
     padding: 0;
@@ -88,6 +97,20 @@
     overflow: hidden; pointer-events: none; margin-bottom: 4px;
 }
 .cg-card__thumb iframe {
+    position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
+    border: 0; background: #fff; transform-origin: 0 0;
+}
+/* Zoom: a larger copy of the thumbnail under the mouse, beside the card. It
+   never takes the pointer, so moving on to the next card just moves it. */
+.cg-zoom {
+    position: fixed; z-index: 100; overflow: hidden; pointer-events: none;
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(31,41,51,.10), 0 12px 32px rgba(31,41,51,.22);
+}
+.cg-zoom[hidden] { display: none; }
+/* Over a preview the card's link shows a magnifier: the zoom is coming. */
+.cg-card__link--zoom, .cg-card__link--zoom .cg-card__hit { cursor: zoom-in; }
+.cg-zoom iframe {
     position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
     border: 0; background: #fff; transform-origin: 0 0;
 }

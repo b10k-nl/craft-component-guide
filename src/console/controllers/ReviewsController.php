@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\console\controllers;
 
+use b10k\componentguide\helpers\AtomicFile;
 use b10k\componentguide\helpers\ClientReview;
 use b10k\componentguide\helpers\StoryAppender;
 use b10k\componentguide\helpers\TwigLiteral;
@@ -177,7 +178,7 @@ class ReviewsController extends Controller
                         $why = $e->getMessage();
                     }
                 }
-                if ($updated === null || (!$this->dryRun && (!is_writable($path) || file_put_contents($path, $updated) === false))) {
+                if ($updated === null || (!$this->dryRun && !$this->write($path, $updated))) {
                     $manual++;
                     $why = $updated === null ? $why : "{$component->storyFilePath} is not writable.";
                     $this->stdout("\n{$why} Add to “{$story->title}” in {$component->storyFilePath} by hand — {$label}:\n  {$line}\n", Console::FG_YELLOW);
@@ -209,7 +210,7 @@ class ReviewsController extends Controller
             if ($story->approval !== null && $twig) {
                 try {
                     $updated = StoryAppender::removeApproval((string)file_get_contents($path), $story->title);
-                    if ($this->dryRun || (is_writable($path) && file_put_contents($path, $updated) !== false)) {
+                    if ($this->dryRun || $this->write($path, $updated)) {
                         $this->stdout('  ' . ($this->dryRun ? 'Would take out' : 'Took out') . " the approval by {$story->approval['by']}, {$story->approval['date']}, from {$component->storyFilePath}.\n");
                         continue;
                     }
@@ -279,5 +280,22 @@ class ReviewsController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Writes a story file whole or not at all (see AtomicFile): an import
+     * cut off halfway must not leave the developer's file empty.
+     */
+    private function write(string $path, string $contents): bool
+    {
+        if (!is_writable($path)) {
+            return false;
+        }
+        try {
+            AtomicFile::replace($path, $contents);
+            return true;
+        } catch (\RuntimeException) {
+            return false;
+        }
     }
 }

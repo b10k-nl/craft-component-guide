@@ -3,6 +3,24 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.13.0 - 2026-11-14
+
+### Added
+
+- **Card size** on the component index — S, M or L. It sets how wide a card may get, not how many there are: the grid fits as many in a row as the window holds, so S shows more and smaller previews, L fewer and larger ones. Remembered in the browser.
+- **Zoom on the index:** rest the mouse on a card's preview and a larger copy opens beside the card, so even small cards can be read. For a mouse only; on a touch screen a tap opens the block as before.
+
+### Fixed
+
+- A symbolic link inside the components folder that leads back to a folder above it no longer sends the scan round in circles until PHP gives up: the folder is skipped and named among the scan errors. Folders more than 32 levels deep are skipped the same way.
+- “Could not read directory” names the folder relative to the components folder, not the server's full path.
+- **Add story** can no longer overwrite a story file that appeared between its check and its write — two scaffolds at once, from the control panel and the console. The file is created only if none exists.
+- `reviews/import` writes story files whole or not at all, as **Mark stable** already did: an import cut off halfway can no longer leave a story file empty.
+
+### Changed
+
+- The blocks gallery remembers grouping, **Variants as cards** and collapsed groups in the browser's local storage instead of cookies, so they no longer travel with every request. Settings saved in the old cookies are carried over the first time the gallery opens.
+
 ## 1.12.0 - 2026-11-08
 
 ### Added

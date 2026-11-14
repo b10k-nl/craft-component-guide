@@ -68,6 +68,35 @@
             return el.getAttribute(onIndex ? 'data-card-usage' : 'data-tree-usage') || '';
         };
 
+        // Card size: how wide a card may get — S, M (the default) or L. The
+        // grid fills each row with as many as the window holds, so it is a
+        // size, not a count. Remembered in this browser.
+        var SIZE_STORE = 'componentGuide.cardSize';
+        var sizeControl = document.querySelector('[data-cg-card-size]');
+        if (sizeControl) {
+            var applySize = function (size) {
+                if (size === 'm') {
+                    document.documentElement.removeAttribute('data-cg-card-size-value');
+                } else {
+                    document.documentElement.setAttribute('data-cg-card-size-value', size);
+                }
+                Array.prototype.forEach.call(sizeControl.querySelectorAll('[data-size]'), function (btn) {
+                    btn.setAttribute('aria-pressed', btn.getAttribute('data-size') === size ? 'true' : 'false');
+                });
+            };
+            var savedSize = 'm';
+            try { savedSize = window.localStorage.getItem(SIZE_STORE) || 'm'; } catch (e) { /* no storage */ }
+            applySize(['s', 'm', 'l'].indexOf(savedSize) === -1 ? 'm' : savedSize);
+            sizeControl.hidden = false;
+            sizeControl.addEventListener('click', function (event) {
+                var btn = event.target.closest('[data-size]');
+                if (!btn) { return; }
+                var size = btn.getAttribute('data-size');
+                applySize(size);
+                try { window.localStorage.setItem(SIZE_STORE, size); } catch (e) { /* not remembered */ }
+            });
+        }
+
         // “Variants as cards”: the index shows either the block cards or the
         // story cards, and only those count. Remembered in this browser.
         var MODE_STORE = 'componentGuide.storyCards';
@@ -331,6 +360,91 @@
             document.addEventListener('input', function () { requestAnimationFrame(scaleAll); });
         }
         thumbs.forEach(scaleThumb);
+
+        // Zoom: rest the mouse on a thumbnail and a larger copy of it opens
+        // beside the card, so small cards can still be read. The same address
+        // as the thumbnail, so the browser has it already (versioned, cached).
+        // Only for a mouse: on a touch screen the tap opens the block anyway.
+        var canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        if (canHover) {
+            var zoom = document.createElement('div');
+            zoom.className = 'cg-zoom';
+            zoom.hidden = true;
+            zoom.setAttribute('aria-hidden', 'true');
+            var zoomFrame = document.createElement('iframe');
+            zoomFrame.tabIndex = -1;
+            zoomFrame.title = '';
+            zoom.appendChild(zoomFrame);
+            document.body.appendChild(zoom);
+
+            var ZOOM_DELAY = 350;
+            var zoomTimer = null;
+            var zoomedThumb = null;
+
+            // The cursor says it before the zoom opens: a magnifier over the
+            // preview, the usual pointer on the rest of the card.
+            var setZoomCursor = function (thumb, on) {
+                var card = thumb && thumb.closest('.cg-card__link');
+                if (card) { card.classList.toggle('cg-card__link--zoom', on); }
+            };
+
+            var hideZoom = function () {
+                clearTimeout(zoomTimer);
+                zoomTimer = null;
+                setZoomCursor(zoomedThumb, false);
+                zoomedThumb = null;
+                zoom.hidden = true;
+            };
+
+            var showZoom = function (thumb) {
+                var iframe = thumb.querySelector('iframe');
+                var src = iframe && iframe.getAttribute('src');
+                if (!src) { return; }
+                var rect = thumb.getBoundingClientRect();
+                var gap = 12;
+                // About half the window, never larger than the preview itself.
+                var width = Math.round(Math.min(640, window.innerWidth * 0.45));
+                var height = Math.round(width * 10 / 16);
+                var spaceRight = window.innerWidth - rect.right - gap;
+                var left = spaceRight >= width + 8 ? rect.right + gap : rect.left - gap - width;
+                left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+                var top = Math.max(8, Math.min(rect.top, window.innerHeight - height - 8));
+                if (zoomFrame.getAttribute('src') !== src) { zoomFrame.setAttribute('src', src); }
+                zoom.style.width = width + 'px';
+                zoom.style.height = height + 'px';
+                zoom.style.left = left + 'px';
+                zoom.style.top = top + 'px';
+                zoomFrame.style.transform = 'scale(' + (width / 1280) + ')';
+                zoom.hidden = false;
+            };
+
+            // The thumbnail lets the pointer through to the card's link, so
+            // which one is under the mouse is read from the card and its box.
+            var thumbAt = function (event) {
+                var card = event.target.closest && event.target.closest('.cg-card__link');
+                var thumb = card && card.querySelector('[data-cg-thumb]');
+                if (!thumb) { return null; }
+                var r = thumb.getBoundingClientRect();
+                return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom
+                    ? thumb : null;
+            };
+
+            document.addEventListener('mousemove', function (event) {
+                var thumb = thumbAt(event);
+                if (thumb === zoomedThumb) { return; }
+                hideZoom();
+                if (!thumb) { return; }
+                zoomedThumb = thumb;
+                setZoomCursor(thumb, true);
+                zoomTimer = setTimeout(function () { showZoom(thumb); }, ZOOM_DELAY);
+            });
+            document.documentElement.addEventListener('mouseleave', hideZoom);
+            window.addEventListener('scroll', hideZoom, true);
+            window.addEventListener('blur', hideZoom);
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') { hideZoom(); }
+            });
+        }
     }
 
     // --- Detail: copy Twig snippet ---

@@ -11,7 +11,6 @@
     'use strict';
 
     var THUMB_VIEWPORT = 1280; // px — matches the guide's index thumbnails
-    var GROUP_COOKIE = 'cg-picker-grouped';
     var mapPromise = null;
 
     // Which edition is running. Seeded from the page so the flag exists before
@@ -20,38 +19,12 @@
     // server-side regardless; this only chooses what the panel says.
     var isPro = !!(window.CraftComponentGuide && window.CraftComponentGuide.pro);
 
-    var isGroupingEnabled = function () {
-        var m = document.cookie.match(/(?:^|;\s*)cg-picker-grouped=([^;]*)/);
-        return m ? m[1] === '1' : true; // grouped by default
-    };
-
-    var setGroupingEnabled = function (on) {
-        document.cookie = GROUP_COOKIE + '=' + (on ? '1' : '0')
-            + '; path=/; max-age=31536000; samesite=lax';
-    };
-
-    // "Variants as cards": every reproducible story of a block gets its own
-    // card instead of a dropdown on one card. A story's args can change the
-    // whole layout — a split hero is not a recoloured centred one — and an
-    // editor choosing by looking should not have to open a menu to find it.
-    // Off by default; remembered per browser like grouping.
-    var SPLIT_COOKIE = 'cg-picker-split';
-
-    var isSplitEnabled = function () {
-        var m = document.cookie.match(/(?:^|;\s*)cg-picker-split=([^;]*)/);
-        return m ? m[1] === '1' : false;
-    };
-
-    var setSplitEnabled = function (on) {
-        document.cookie = SPLIT_COOKIE + '=' + (on ? '1' : '0')
-            + '; path=/; max-age=31536000; samesite=lax';
-    };
-
-    // What the gallery should still look like after a reload: open or not, and
-    // which story each block's card was showing. Kept in localStorage rather
-    // than a cookie — the server never reads it, so it has no business riding
-    // along on every request. Storage can be unavailable (private windows,
-    // blocked site data); then the gallery simply starts fresh.
+    // What the gallery should still look like after a reload: open or not,
+    // which story each block's card was showing, grouping, Variants as cards
+    // and the collapsed groups. Kept in localStorage rather than cookies — the
+    // server never reads any of it, so it has no business riding along on
+    // every request. Storage can be unavailable (private windows, blocked site
+    // data); then the gallery simply starts fresh.
     var STATE_KEY = 'componentGuide.picker';
 
     var readState = function () {
@@ -71,27 +44,67 @@
         } catch (e) { /* not remembered, nothing else lost */ }
     };
 
-    // Collapsed group labels, persisted as a JSON array in a cookie.
-    var COLLAPSED_COOKIE = 'cg-picker-collapsed';
+    // Until 1.13.0 these three were cookies. Read once, carried over, and the
+    // cookie expired — an editor's grouping and collapsed groups survive the
+    // update.
+    var fromOldCookie = function (name) {
+        var m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+        if (!m) { return null; }
+        document.cookie = name + '=; path=/; max-age=0; samesite=lax';
+        return m[1];
+    };
 
-    var getCollapsedGroups = function () {
-        var m = document.cookie.match(/(?:^|;\s*)cg-picker-collapsed=([^;]*)/);
-        if (!m) { return {}; }
-        try {
-            var map = {};
-            JSON.parse(decodeURIComponent(m[1])).forEach(function (label) {
-                map[label] = true;
-            });
-            return map;
-        } catch (e) {
-            return {};
+    var preference = function (key, cookie, parse, fallback) {
+        var state = readState();
+        if (Object.prototype.hasOwnProperty.call(state, key)) {
+            return state[key];
         }
+        var old = fromOldCookie(cookie);
+        if (old === null) {
+            return fallback;
+        }
+        var value;
+        try { value = parse(old); } catch (e) { return fallback; }
+        writeState(function (s) { s[key] = value; });
+        return value;
+    };
+
+    var isGroupingEnabled = function () {
+        return preference('grouped', 'cg-picker-grouped', function (v) { return v === '1'; }, true) !== false;
+    };
+
+    var setGroupingEnabled = function (on) {
+        writeState(function (s) { s.grouped = !!on; });
+    };
+
+    // "Variants as cards": every reproducible story of a block gets its own
+    // card instead of a dropdown on one card. A story's args can change the
+    // whole layout — a split hero is not a recoloured centred one — and an
+    // editor choosing by looking should not have to open a menu to find it.
+    // Off by default; remembered per browser like grouping.
+    var isSplitEnabled = function () {
+        return preference('split', 'cg-picker-split', function (v) { return v === '1'; }, false) === true;
+    };
+
+    var setSplitEnabled = function (on) {
+        writeState(function (s) { s.split = !!on; });
+    };
+
+    // Collapsed group labels.
+    var getCollapsedGroups = function () {
+        var labels = preference('collapsed', 'cg-picker-collapsed', function (v) {
+            return JSON.parse(decodeURIComponent(v));
+        }, []);
+        var map = {};
+        (Array.isArray(labels) ? labels : []).forEach(function (label) {
+            if (typeof label === 'string') { map[label] = true; }
+        });
+        return map;
     };
 
     var setCollapsedGroups = function (map) {
         var labels = Object.keys(map).filter(function (k) { return map[k]; });
-        document.cookie = COLLAPSED_COOKIE + '=' + encodeURIComponent(JSON.stringify(labels))
-            + '; path=/; max-age=31536000; samesite=lax';
+        writeState(function (s) { s.collapsed = labels; });
     };
 
     var loadMap = function () {
@@ -1951,6 +1964,11 @@
     if (window.__componentGuideTest) {
         window.__componentGuideTest.fillBlock = fillBlock;
         window.__componentGuideTest.galleryCards = galleryCards;
+        window.__componentGuideTest.preferences = {
+            isGroupingEnabled: isGroupingEnabled, setGroupingEnabled: setGroupingEnabled,
+            isSplitEnabled: isSplitEnabled, setSplitEnabled: setSplitEnabled,
+            getCollapsedGroups: getCollapsedGroups, setCollapsedGroups: setCollapsedGroups,
+        };
         window.__componentGuideTest.readBlock = readBlock;
         window.__componentGuideTest.followInPreview = followInPreview;
         window.__componentGuideTest.addedElement = function (beforeEl, afterEl) { return addedElement(shapeOf(beforeEl), shapeOf(afterEl)); };

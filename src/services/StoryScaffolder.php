@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\services;
 
+use b10k\componentguide\helpers\AtomicFile;
 use b10k\componentguide\helpers\TwigLiteral;
 use b10k\componentguide\models\ComponentDefinition;
 use yii\base\Component;
@@ -115,13 +116,10 @@ class StoryScaffolder extends Component
             ));
         }
 
-        if (@file_put_contents($storyPath, $contents) === false) {
-            $error = error_get_last()['message'] ?? null;
-            throw new \RuntimeException(sprintf(
-                'Could not write %s.%s',
-                $storyPath,
-                $error !== null ? ' ' . $error : '',
-            ));
+        // Created, never overwritten: the check above can be raced (the
+        // control panel and the console, two tabs), this one cannot.
+        if (!AtomicFile::create($storyPath, $contents)) {
+            throw new \RuntimeException(sprintf('A story file already exists: %s.', basename($storyPath)));
         }
 
         return $storyPath;

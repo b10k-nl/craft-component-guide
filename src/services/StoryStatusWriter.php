@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\services;
 
+use b10k\componentguide\helpers\AtomicFile;
 use yii\base\Component;
 
 /**
@@ -62,60 +63,9 @@ class StoryStatusWriter extends Component
             ));
         }
 
-        $this->writeAtomically($absolutePath, $updated);
+        AtomicFile::replace($absolutePath, $updated);
 
         return sha1($updated);
-    }
-
-    /**
-     * Replaces a file's contents without ever leaving it half-written.
-     *
-     * `file_put_contents()` truncates the file when it opens it, and the LOCK_EX
-     * flag is applied only afterwards. A killed worker, a full disk or a quota
-     * between those two moments leaves the developer's story file empty — and
-     * this is a file we did not create and promised not to damage. Writing a
-     * sibling temp file and renaming it over the original means the file is
-     * either the old bytes or the new ones, never nothing.
-     *
-     * Short writes are caught too: `file_put_contents()` returns a byte count,
-     * so checking only for `false` accepts a truncated result as success — and
-     * the caller would then journal a SHA-1 for contents that are not on disk.
-     *
-     * @throws \RuntimeException
-     */
-    private function writeAtomically(string $absolutePath, string $contents): void
-    {
-        $temp = $absolutePath . '.cg-' . bin2hex(random_bytes(6)) . '.tmp';
-
-        $written = @file_put_contents($temp, $contents);
-
-        if ($written === false || $written !== strlen($contents)) {
-            @unlink($temp);
-            $error = error_get_last()['message'] ?? null;
-            throw new \RuntimeException(sprintf(
-                'Could not write %s.%s',
-                basename($absolutePath),
-                $error !== null ? ' ' . $error : '',
-            ));
-        }
-
-        // The temp file is born with the default mask; the story file may have
-        // been given wider or narrower permissions deliberately. Carry them
-        // over, so a rename does not quietly change who can edit it.
-        $mode = @fileperms($absolutePath);
-        if ($mode !== false) {
-            @chmod($temp, $mode & 0777);
-        }
-
-        if (!@rename($temp, $absolutePath)) {
-            @unlink($temp);
-            $error = error_get_last()['message'] ?? null;
-            throw new \RuntimeException(sprintf(
-                'Could not replace %s.%s',
-                basename($absolutePath),
-                $error !== null ? ' ' . $error : '',
-            ));
-        }
     }
 
     /**

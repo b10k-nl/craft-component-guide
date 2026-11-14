@@ -28,6 +28,9 @@ class ComponentScanner extends Component
      */
     public const MARKER_FILES = ['GUIDE.md', 'BLOCKS.md', 'COMPONENTS.md'];
 
+    /** Folders inside folders at most: past this, a link has made a loop. */
+    public const MAX_DEPTH = 32;
+
     /**
      * Filenames that are never components, even inside a marked folder:
      * `index.twig` is a Twig/Craft entry point (typically the block
@@ -96,7 +99,7 @@ class ComponentScanner extends Component
         $storyFiles = [];
         $twigFiles = [];
         $markers = [];
-        $this->collectFiles($realComponentDir, $storySuffixes, $storyFiles, $twigFiles, $markers, $errors);
+        $this->collectFiles($realComponentDir, $storySuffixes, $storyFiles, $twigFiles, $markers, $errors, $realComponentDir);
         ksort($storyFiles);
 
         // Marker files: resolve each directory's winner by precedence (and
@@ -308,7 +311,7 @@ class ComponentScanner extends Component
         $twigFiles = [];
         $markers = [];
         $ignored = [];
-        $this->collectFiles($this->normalize($realComponentDir), $storySuffixes, $files, $twigFiles, $markers, $ignored);
+        $this->collectFiles($this->normalize($realComponentDir), $storySuffixes, $files, $twigFiles, $markers, $ignored, $realComponentDir);
         ksort($files);
 
         $state = [];
@@ -350,14 +353,45 @@ class ComponentScanner extends Component
      * @param array<string, string> $storyFiles Story file path => matched suffix.
      * @param string[] $twigFiles Plain (non-story) Twig template paths.
      * @param array<string, string[]> $markers Directory => marker paths, in precedence order.
+     * @param string $base The components folder: paths in messages are given relative to it.
+     * @param array<string, true> $seen Real paths of the folders walked so far.
      */
-    private function collectFiles(string $dir, array $storySuffixes, array &$storyFiles, array &$twigFiles, array &$markers, array &$errors): void
+    private function collectFiles(string $dir, array $storySuffixes, array &$storyFiles, array &$twigFiles, array &$markers, array &$errors, string $base = '', int $depth = 0, array &$seen = []): void
     {
-        $entries = @scandir($dir);
-        if ($entries === false) {
+        $shown = match (true) {
+            $base === '' => basename($dir),
+            rtrim($this->normalize($dir), '/') === rtrim($this->normalize($base), '/') => basename($dir),
+            default => $this->relativePath($dir, $base),
+        };
+
+        // A symbolic link back to a folder above it (or to one already walked)
+        // would otherwise send the walk round in circles until PHP gives up.
+        $real = realpath($dir);
+        if ($real !== false) {
+            if (isset($seen[$real])) {
+                $errors[] = new ScanError(
+                    ScanError::INVALID_COMPONENT_DIRECTORY,
+                    sprintf('“%s” leads to a folder that is already listed, so it was skipped. A symbolic link?', $shown),
+                );
+                return;
+            }
+            $seen[$real] = true;
+        }
+        if ($depth > self::MAX_DEPTH) {
             $errors[] = new ScanError(
                 ScanError::INVALID_COMPONENT_DIRECTORY,
-                sprintf('Could not read directory “%s”.', $dir),
+                sprintf('“%s” is more than %d folders deep, so it was skipped.', $shown, self::MAX_DEPTH),
+            );
+            return;
+        }
+
+        $entries = @scandir($dir);
+        if ($entries === false) {
+            // Relative: the message is shown in the control panel, and the
+            // server's folder layout is nobody's business there.
+            $errors[] = new ScanError(
+                ScanError::INVALID_COMPONENT_DIRECTORY,
+                sprintf('Could not read directory “%s”.', $shown),
             );
             return;
         }
@@ -379,7 +413,7 @@ class ComponentScanner extends Component
                 if (in_array(strtolower($entry), self::IGNORED_DIRS, true)) {
                     continue;
                 }
-                $this->collectFiles($path, $storySuffixes, $storyFiles, $twigFiles, $markers, $errors);
+                $this->collectFiles($path, $storySuffixes, $storyFiles, $twigFiles, $markers, $errors, $base, $depth + 1, $seen);
                 continue;
             }
 

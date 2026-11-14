@@ -319,6 +319,24 @@ class ComponentScannerTest extends TestCase
      * @param array<string, string> $files Relative path => file contents.
      * @return string Absolute path of the templates root.
      */
+    public function testALinkBackUpTheTreeDoesNotLoop(): void
+    {
+        $root = $this->makeTemplatesRoot([
+            '_components/button/button.twig' => '<button>{{ label }}</button>',
+            '_components/button/button.stories.php' => "<?php return ['Default' => ['label' => 'Go']];",
+        ]);
+        if (!@symlink($root . '/_components', $root . '/_components/button/loop')) {
+            $this->markTestSkipped('symbolic links are not available here');
+        }
+
+        $result = $this->scanner->scan($root, '_components', '.stories.php');
+
+        $this->assertSame(['button'], $this->ids($result['components']));
+        $messages = array_map(static fn(ScanError $e): string => $e->message, $result['errors']);
+        $this->assertSame(['“button/loop” leads to a folder that is already listed, so it was skipped. A symbolic link?'], $messages);
+        $this->assertStringNotContainsString($root, implode("\n", $messages), 'no server paths in the control panel');
+    }
+
     private function makeTemplatesRoot(array $files): string
     {
         $root = sys_get_temp_dir() . '/cg-scanner-test-' . bin2hex(random_bytes(6));
@@ -346,7 +364,7 @@ class ComponentScannerTest extends TestCase
                 continue;
             }
             $path = $dir . '/' . $entry;
-            is_dir($path) ? $this->removeTree($path) : @unlink($path);
+            is_dir($path) && !is_link($path) ? $this->removeTree($path) : @unlink($path);
         }
 
         @rmdir($dir);

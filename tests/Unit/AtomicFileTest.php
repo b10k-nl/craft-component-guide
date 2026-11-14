@@ -20,13 +20,15 @@ class AtomicFileTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (glob($this->dir . '/{,.}*', GLOB_BRACE) ?: [] as $file) {
-            if (is_file($file)) {
-                unlink($file);
+        // Writable again first: a test may have made the folder read-only, and
+        // with failOnWarning a refused unlink would fail the run.
+        @chmod($this->dir, 0755);
+        foreach (scandir($this->dir) ?: [] as $entry) {
+            if (is_file($this->dir . '/' . $entry)) {
+                @unlink($this->dir . '/' . $entry);
             }
         }
-        @chmod($this->dir, 0755);
-        rmdir($this->dir);
+        @rmdir($this->dir);
     }
 
     public function testReplaceLeavesNoTempFileAndKeepsThePermissions(): void

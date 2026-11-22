@@ -161,7 +161,7 @@ class ReviewsController extends Controller
 
     /**
      * Every review on this site as one file — the trip from staging to where
-     * the story files are written (`php craft component-guide/reviews/import`).
+     * the story files are written (`php artisan craft:component-guide:reviews:import`).
      */
     public function actionExport(): Response
     {

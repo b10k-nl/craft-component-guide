@@ -2,6 +2,7 @@
 
 namespace b10k\componentguide\console\controllers;
 
+use b10k\componentguide\helpers\Cli;
 use b10k\componentguide\helpers\AtomicFile;
 use b10k\componentguide\helpers\ClientReview;
 use b10k\componentguide\helpers\StoryAppender;
@@ -16,8 +17,8 @@ use yii\console\ExitCode;
 /**
  * Brings client review decisions from staging into the story files.
  *
- * `php craft component-guide/reviews/import --file=component-guide-reviews-….json`
- * `ddev craft component-guide/reviews/import --file=- < ~/Downloads/component-guide-reviews-….json`
+ * `php artisan craft:component-guide:reviews:import --file=component-guide-reviews-….json`
+ * `ddev artisan craft:component-guide:reviews:import --file=- < ~/Downloads/component-guide-reviews-….json`
  *
  * Decisions are made on staging, where the client tries the blocks; the story
  * files live in git. "Export client reviews" on staging writes them to a
@@ -45,7 +46,7 @@ class ReviewsController extends Controller
     /**
      * @var string|null The exported file — or `-` to read it from standard
      * input, for a file the container cannot see:
-     * `ddev craft component-guide/reviews/import --file=- < ~/Downloads/….json`
+     * `ddev artisan craft:component-guide:reviews:import --file=- < ~/Downloads/….json`
      */
     public ?string $file = null;
 
@@ -278,7 +279,7 @@ class ReviewsController extends Controller
         $this->stderr("Cannot read {$file}.\n", Console::FG_RED);
         if (getenv('IS_DDEV_PROJECT') === 'true' || is_file('/.dockerenv')) {
             $this->stderr("This command runs in a container, which sees only the project folder. Read the file from your machine instead:\n");
-            $this->stderr('  ddev craft component-guide/reviews/import' . ($this->dryRun ? ' --dry-run' : '') . " --file=- < \"{$file}\"\n");
+            $this->stderr('  ' . Cli::craft('component-guide:reviews:import' . ($this->dryRun ? ' --dry-run' : '')) . " --file=- < \"{$file}\"\n");
         }
 
         return null;

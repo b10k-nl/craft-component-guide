@@ -46,7 +46,7 @@
                 {# The page you are on when you decide. The index toggle is for
                    the obvious ones; this is for the ones you had to look at. #}
                 {% if canToggleStatus and component.status in ['draft', 'stable'] %}
-                    <button type="button" class="btn cg-detail__status"
+                    <craft-button type="button" class="cg-detail__status"
                             data-cg-status-toggle
                             data-component-id="{{ component.id }}"
                             data-status="{{ component.status }}"
@@ -56,7 +56,7 @@
                         {{ component.status == 'draft'
                             ? "Mark stable"|t('component-guide')
                             : "Back to draft"|t('component-guide') }}
-                    </button>
+                    </craft-button>
                 {% endif %}
             </div>
             {% if entryTypeName %}
@@ -108,16 +108,16 @@
                 <div class="cg-main">
                     <div class="cg-preview">
                         <div class="cg-preview__bar">
-                            <span class="cg-preview__devices" role="group" aria-label="{{ 'Preview device'|t('component-guide') }}">
-                                <button type="button" class="cg-dev cg-dev--desktop is-active" data-cg-device="desktop" title="{{ 'Desktop'|t('component-guide') }}" aria-label="{{ 'Desktop'|t('component-guide') }}"></button>
-                                <button type="button" class="cg-dev cg-dev--tablet" data-cg-device="tablet" title="{{ 'Tablet'|t('component-guide') }}" aria-label="{{ 'Tablet'|t('component-guide') }}"></button>
-                                <button type="button" class="cg-dev cg-dev--phone" data-cg-device="phone" title="{{ 'Phone'|t('component-guide') }}" aria-label="{{ 'Phone'|t('component-guide') }}"></button>
-                            </span>
+                            <craft-button-group class="cg-preview__devices" role="group" aria-label="{{ 'Preview device'|t('component-guide') }}">
+                                <craft-button type="button" size="small" icon="desktop" class="cg-dev cg-dev--desktop"  active data-cg-device="desktop" title="{{ 'Desktop'|t('component-guide') }}" aria-label="{{ 'Desktop'|t('component-guide') }}"></craft-button>
+                                <craft-button type="button" size="small" icon="tablet" class="cg-dev cg-dev--tablet" data-cg-device="tablet" title="{{ 'Tablet'|t('component-guide') }}" aria-label="{{ 'Tablet'|t('component-guide') }}"></craft-button>
+                                <craft-button type="button" size="small" icon="mobile" class="cg-dev cg-dev--phone" data-cg-device="phone" title="{{ 'Phone'|t('component-guide') }}" aria-label="{{ 'Phone'|t('component-guide') }}"></craft-button>
+                            </craft-button-group>
                             <span class="cg-preview__actions">
                                 <span class="cg-preview__width light" data-cg-width></span>
-                                <button type="button" class="btn" data-icon="rotate-left" data-cg-rotate hidden>{{ "Rotate"|t('component-guide') }}</button>
-                                <button type="button" class="btn" data-icon="arrows-rotate" data-cg-refresh>{{ "Refresh"|t('component-guide') }}</button>
-                                <a class="btn" data-icon="share" href="{{ previewUrl }}" target="_blank" rel="noopener" data-cg-open-tab>{{ "Open in new tab"|t('component-guide') }}</a>
+                                <craft-button type="button" icon="rotate-left" data-cg-rotate hidden>{{ "Rotate"|t('component-guide') }}</craft-button>
+                                <craft-button type="button" icon="arrows-rotate" data-cg-refresh>{{ "Refresh"|t('component-guide') }}</craft-button>
+                                <craft-button icon="share" href="{{ previewUrl }}" target="_blank" rel="noopener" data-cg-open-tab>{{ "Open in new tab"|t('component-guide') }}</craft-button>
                             </span>
                         </div>
 
@@ -169,24 +169,24 @@
                     {% endif %}
                     {% set firstTab = tabs|keys|first %}
 
-                    <div class="pane cg-story-tabs" data-cg-tabs data-msg-changed="{{ 'changed'|t('component-guide') }}">
-                        <header class="pane-header">
-                            {% include '_includes/tabs' with {
-                                tabs: tabs,
-                                tablistLabel: 'Story'|t('component-guide'),
-                            } %}
-                            {# Folds the panes away — the tabs stay — so the preview
-                               and the client review below fit on one screen. #}
-                            <button type="button" class="cg-tabs__toggle" data-cg-tabs-toggle
-                                    aria-expanded="true"
-                                    data-label-hide="{{ 'Collapse'|t('component-guide') }}"
-                                    data-label-show="{{ 'Expand'|t('component-guide') }}"
-                                    title="{{ 'Collapse'|t('component-guide') }}"
-                                    aria-label="{{ 'Collapse'|t('component-guide') }}"></button>
-                        </header>
+                    <div class="cg-story-tabs" data-cg-tabs data-msg-changed="{{ 'changed'|t('component-guide') }}">
+                        {# Folds the panes away — the tabs stay — so the preview
+                           and the client review below fit on one screen. #}
+                        <craft-button type="button" variant="plain" size="small" icon="chevron-up" class="cg-tabs__toggle" data-cg-tabs-toggle
+                                aria-expanded="true"
+                                data-label-hide="{{ 'Collapse'|t('component-guide') }}"
+                                data-label-show="{{ 'Expand'|t('component-guide') }}"
+                                title="{{ 'Collapse'|t('component-guide') }}"
+                                aria-label="{{ 'Collapse'|t('component-guide') }}"></craft-button>
+                        {# Craft 6's own tabs: <craft-tab slot="tab"> and a
+                           slot="panel" per tab, in the same order. #}
+                        <craft-tabs label="{{ 'Story'|t('component-guide') }}">
+                        {% for tabId, tab in tabs %}
+                            <craft-tab slot="tab" id="tab-{{ tabId }}" data-id="{{ tabId }}">{{ tab.label }}</craft-tab>
+                        {% endfor %}
 
                         {% if enableIframePreview %}
-                            <div id="cg-tab-controls" class="cg-tabpane{{ firstTab != 'cg-tab-controls' ? ' hidden' }}" role="tabpanel" aria-labelledby="tab-cg-tab-controls">
+                            <div id="cg-tab-controls" slot="panel" class="cg-tabpane">
                                 {% include "component-guide/components/_controls" with {
                                     controls: controls,
                                     component: component,
@@ -197,7 +197,7 @@
                         {% endif %}
 
                         {% if hasAbout %}
-                            <div id="cg-tab-about" class="cg-tabpane{{ firstTab != 'cg-tab-about' ? ' hidden' }}" role="tabpanel" aria-labelledby="tab-cg-tab-about">
+                            <div id="cg-tab-about" slot="panel" class="cg-tabpane">
                                 {% if story.description %}
                                     <p>{{ story.description }}</p>
                                 {% endif %}
@@ -218,14 +218,14 @@
                             </div>
                         {% endif %}
 
-                        <div id="cg-tab-args" class="cg-tabpane{{ firstTab != 'cg-tab-args' ? ' hidden' }}" role="tabpanel" aria-labelledby="tab-cg-tab-args">
+                        <div id="cg-tab-args" slot="panel" class="cg-tabpane">
                             <pre class="cg-code">{{ story.args|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
                         </div>
 
                         {% if snippet %}
-                            <div id="cg-tab-usage" class="cg-tabpane hidden" role="tabpanel" aria-labelledby="tab-cg-tab-usage">
+                            <div id="cg-tab-usage" slot="panel" class="cg-tabpane">
                                 <div class="cg-tabpane__actions">
-                                    <button type="button" class="btn" data-icon="clipboard" data-cg-copy>{{ "Copy"|t('component-guide') }}</button>
+                                    <craft-button type="button" icon="clipboard" data-cg-copy>{{ "Copy"|t('component-guide') }}</craft-button>
                                 </div>
                                 <pre class="cg-code" data-cg-snippet>{{ snippet }}</pre>
                             </div>
@@ -235,7 +235,7 @@
                             {# Every element that holds this block — a page, a
                                service, a category… — opened in Craft's side
                                panel on a click, or in its own tab with ⌘/Ctrl. #}
-                            <div id="cg-tab-used-on" class="cg-tabpane hidden" role="tabpanel" aria-labelledby="tab-cg-tab-used-on">
+                            <div id="cg-tab-used-on" slot="panel" class="cg-tabpane">
                                 {% if usedOn.pages is empty %}
                                     <p class="light">
                                         {{- usedOn.notShown
@@ -279,6 +279,7 @@
                                 {% endif %}
                             </div>
                         {% endif %}
+                        </craft-tabs>
                     </div>
 
                     {# Only with client review on (Pro, turned on in the settings):

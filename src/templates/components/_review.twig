@@ -80,12 +80,12 @@
                        data-review-id="{{ latest.id }}"
                        data-review-args="{{ latest.args|json_encode }}">
                         {% if latestTried %}
-                            <button type="button" class="btn small" data-icon="eye" data-cg-review-show>{{ "Show the values tried"|t('component-guide') }}</button>
+                            <craft-button type="button" icon="eye" data-cg-review-show size="small">{{ "Show the values tried"|t('component-guide') }}</craft-button>
                         {% endif %}
                         {% if canFix and reason == 'fixed' %}
-                            <button type="button" class="btn small" data-cg-review-fixed="0">{{ "Not fixed yet"|t('component-guide') }}</button>
+                            <craft-button type="button" data-cg-review-fixed="0" size="small">{{ "Not fixed yet"|t('component-guide') }}</craft-button>
                         {% elseif canFix %}
-                            <button type="button" class="btn small" data-icon="check" data-cg-review-fixed="1">{{ "Mark as fixed"|t('component-guide') }}</button>
+                            <craft-button type="button" icon="check" data-cg-review-fixed="1" size="small">{{ "Mark as fixed"|t('component-guide') }}</craft-button>
                         {% endif %}
                     </p>
                 {% endif %}
@@ -102,17 +102,17 @@
                 <p class="light" data-cg-review-unapprovable="deprecated"{% if component.status != 'deprecated' %} hidden{% endif %}>
                     {{- "This block is deprecated, so it is not approved any more; you can still ask for changes."|t('component-guide') -}}
                 </p>
-                <textarea class="text fullwidth" rows="2" data-cg-review-comment
+                <craft-textarea><textarea slot="input" class="text fullwidth" rows="2" data-cg-review-comment
                           placeholder="{{ 'Comment — required when you ask for changes'|t('component-guide') }}"
-                          aria-label="{{ 'Comment'|t('component-guide') }}"></textarea>
+                          aria-label="{{ 'Comment'|t('component-guide') }}"></textarea></craft-textarea>
                 <div class="cg-review__buttons">
                     {% if state != 'approved' %}
-                        <button type="button" class="btn submit" data-icon="check" data-cg-review-decide="approved"{% if not approvable %} hidden{% endif %}
-                                {% if state == 'changes' %}data-cg-review-confirm="{{ 'Changes are requested on this story. Approve it as it is?'|t('component-guide') }}"{% endif %}>
+                        <craft-button type="button" icon="check" data-cg-review-decide="approved"{% if not approvable %} hidden{% endif %}
+                                {% if state == 'changes' %}data-cg-review-confirm="{{ 'Changes are requested on this story. Approve it as it is?'|t('component-guide') }}"{% endif %} variant="primary">
                             {{- "Approve this story"|t('component-guide') -}}
-                        </button>
+                        </craft-button>
                     {% endif %}
-                    <button type="button" class="btn" data-cg-review-decide="changes">{{ "Request changes"|t('component-guide') }}</button>
+                    <craft-button type="button" data-cg-review-decide="changes">{{ "Request changes"|t('component-guide') }}</craft-button>
                 </div>
                 <p class="light cg-review__values" data-cg-review-values hidden>
                     {{ "You changed values above: they go with a request for changes. Only the story as written can be approved — reset them to approve it."|t('component-guide') }}
@@ -147,7 +147,7 @@
                                 <span class="cg-chip {{ approved ? 'cg-chip--stable' : 'cg-chip--draft' }}">{{ approved ? labels.approved : labels.changes }}</span>
                                 <span class="light">{{ 'by {name}, {date}'|t('component-guide', { name: review.by, date: review.dateCreated|datetime('short') }) }}</span>
                                 {% if review.tried %}
-                                    <button type="button" class="btn small" data-icon="eye" data-cg-review-show>{{ "Show the values tried"|t('component-guide') }}</button>
+                                    <craft-button type="button" icon="eye" data-cg-review-show size="small">{{ "Show the values tried"|t('component-guide') }}</craft-button>
                                 {% endif %}
                             </div>
                             {% if review.comment %}

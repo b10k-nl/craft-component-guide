@@ -117,11 +117,11 @@
             {% if componentCount > 0 %}
                 <div class="cg-card-size" role="group" aria-label="{{ 'Card size'|t('component-guide') }}" data-cg-card-size hidden>
                     <span class="cg-card-size__label" aria-hidden="true">{{ "Card size"|t('component-guide') }}</span>
-                    <div class="btngroup small">
-                        <button type="button" class="btn small" data-size="s" aria-pressed="false" title="{{ 'Smaller cards, more in a row'|t('component-guide') }}">S</button>
-                        <button type="button" class="btn small" data-size="m" aria-pressed="false" title="{{ 'The default size'|t('component-guide') }}">M</button>
-                        <button type="button" class="btn small" data-size="l" aria-pressed="false" title="{{ 'Larger cards, fewer in a row'|t('component-guide') }}">L</button>
-                    </div>
+                    <craft-button-group>
+                        <craft-button type="button" data-size="s" aria-pressed="false" title="{{ 'Smaller cards, more in a row'|t('component-guide') }}" size="small">S</craft-button>
+                        <craft-button type="button" data-size="m" aria-pressed="false" title="{{ 'The default size'|t('component-guide') }}" size="small">M</craft-button>
+                        <craft-button type="button" data-size="l" aria-pressed="false" title="{{ 'Larger cards, fewer in a row'|t('component-guide') }}" size="small">L</craft-button>
+                    </craft-button-group>
                 </div>
             {% endif %}
 
@@ -131,8 +131,10 @@
                has more than one story — otherwise both views are the same. #}
             {% if storyCount > componentCount - (undocumentedCount ?? 0) %}
                 <div class="cg-cards-mode">
-                    <input type="checkbox" class="checkbox" id="cg-story-cards">
-                    <label for="cg-story-cards">{{ "Variants as cards"|t('component-guide') }}</label>
+                    <craft-checkbox>
+                        <input slot="input" type="checkbox" id="cg-story-cards">
+                        <label slot="label" for="cg-story-cards">{{ "Variants as cards"|t('component-guide') }}</label>
+                    </craft-checkbox>
                 </div>
             {% endif %}
         </div>
@@ -189,7 +191,7 @@ hero{{ settings.twigStorySuffix() }}</div>
                     <p class="light">
                         {{ "Point the guide at the right folder, and add your compiled front-end CSS so previews look like the real site."|t('component-guide') }}
                     </p>
-                    <a class="btn" href="{{ cpUrl('settings/plugins/component-guide') }}">{{ "Open settings"|t('component-guide') }}</a>
+                    <craft-button href="{{ cpUrl('settings/plugins/component-guide') }}">{{ "Open settings"|t('component-guide') }}</craft-button>
                 </li>
             </ol>
         </div>
@@ -227,7 +229,7 @@ hero{{ settings.twigStorySuffix() }}</div>
                 <strong>{{ "Component Guide changed these files from the control panel, and the changes are still on disk."|t('component-guide') }}</strong>
                 <span class="light">{{ "Review the diff and commit."|t('component-guide') }}</span>
                 <span class="cg-hint__action">
-                    <button type="button" class="btn small" data-icon="check" data-cg-reviewed>{{ "Reviewed"|t('component-guide') }}</button>
+                    <craft-button type="button" icon="check" data-cg-reviewed size="small">{{ "Reviewed"|t('component-guide') }}</craft-button>
                 </span>
             </div>
             <ul class="cg-writes" data-cg-writes-list>
@@ -315,19 +317,19 @@ hero{{ settings.twigStorySuffix() }}</div>
                                                 {{ csrfInput() }}
                                                 {{ actionInput('component-guide/components/scaffold') }}
                                                 {{ hiddenInput('componentId', component.id) }}
-                                                <button type="submit" class="btn small"
-                                                        title="{{ "Write one story with guessed args"|t('component-guide') }}">
+                                                <craft-button type="submit"
+                                                        title="{{ "Write one story with guessed args"|t('component-guide') }}" size="small">
                                                     {{ "Add story"|t('component-guide') }}
-                                                </button>
+                                                </craft-button>
                                                 {% set states = statesByComponent[component.id] ?? null %}
                                                 {% if states and states.values|length > 1 %}
-                                                    <button type="submit" name="states" value="1" class="btn small"
+                                                    <craft-button type="submit" name="states" value="1"
                                                             title="{{ "Write one story per {var} value: {values}"|t('component-guide', {
                                                                 var: states.var,
                                                                 values: states.values|join(', '),
-                                                            }) }}">
+                                                            }) }}" size="small">
                                                         {{ "Add {count} stories"|t('component-guide', { count: states.values|length }) }}
-                                                    </button>
+                                                    </craft-button>
                                                 {% endif %}
                                             </form>
                                         {% endif %}
@@ -421,16 +423,16 @@ hero{{ settings.twigStorySuffix() }}</div>
                                        would send them back to the top every time. #}
                                     {% if canToggleStatus and component.status in ['draft', 'stable'] %}
                                         <span class="cg-card__actions">
-                                            <button type="button" class="btn small"
+                                            <craft-button type="button"
                                                     data-cg-status-toggle
                                                     data-component-id="{{ component.id }}"
                                                     data-status="{{ component.status }}"
                                                     data-label-stable="{{ "Mark stable"|t('component-guide') }}"
-                                                    data-label-draft="{{ "Back to draft"|t('component-guide') }}">
+                                                    data-label-draft="{{ "Back to draft"|t('component-guide') }}" size="small">
                                                 {{ component.status == 'draft'
                                                     ? "Mark stable"|t('component-guide')
                                                     : "Back to draft"|t('component-guide') }}
-                                            </button>
+                                            </craft-button>
                                         </span>
                                     {% endif %}
                                 </div>
@@ -500,16 +502,16 @@ hero{{ settings.twigStorySuffix() }}</div>
                                         {# The block's status, from any of its story cards. #}
                                         {% if canToggleStatus and component.status in ['draft', 'stable'] %}
                                             <span class="cg-card__actions">
-                                                <button type="button" class="btn small"
+                                                <craft-button type="button"
                                                         data-cg-status-toggle
                                                         data-component-id="{{ component.id }}"
                                                         data-status="{{ component.status }}"
                                                         data-label-stable="{{ "Mark stable"|t('component-guide') }}"
-                                                        data-label-draft="{{ "Back to draft"|t('component-guide') }}">
+                                                        data-label-draft="{{ "Back to draft"|t('component-guide') }}" size="small">
                                                     {{ component.status == 'draft'
                                                         ? "Mark stable"|t('component-guide')
                                                         : "Back to draft"|t('component-guide') }}
-                                                </button>
+                                                </craft-button>
                                             </span>
                                         {% endif %}
                                     </div>

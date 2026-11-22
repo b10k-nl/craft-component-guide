@@ -27,10 +27,12 @@
 
 <nav class="cg-tree" aria-label="{{ 'Components'|t('component-guide') }}" data-cg-index-url="{{ cpUrl('component-guide') }}">
     <div class="cg-tree__filter">
-        <input type="search" class="text fullwidth" id="cg-search"
+        <craft-input type="search" placeholder="{{ 'Find a component'|t('component-guide') }}">
+        <input slot="input" type="search" class="text fullwidth form-control" id="cg-search"
                {% if autofocus ?? false %}autofocus{% endif %}
                placeholder="{{ 'Find a component'|t('component-guide') }}"
                aria-label="{{ 'Find a component'|t('component-guide') }}">
+        </craft-input>
     </div>
 {% if grouped is not empty %}
     {# Filter options are built from what is actually on the page, not
@@ -120,7 +122,7 @@
     </div>
 {% endif %}
     {# Client reviews are recorded on staging; this file takes them to where
-       the story files are written (php craft component-guide/reviews/import).
+       the story files are written (php artisan craft:component-guide:reviews:import).
        A button only while there is something this admin has not exported
        yet, with how much; after that a quiet line saying when, with a link
        to export again (a lost file, a second machine). #}
@@ -130,7 +132,7 @@
         {% set pending = (reviewsNew ?? 0) > 0 or not (reviewsExportedOn ?? null) %}
         <p class="cg-tree__export" data-cg-export>
             <span class="cg-tree__export-pending" data-cg-export-pending{% if not pending %} hidden{% endif %}>
-                <a class="btn small" data-icon="download" href="{{ actionUrl('component-guide/reviews/export') }}" data-cg-export-link>{{ "Export client reviews"|t('component-guide') }}</a>
+                <craft-button icon="download" href="{{ actionUrl('component-guide/reviews/export') }}" data-cg-export-link size="small">{{ "Export client reviews"|t('component-guide') }}</craft-button>
                 {% if (reviewsNew ?? 0) > 0 %}
                     <span class="cg-tree__export-new" title="{{ 'Decisions made since you last exported'|t('component-guide') }}">{{ '{count} new'|t('component-guide', { count: reviewsNew }) }}</span>
                 {% endif %}
@@ -157,7 +159,7 @@
     <p class="cg-tree__filtered" data-cg-filtered hidden>
         {{ "Filtered:"|t('component-guide') }}
         <strong data-cg-filtered-count>0</strong>
-        <button type="button" class="btn small" data-cg-filters-clear>{{ "Clear filters"|t('component-guide') }}</button>
+        <craft-button type="button" data-cg-filters-clear size="small">{{ "Clear filters"|t('component-guide') }}</craft-button>
     </p>
     <ul>
         <li>

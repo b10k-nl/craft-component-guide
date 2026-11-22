@@ -34,23 +34,23 @@
             {{ "Changed here only — nothing is saved."|t('component-guide') }}
         </span>
         <span class="cg-controls__actions">
-            <button type="button" class="btn disabled" data-cg-controls-reset disabled>{{ "Reset"|t('component-guide') }}</button>
-            <button type="button" class="btn disabled" data-icon="clipboard" data-cg-controls-copy disabled>{{ "Copy as story"|t('component-guide') }}</button>
+            <craft-button type="button" data-cg-controls-reset disabled>{{ "Reset"|t('component-guide') }}</craft-button>
+            <craft-button type="button" icon="clipboard" data-cg-controls-copy disabled>{{ "Copy as story"|t('component-guide') }}</craft-button>
         </span>
     </header>
 
     <div class="cg-controls__linked" data-cg-controls-linked hidden>
         <p>{{ "This link carries changed values for this story. They are not shown until you choose to — a link can carry anything, so look at who sent it."|t('component-guide') }}</p>
-        <button type="button" class="btn submit" data-icon="eye" data-cg-controls-apply>{{ "Show them"|t('component-guide') }}</button>
-        <button type="button" class="btn" data-cg-controls-ignore>{{ "Ignore"|t('component-guide') }}</button>
+        <craft-button type="button" icon="eye" data-cg-controls-apply variant="primary">{{ "Show them"|t('component-guide') }}</craft-button>
+        <craft-button type="button" data-cg-controls-ignore>{{ "Ignore"|t('component-guide') }}</craft-button>
     </div>
 
     <div id="cg-controls-body" data-cg-collapse-body>
 
     <div class="cg-controls__snippet" data-cg-controls-snippet hidden>
         <p class="light">{{ "The story as copied. It goes into {file}, inside the stories."|t('component-guide', { file: component.storyFilePath }) }}</p>
-        <textarea class="text fullwidth code" readonly spellcheck="false" rows="8"
-                  aria-label="{{ 'Copy as story'|t('component-guide') }}"></textarea>
+        <craft-textarea><textarea slot="input" class="text fullwidth code" readonly spellcheck="false" rows="8"
+                  aria-label="{{ 'Copy as story'|t('component-guide') }}"></textarea></craft-textarea>
     </div>
 
     {% if controls is empty %}
@@ -73,13 +73,15 @@
                     <div class="cg-controls__input">
                         {% switch c.kind %}
                             {% case 'bool' %}
-                                <input type="checkbox" class="checkbox" id="{{ id }}"{% if c.value %} checked{% endif %}>
-                                <label for="{{ id }}"><span class="visually-hidden">{{ c.name }}</span></label>
+                                <craft-checkbox{% if c.value %} checked{% endif %}>
+                                    <input slot="input" type="checkbox" id="{{ id }}"{% if c.value %} checked{% endif %}>
+                                    <label slot="label" for="{{ id }}"><span class="visually-hidden">{{ c.name }}</span></label>
+                                </craft-checkbox>
                             {% case 'number' %}
-                                <input type="number" step="any" class="text" id="{{ id }}" value="{{ c.value ?? '' }}">
+                                <craft-input type="number"><input slot="input" type="number" step="any" class="text form-control" id="{{ id }}" value="{{ c.value ?? '' }}"></craft-input>
                             {% case 'select' %}
-                                <div class="select">
-                                    <select id="{{ id }}">
+                                <craft-select>
+                                    <select slot="input" id="{{ id }}">
                                         {% if not c.set %}
                                             <option value="" selected>—</option>
                                         {% endif %}
@@ -89,26 +91,26 @@
                                             </option>
                                         {% endfor %}
                                     </select>
-                                </div>
+                                </craft-select>
                             {% case 'json' %}
                                 {% set json = c.set ? c.value|json_encode(prettyJson) : '' %}
-                                <textarea class="text fullwidth code" id="{{ id }}" spellcheck="false"
-                                          rows="{{ max(2, min(14, json|split("\n")|length)) }}">{{ json }}</textarea>
+                                <craft-textarea><textarea slot="input" class="text fullwidth code" id="{{ id }}" spellcheck="false"
+                                          rows="{{ max(2, min(14, json|split("\n")|length)) }}">{{ json }}</textarea></craft-textarea>
                                 <p class="error cg-controls__error" data-cg-control-error hidden></p>
                             {% case 'textarea' %}
-                                <textarea class="text fullwidth" id="{{ id }}" rows="3">{{ c.value ?? '' }}</textarea>
+                                <craft-textarea><textarea slot="input" class="text fullwidth" id="{{ id }}" rows="3">{{ c.value ?? '' }}</textarea></craft-textarea>
                             {% default %}
                                 {% if c.image %}<div class="cg-controls__with-button">{% endif %}
-                                <input type="text" class="text fullwidth" id="{{ id }}" value="{{ c.value ?? '' }}"
+                                <craft-input class="cg-controls__text"><input slot="input" type="text" class="text fullwidth form-control" id="{{ id }}" value="{{ c.value ?? '' }}"
                                        {% if c.suggestions is not empty %}list="{{ id }}-list"{% endif %}
-                                       autocomplete="off">
+                                       autocomplete="off"></craft-input>
                                 {% if c.suggestions is not empty %}
                                     <datalist id="{{ id }}-list">
                                         {% for value in c.suggestions %}<option value="{{ value }}">{% endfor %}
                                     </datalist>
                                 {% endif %}
                                 {% if c.image %}
-                                    <button type="button" class="btn" data-icon="image" data-cg-control-image>{{ "Choose an image"|t('component-guide') }}</button>
+                                    <craft-button type="button" icon="image" data-cg-control-image>{{ "Choose an image"|t('component-guide') }}</craft-button>
                                     </div>
                                 {% endif %}
                         {% endswitch %}

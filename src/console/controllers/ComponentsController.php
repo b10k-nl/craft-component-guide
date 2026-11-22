@@ -10,7 +10,7 @@ use yii\console\ExitCode;
 /**
  * CLI diagnostics for Component Guide.
  *
- * `php craft component-guide/components/scan`
+ * `php artisan craft:component-guide:components:scan`
  *
  * Runs the same discovery the CP uses, so you can verify configuration and see
  * discovered components (and any errors) without opening the control panel.
@@ -41,7 +41,7 @@ class ComponentsController extends Controller
      * Renders one story's full preview document to stdout — useful for
      * verifying preview config (previewCss/previewTemplate) without a browser.
      *
-     * `php craft component-guide/components/render <componentId> <storyId>`
+     * `php artisan craft:component-guide:components:render <componentId> <storyId>`
      */
     public function actionRender(string $componentId, string $storyId): int
     {
@@ -76,7 +76,7 @@ class ComponentsController extends Controller
      * Generates a skeleton story file for an undocumented component from its
      * template's variables (marked `status: draft`; never overwrites).
      *
-     * `php craft component-guide/components/make <componentId> [--format=php] [--states]`
+     * `php artisan craft:component-guide:components:make <componentId> [--format=php] [--states]`
      */
     public function actionMake(string $componentId): int
     {

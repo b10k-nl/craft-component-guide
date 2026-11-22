@@ -11,10 +11,10 @@
     flex-wrap: wrap;
 }
 .cg-stats { display: flex; gap: 20px; }
-.cg-stat { color: #596673; }
-.cg-stat strong { color: #3f4d5a; font-size: 18px; }
+.cg-stat { color: var(--c-text-quiet, #596673); }
+.cg-stat strong { color: var(--c-text-default, #3f4d5a); font-size: 18px; }
 .cg-stat--editors { cursor: help; }
-.cg-stat--editors strong { color: #5334a8; }
+.cg-stat--editors strong { color: var(--c-color-violet-on-quiet, #5334a8); }
 /* “Variants as cards”: a checkbox at the toolbar's end; the two sets of
    cards and counts swap with `hidden`, which their display would outrank. */
 .cg-view { display: flex; align-items: center; gap: 20px; margin-inline-start: auto; }
@@ -23,19 +23,19 @@
    as the window allows. */
 .cg-card-size { display: flex; align-items: center; gap: 8px; }
 .cg-card-size[hidden] { display: none; }
-.cg-card-size__label { color: #596673; }
-.cg-card-size .btn[aria-pressed="true"] { background-color: var(--gray-500, #606d7b); color: #fff; }
+.cg-card-size__label { color: var(--c-text-quiet, #596673); }
+/* Pressed state comes from <craft-button active> (see component-guide.js). */
 [data-cg-card-size-value="s"] .cg-grid { --cg-card-min: 180px; }
 [data-cg-card-size-value="l"] .cg-grid { --cg-card-min: 340px; }
 .cg-grid[hidden], .cg-stats__review[hidden] { display: none; }
-.cg-card__story { font-size: 12px; font-weight: 600; color: #596673; margin-top: -4px; }
+.cg-card__story { font-size: 12px; font-weight: 600; color: var(--c-text-quiet, #596673); margin-top: -4px; }
 .cg-toolbar__tools { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; }
 .cg-filters { display: flex; align-items: center; gap: 8px; }
 .cg-search { min-width: 200px; flex: 1; max-width: 360px; }
 
 /* Grid + cards */
 .cg-group { margin-bottom: 28px; }
-.cg-group__title { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: #8b97a3; margin: 0 0 12px; }
+.cg-group__title { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--c-text-quiet, #8b97a3); margin: 0 0 12px; }
 .cg-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--cg-card-min, 240px), 1fr));
@@ -50,9 +50,9 @@
     flex-direction: column;
     gap: 6px;
     padding: 14px 16px;
-    border: 1px solid #cdd8e4;
+    border: 1px solid var(--c-color-border-quiet, #cdd8e4);
     border-radius: 8px;
-    background: #fff;
+    background: var(--c-surface-raised, #fff);
     text-decoration: none;
     transition: border-color .15s, box-shadow .15s;
     flex: 1;
@@ -82,18 +82,18 @@
 .cg-card__link--interactive .cg-chip--gallery { position: relative; z-index: 2; }
 /* An iframe would otherwise swallow the click before it reaches the overlay. */
 .cg-card__link--interactive .cg-card__thumb { pointer-events: none; }
-.cg-card__link--interactive:focus-within { border-color: #5b6a7a; }
+.cg-card__link--interactive:focus-within { border-color: var(--c-color-border-loud, #5b6a7a); }
 
 /* Review control, not a call to action: right-aligned, quiet, and it stops
    the click from reaching the overlay link. */
 .cg-card__actions { display: flex; justify-content: flex-end; margin-top: auto; padding-top: 8px; }
-.cg-card__link:hover { border-color: #5b6a7a; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.cg-card__link:hover { border-color: var(--c-color-border-loud, #5b6a7a); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 /* Live mini-preview: a fixed 1280×800 iframe scaled down by JS to the thumb's
    width. The box keeps the same 16:10 aspect so the scaled iframe fills it
    exactly; pointer-events:none keeps the whole card clickable. */
 .cg-card__thumb {
     display: block; position: relative; aspect-ratio: 16 / 10;
-    background: #f3f5f7; border: 1px solid #eef1f4; border-radius: 6px;
+    background: var(--c-surface-sunken, #f3f5f7); border: 1px solid var(--c-color-border-quiet, #eef1f4); border-radius: 6px;
     overflow: hidden; pointer-events: none; margin-bottom: 4px;
 }
 .cg-card__thumb iframe {
@@ -114,43 +114,43 @@
     position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
     border: 0; background: #fff; transform-origin: 0 0;
 }
-.cg-card__title { font-weight: 600; color: #1f2933; display: flex; align-items: center; gap: 6px; }
+.cg-card__title { font-weight: 600; color: var(--c-text-default, #1f2933); display: flex; align-items: center; gap: 6px; }
 .cg-card__review { margin-inline-start: auto; font-size: 15px; font-weight: 700; cursor: help; align-self: baseline; }
-.cg-card__review--approved { color: #16a34a; }
-.cg-card__review--changes { color: #d97706; }
-.cg-card__desc { font-size: 12px; color: #7a8794; line-height: 1.5; }
+.cg-card__review--approved { color: var(--c-color-green-on-quiet, #16a34a); }
+.cg-card__review--changes { color: var(--c-color-amber-on-quiet, #d97706); }
+.cg-card__desc { font-size: 12px; color: var(--c-text-quiet, #7a8794); line-height: 1.5; }
 /* `break-all` belongs to the template path, not to the prose next to it:
    applied to the whole element it splits ordinary words mid-letter
    ("the" → "t / he"), which is what the story-file hint hit. */
 .cg-card__meta { font-size: 12px; }
 /* The template path is incidental info — keep it out of the way.
    !important needed: the CP's own `.code, code` rule sets font-size .9em !important. */
-.cg-card__meta.code { color: #9aa5b1; font-size: .75em !important; line-height: 1.4; word-break: break-all; }
+.cg-card__meta.code { color: var(--c-text-quiet, #9aa5b1); font-size: .75em !important; line-height: 1.4; word-break: break-all; }
 
 /* Chips + badges */
 .cg-chip {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 10px;
-    background: #e4e8ec;
-    color: #4a5560;
+    background: var(--c-color-slate-fill-quiet, #e4e8ec);
+    color: var(--c-text-quiet, #4a5560);
     font-size: 12px;
     line-height: 1.6;
 }
 /* Status lifecycle colors. The parser normalizes statuses to this canonical
    vocabulary (stable | beta | draft | deprecated) and rejects typos with a
    scan warning, so these four classes are exhaustive. */
-.cg-chip--status { background: #e4e8ec; color: #4a5560; }
-.cg-chip--stable { background: #d8f0e0; color: #1c6b3c; }
-.cg-chip--beta { background: #dbe9fb; color: #1a5dab; }
-.cg-chip--draft { background: #fbeeca; color: #8a5f0b; }
-.cg-chip--deprecated { background: #fcdcd8; color: #9a1f11; }
+.cg-chip--status { background: var(--c-color-slate-fill-quiet, #e4e8ec); color: var(--c-text-quiet, #4a5560); }
+.cg-chip--stable { background: var(--c-color-green-fill-quiet, #d8f0e0); color: var(--c-color-green-on-quiet, #1c6b3c); }
+.cg-chip--beta { background: var(--c-color-blue-fill-quiet, #dbe9fb); color: var(--c-color-blue-on-quiet, #1a5dab); }
+.cg-chip--draft { background: var(--c-color-amber-fill-quiet, #fbeeca); color: var(--c-color-amber-on-quiet, #8a5f0b); }
+.cg-chip--deprecated { background: var(--c-color-red-fill-quiet, #fcdcd8); color: var(--c-color-red-on-quiet, #9a1f11); }
 
 /* The editor half of the plugin, reported as state: this component reaches
    editors through the blocks gallery. Deliberately quieter than a status
    chip — it is information, not a warning. */
-.cg-chip--gallery { background: #eae4fb; color: #5334a8; }
-.cg-chip--review { background: #e4e8ec; color: #4a5560; }
+.cg-chip--gallery { background: var(--c-color-violet-fill-quiet, #eae4fb); color: var(--c-color-violet-on-quiet, #5334a8); }
+.cg-chip--review { background: var(--c-color-slate-fill-quiet, #e4e8ec); color: var(--c-text-quiet, #4a5560); }
 
 .cg-badge {
     display: inline-flex;
@@ -179,7 +179,7 @@
 /* Detail layout */
 .cg-detail__header { margin-bottom: 20px; }
 .cg-detail__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.cg-detail__path { font-size: 13px; color: #7a8794; }
+.cg-detail__path { font-size: 13px; color: var(--c-text-quiet, #7a8794); }
 .cg-detail__desc { max-width: 70ch; margin: 8px 0 0; }
 
 .cg-layout { display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: start; }
@@ -197,7 +197,7 @@
 .cg-tree [hidden] { display: none; }
 .cg-tree a .label { flex: 1 1 auto; min-width: 0; }
 .cg-tree a .cg-tree__count {
-    flex: none; margin-inline-start: 6px; font-size: 11px; color: var(--light-text-color, #8b97a3);
+    flex: none; margin-inline-start: 6px; font-size: 11px; color: var(--c-text-quiet, #8b97a3);
 }
 /* The review column: always there with client review on, so the counts to
    its left line up whether or not a block has a mark. */
@@ -210,11 +210,11 @@
 .cg-tree .cg-tree__stories a { padding-inline-start: calc(var(--xl, 24px) + 12px); font-size: 13px; min-height: 0; padding-block: 5px; }
 
 /* Preview */
-.cg-preview { border: 1px solid #cdd8e4; border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
+.cg-preview { border: 1px solid var(--c-color-border-quiet, #cdd8e4); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
 .cg-preview__bar {
     display: flex; align-items: center; justify-content: space-between;
     /* White, not grey: Craft's grey buttons on a grey bar read as labels. */
-    padding: 8px 12px; background: #fff; border-bottom: 1px solid #cdd8e4;
+    padding: 8px 12px; background: var(--c-surface-raised, #fff); border-bottom: 1px solid var(--c-color-border-quiet, #cdd8e4);
 }
 .cg-preview__actions { display: flex; align-items: center; gap: 8px; }
 /* Craft's .btn sets display, which beats the hidden attribute — without this
@@ -223,24 +223,12 @@
 .cg-preview__width { font-size: 12px; min-width: 52px; text-align: right; }
 
 /* Device switcher (icon buttons, à la Craft Live Preview) */
-.cg-preview__devices { display: inline-flex; border: 1px solid #cdd8e4; border-radius: 6px; overflow: hidden; }
-.cg-dev {
-    appearance: none; border: 0; border-left: 1px solid #cdd8e4; background: #fff no-repeat center;
-    /* The icon SVGs have no intrinsic size and different aspect ratios
-       (desktop 34×28, tablet 19×28, phone 13×28) — scale them by HEIGHT so the
-       narrow phone icon doesn't blow up into a stripe. */
-    background-size: auto 16px; width: 44px; height: 32px; cursor: pointer; opacity: .55;
-}
-.cg-dev:first-child { border-left: 0; }
-.cg-dev:hover { opacity: .85; }
-.cg-dev.is-active { background-color: #dbe4f2; opacity: 1; box-shadow: inset 0 -2px 0 #4a5560; }
-.cg-dev--desktop { background-image: url(../img/preview/icon-desktop.svg); }
-.cg-dev--tablet  { background-image: url(../img/preview/icon-tablet.svg); }
-.cg-dev--phone   { background-image: url(../img/preview/icon-phone.svg); }
+/* Device switcher: <craft-button-group> of icon <craft-button>s; the active
+   one carries `active` (component-guide.js). */
 
 /* Preview stage — a fixed-height box the device frame scales to fit within. */
 .cg-preview__frame { position: relative; height: 640px; background: #fff; overflow: hidden; }
-.cg-preview__stage { position: absolute; inset: 0; background: var(--gray-100, #f3f5f7); }
+.cg-preview__stage { position: absolute; inset: 0; background: var(--c-surface-sunken, #f3f5f7); }
 
 /* Device preview container — sized to exact device px by JS, then transform:scaled
    to fit. The iframe inside is always width/height:100% (reliable compositing). */
@@ -277,14 +265,14 @@
 
 .cg-preview__loading {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #8b97a3; pointer-events: none; z-index: 3;
+    color: var(--c-text-quiet, #8b97a3); pointer-events: none; z-index: 3;
 }
 .cg-preview__frame.is-loaded .cg-preview__loading { display: none; }
 .cg-preview__note { padding: 16px; }
 
 /* Info blocks */
 .cg-info__block { margin-bottom: 20px; }
-.cg-info__block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: #8b97a3; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; }
+.cg-info__block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--c-text-quiet, #8b97a3); margin: 0 0 8px; display: flex; align-items: center; gap: 10px; }
 .cg-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .cg-code {
     background: #2b2f36; color: #e6e9ec;
@@ -294,12 +282,12 @@
 
 /* Errors */
 .cg-errors { margin-bottom: 20px; }
-.cg-error { border: 1px solid #f3c1bd; background: #fcebea; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.cg-error { border: 1px solid var(--c-color-red-border-quiet, #f3c1bd); background: var(--c-color-red-fill-quiet, #fcebea); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
 .cg-error__head { display: flex; align-items: center; gap: 8px; }
-.cg-error__msg { font-weight: 600; color: #9a1f11; }
-.cg-error__file { font-size: 12px; color: #7a8794; margin-top: 4px; }
+.cg-error__msg { font-weight: 600; color: var(--c-color-red-on-quiet, #9a1f11); }
+.cg-error__file { font-size: 12px; color: var(--c-text-quiet, #7a8794); margin-top: 4px; }
 .cg-error__rec { font-size: 13px; margin-top: 4px; }
-.cg-error__details { font-size: 11px; color: #555; white-space: pre-wrap; margin-top: 8px; }
+.cg-error__details { font-size: 11px; color: var(--c-text-quiet, #555); white-space: pre-wrap; margin-top: 8px; }
 
 .cg-empty { margin-top: 12px; }
 .hidden { display: none; }
@@ -307,7 +295,7 @@
 /* Onboarding (shown instead of an empty grid) */
 .cg-onboarding {
     margin-top: 4px; padding: 24px 26px;
-    background: #fff; border: 1px solid #e3e5e8; border-radius: 10px;
+    background: var(--c-surface-raised, #fff); border: 1px solid var(--c-color-border-quiet, #e3e5e8); border-radius: 10px;
     max-width: 760px;
 }
 .cg-onboarding__title { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
@@ -323,8 +311,8 @@
 
 .cg-hint {
     margin: 0 0 16px; padding: 9px 13px;
-    background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px;
-    font-size: 13px; color: #6b5a2b;
+    background: var(--c-color-amber-fill-quiet, #fdf6e3); border: 1px solid var(--c-color-amber-border-quiet, #f0e0b0); border-radius: 6px;
+    font-size: 13px; color: var(--c-color-amber-on-quiet, #6b5a2b);
 }
 .cg-hint a { color: inherit; text-decoration: underline; }
 
@@ -332,7 +320,7 @@
    states a verified fact about the plugin's own writes, never a claim about
    git. Blue-grey rather than amber so it does not read as an error. */
 .cg-hint--writes {
-    background: #eef3f8; border-color: #cfdbe8; color: #3d4b5c;
+    background: var(--c-color-blue-fill-quiet, #eef3f8); border-color: var(--c-color-border-quiet, #cfdbe8); color: var(--c-text-quiet, #3d4b5c);
 }
 /* The banner is always in the DOM and toggled with the `hidden` attribute, so
    it must not carry a `display` of its own: the browser's own `[hidden] {
@@ -349,91 +337,90 @@
 /* The bulk-setup route, surfaced where it is needed rather than only in the
    zero state. Neutral like the environment notices: it is an option, not a
    problem. */
-.cg-hint--agent { background: #f1f3f5; border-color: #dfe3e8; color: #4a5560; }
+.cg-hint--agent { background: var(--c-color-slate-fill-quiet, #f1f3f5); border-color: var(--c-color-border-quiet, #dfe3e8); color: var(--c-text-quiet, #4a5560); }
 .cg-hint--agent .cg-code { margin-top: 8px; white-space: pre-wrap; }
 
 /* Neutral variant for environment facts (not warnings). */
 .cg-hint--locked {
     display: flex; align-items: center; gap: 7px;
-    background: #f1f3f5; border-color: #dfe3e8; color: #5a6672;
+    background: var(--c-color-slate-fill-quiet, #f1f3f5); border-color: var(--c-color-border-quiet, #dfe3e8); color: var(--c-text-quiet, #5a6672);
 }
 
 /* Controls (detail page) */
-.cg-controls { border: 1px solid #cdd8e4; border-radius: 8px; margin-bottom: 24px; }
+.cg-controls { border: 1px solid var(--c-color-border-quiet, #cdd8e4); border-radius: 8px; margin-bottom: 24px; }
 .cg-controls__bar {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    padding: 8px 12px; background: #fff; border-bottom: 1px solid #cdd8e4; border-radius: 8px 8px 0 0;
+    padding: 8px 12px; background: var(--c-surface-raised, #fff); border-bottom: 1px solid var(--c-color-border-quiet, #cdd8e4); border-radius: 8px 8px 0 0;
 }
-.cg-controls__bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: #5f6c79; margin: 0; }
-.cg-controls__changed { font-size: 12px; color: #8a5a00; }
+.cg-controls__bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--c-text-quiet, #5f6c79); margin: 0; }
+.cg-controls__changed { font-size: 12px; color: var(--c-color-amber-on-quiet, #8a5a00); }
 .cg-controls__actions { margin-inline-start: auto; display: flex; gap: 8px; }
 .cg-controls [hidden] { display: none; }
 .cg-controls__linked {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    margin: 12px; padding: 10px 12px; background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px;
+    margin: 12px; padding: 10px 12px; background: var(--c-color-amber-fill-quiet, #fdf6e3); border: 1px solid var(--c-color-amber-border-quiet, #f0e0b0); border-radius: 6px;
 }
 .cg-controls__linked p { margin: 0; flex: 1 1 320px; font-size: 13px; }
 .cg-controls__empty { padding: 12px; margin: 0; }
 .cg-controls__list { padding: 4px 12px 8px; }
 .cg-controls__row {
     display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 12px; align-items: start;
-    padding: 8px 0; border-top: 1px solid #eef1f4;
+    padding: 8px 0; border-top: 1px solid var(--c-color-border-quiet, #eef1f4);
 }
 .cg-controls__row:first-child { border-top: 0; }
 .cg-controls__row > * { min-width: 0; }
 .cg-controls__name { padding-top: 6px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .cg-controls__name code { font-size: 12.5px; }
 .cg-controls__input textarea.code { font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 12px; }
-.cg-controls__input input.checkbox + label { margin-top: 6px; }
 .cg-controls__error { margin: 4px 0 0; font-size: 12px; }
 @media (max-width: 760px) { .cg-controls__row { grid-template-columns: 1fr; gap: 4px; } }
 .cg-controls__snippet { margin: 12px; }
 .cg-controls__snippet p { margin: 0 0 6px; font-size: 13px; }
 .cg-controls__snippet textarea { font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 12px; }
 .cg-controls__with-button { display: flex; gap: 8px; align-items: flex-start; }
-.cg-controls__with-button .btn { flex: none; }
+.cg-controls__with-button craft-button { flex: none; }
 
 /* Index filters in the sidebar, under the search */
 .cg-sidebar-filters { padding: 0 0 12px; }
 .cg-sidebar-filters .cg-filters { flex-direction: column; align-items: stretch; gap: 6px; }
 .cg-sidebar-filters .field { margin: 0; }
 .cg-sidebar-filters .select, .cg-sidebar-filters select { width: 100%; }
-.cg-tree__filtered { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; color: #596673; }
+.cg-tree__filtered { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; color: var(--c-text-quiet, #596673); }
 .cg-tree__filtered[hidden] { display: none; }
 /* A rule between the filters and the list they narrow. */
-.cg-tree > ul { border-top: 1px solid var(--hairline-color, #cdd8e4); padding-top: 12px; }
+.cg-tree > ul { border-top: 1px solid var(--c-color-border-quiet, #cdd8e4); padding-top: 12px; }
 /* Status dots in the tree: Craft's own .status, with its spacing. */
 .cg-tree a .status { flex: none; margin-inline-end: 8px; }
-.cg-tree a .status.cg-status--none { background: transparent; border: 1px solid var(--gray-300, #a3afbb); }
+.cg-tree a .status.cg-status--none { background: transparent; border: 1px solid var(--c-color-border-normal, #a3afbb); }
 .cg-tree a.sel .status.cg-status--none { border-color: currentColor; }
 
 /* Client review (component page) */
-.cg-review { border: 1px solid #cdd8e4; border-radius: 8px; margin-bottom: 24px; }
-.cg-review .cg-controls__bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: #5f6c79; margin: 0; }
-.cg-review__decide { padding: 12px; border-bottom: 1px solid #eef1f4; }
+.cg-review { border: 1px solid var(--c-color-border-quiet, #cdd8e4); border-radius: 8px; margin-bottom: 24px; }
+.cg-review .cg-controls__bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--c-text-quiet, #5f6c79); margin: 0; }
+.cg-review__decide { padding: 12px; border-bottom: 1px solid var(--c-color-border-quiet, #eef1f4); }
 .cg-review__decide p { margin: 0 0 8px; font-size: 13px; }
 .cg-review__buttons { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .cg-review__list { list-style: none; margin: 0; padding: 4px 12px 8px; }
-.cg-review__item { padding: 10px 0; border-top: 1px solid #eef1f4; }
+.cg-review__item { padding: 10px 0; border-top: 1px solid var(--c-color-border-quiet, #eef1f4); }
 .cg-review__item:first-child { border-top: 0; }
 .cg-review__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
-.cg-review__comment { margin: 8px 0 0; padding: 6px 10px; border-inline-start: 3px solid #f0e0b0; background: #fdf9ee; font-size: 13px; }
+.cg-review__comment { margin: 8px 0 0; padding: 6px 10px; border-inline-start: 3px solid var(--c-color-amber-border-quiet, #f0e0b0); background: var(--c-color-amber-fill-quiet, #fdf9ee); font-size: 13px; }
 .cg-review__actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.cg-review__state { padding: 12px; border-bottom: 1px solid #eef1f4; font-size: 13px; }
+.cg-review__state { padding: 12px; border-bottom: 1px solid var(--c-color-border-quiet, #eef1f4); font-size: 13px; }
 .cg-review__state > p { margin: 0; }
-.cg-review__state--approved > p:first-child { color: #1c6b3c; }
-.cg-review__state--changes > p:first-child { color: #8a5f0b; }
+.cg-review__state--approved > p:first-child { color: var(--c-color-green-on-quiet, #1c6b3c); }
+.cg-review__state--changes > p:first-child { color: var(--c-color-amber-on-quiet, #8a5f0b); }
 .cg-review__values { margin: 8px 0 0 !important; }
 .cg-review__history { padding: 8px 12px 12px; font-size: 13px; }
 /* Undo inside Craft's own notification (as in picker.css, which may not be
    loaded here). */
 .cg-undo-notification .cg-undo { margin-top: 4px; }
 .cg-undo-notification .cg-undo__btn { font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.cg-review__history > summary { cursor: pointer; color: #5f6c79; }
+.cg-review__history > summary { cursor: pointer; color: var(--c-text-quiet, #5f6c79); }
 .cg-review__history .cg-review__list { padding: 4px 0 0; }
 .cg-tree a .cg-tree__review { margin-inline-start: 6px; font-size: 11px; font-weight: 700; }
-.cg-tree__review--approved { color: #16a34a; }
-.cg-tree__review--changes { color: #d97706; }
+.cg-tree__review--approved { color: var(--c-color-green-on-quiet, #16a34a); }
+.cg-tree__review--changes { color: var(--c-color-amber-on-quiet, #d97706); }
 .cg-tree a .cg-tree__review { font-size: 13px; }
 /* On the selected (dark) row the same colours, lighter, so they still read. */
 .cg-tree a.sel .cg-tree__review--approved { color: #86efac; }
@@ -441,29 +428,21 @@
 .cg-tree__export { margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
 .cg-tree__export-pending { display: flex; align-items: center; gap: 8px; }
 .cg-tree__export [hidden] { display: none; }
-.cg-tree__export-new { font-size: 12px; font-weight: 600; color: #1a5dab; cursor: help; }
+.cg-tree__export-new { font-size: 12px; font-weight: 600; color: var(--c-color-blue-on-quiet, #1a5dab); cursor: help; }
 .cg-tree__export .light { font-size: 12px; line-height: 1.4; }
 .cg-tree__clear { margin: -6px 0 12px; font-size: 12px; }
-.cg-tree__clear a, .cg-review__clear a { color: var(--light-text-color, #8b97a3); }
-.cg-tree__clear a:hover, .cg-review__clear a:hover { color: #cf1124; }
+.cg-tree__clear a, .cg-review__clear a { color: var(--c-text-quiet, #8b97a3); }
+.cg-tree__clear a:hover, .cg-review__clear a:hover { color: var(--c-color-red-on-quiet, #cf1124); }
 .cg-review__clear { margin: 0; padding: 8px 12px 0; font-size: 12px; text-align: end; }
 
 /* The story's tabs under the preview: Craft's pane and tabs, our panes. */
 .cg-story-tabs { margin-bottom: 24px; padding: 0; }
-.cg-story-tabs > .pane-header { margin: 0; display: flex; align-items: center; gap: 8px; }
-.cg-story-tabs > .pane-header > .pane-tabs { flex: 1 1 auto; min-width: 0; }
-.cg-tabs__toggle {
-    flex: none; margin-inline-end: 8px; width: 32px; height: 32px; padding: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    appearance: none; background: none; border: 0; border-radius: 6px; cursor: pointer; color: #5f6c79;
-}
-.cg-tabs__toggle:hover { background: rgba(96, 125, 159, .12); color: #1f2933; }
-/* A chevron: up while open (fold up), down while folded (unfold). */
-.cg-tabs__toggle::before {
-    content: ''; width: 8px; height: 8px; border: solid currentColor; border-width: 0 2px 2px 0;
-    transform: rotate(-135deg); margin-top: 4px; transition: transform .15s, margin .15s;
-}
-.cg-tabs__toggle[aria-expanded="false"]::before { transform: rotate(45deg); margin-top: -4px; }
+/* The same frame as the preview above and the client review below. */
+.cg-story-tabs { border: 1px solid var(--c-color-border-quiet, #cdd8e4); border-radius: 8px; overflow: hidden; }
+
+.cg-story-tabs { position: relative; }
+/* The fold toggle sits on the tab row's right end, outside <craft-tabs>. */
+.cg-tabs__toggle { position: absolute; top: 4px; right: 4px; z-index: 1; }
 .cg-story-tabs.is-folded .cg-tabpane { display: none; }
 .cg-tabpane { padding: 12px; }
 .cg-tabpane.hidden { display: none; }
@@ -471,7 +450,6 @@
 .cg-tabpane > :last-child { margin-bottom: 0; }
 .cg-tabpane .cg-code { margin: 0; }
 .cg-tabpane__actions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-.cg-tab-changed { color: #8a5a00; font-weight: 400; }
 .cg-panel__row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; }
 .cg-review [hidden] { display: none; }
 .cg-review__summary { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
@@ -480,24 +458,50 @@
 .cg-tabpane > .cg-controls .cg-controls__bar { border-radius: 0; }
 .cg-tree__none { padding: 8px var(--xl, 24px); font-size: 13px; }
 /* Client review counts on the index */
-.cg-stats__review { display: inline-flex; gap: 16px; margin-inline-start: 8px; padding-inline-start: 16px; border-inline-start: 1px solid #cdd8e4; }
+.cg-stats__review { display: inline-flex; gap: 16px; margin-inline-start: 8px; padding-inline-start: 16px; border-inline-start: 1px solid var(--c-color-border-quiet, #cdd8e4); }
 .cg-stat--review { appearance: none; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .cg-stat--review:hover { text-decoration: underline; }
-.cg-stat--changes strong { color: #b15c00; }
-.cg-stat--approved strong { color: #1c6b3c; }
+.cg-stat--changes strong { color: var(--c-color-amber-on-quiet, #b15c00); }
+.cg-stat--approved strong { color: var(--c-color-green-on-quiet, #1c6b3c); }
 /* Contract mismatch on the component page and in the tree */
-.cg-contract { margin: 0 0 20px; border: 1px solid #f0d58a; background: #fdf8e6; border-radius: 8px; padding: 10px 12px; }
+.cg-contract { margin: 0 0 20px; border: 1px solid var(--c-color-amber-border-quiet, #f0d58a); background: var(--c-color-amber-fill-quiet, #fdf8e6); border-radius: 8px; padding: 10px 12px; }
 .cg-contract__item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
 .cg-contract__item + .cg-contract__item { margin-top: 8px; }
-.cg-contract__msg { font-weight: 600; color: #5c4500; }
+.cg-contract__msg { font-weight: 600; color: var(--c-color-amber-on-quiet, #5c4500); }
 .cg-tree a .cg-tree__error { display: inline-block; vertical-align: 1px; margin-inline-start: 4px; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; background: #cf1124; color: #fff; font-size: 11px; font-weight: 700; }
 .cg-tree a .cg-tree__error[hidden] { display: none; }
 .cg-tree a .cg-tree__contract { display: inline-block; vertical-align: 1px; margin-inline-start: 4px; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; background: #f2a900; color: #2b2200; font-size: 11px; font-weight: 700; }
 
 /* “Used on”: one line per page — status, link, where it lives, how many. */
 .cg-used-on { margin: 0; padding: 0; list-style: none; }
-.cg-used-on li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e3e8ee; }
+.cg-used-on li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--c-color-border-quiet, #e3e8ee); }
 .cg-used-on li:last-child { border-bottom: 0; }
 .cg-used-on .status { flex: none; align-self: center; }
-.cg-used-on__note { font-size: 12px; color: #9a6b00; }
+.cg-used-on__note { font-size: 12px; color: var(--c-color-amber-on-quiet, #9a6b00); }
 .cg-used-on__off > a, .cg-used-on__off > span:not(.cg-used-on__note) { opacity: .6; }
+
+/* Craft 6: the guide's buttons are <craft-button>. A component's own
+   `display` would beat the UA's [hidden] rule — restate it (Rotate starts
+   hidden; Approve hides while it cannot be used). */
+craft-button[hidden] { display: none !important; }
+
+/* Device switcher and the tabs' fold toggle are <craft-button>s too: Craft
+   draws them, the guide only turns the chevron when folded. */
+craft-button.cg-tabs__toggle { transition: transform .15s; }
+craft-button.cg-tabs__toggle[aria-expanded="false"] { transform: rotate(180deg); }
+
+/* "Controls changed" mark on the Controls tab. */
+craft-icon.cg-tab-changed { color: var(--c-color-amber-on-quiet, #8a5a00); }
+
+/* Controls' inputs are Craft 6 components (<craft-input>, <craft-select>,
+   <craft-textarea>, <craft-checkbox>) with the native control slotted in,
+   so the guide's JS still reads and writes the native element. */
+.cg-controls__with-button craft-input { flex: 1; min-width: 0; }
+.cg-controls__input craft-select { max-width: 100%; }
+.cg-controls__input craft-checkbox { margin-top: 6px; }
+
+/* A thumbnail's page stays invisible until it has loaded and been cut to the
+   block's height (component-guide.js), so a short block never flashes a tall
+   white sheet first; the thumb's own surface shows meanwhile. */
+.cg-card__thumb iframe { opacity: 0; transition: opacity .15s; }
+.cg-card__thumb iframe.is-fitted { opacity: 1; }

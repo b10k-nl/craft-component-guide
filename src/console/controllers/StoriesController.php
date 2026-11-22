@@ -13,7 +13,7 @@ use yii\console\ExitCode;
 /**
  * Contract verification for CI.
  *
- * `php craft component-guide/stories/check`
+ * `php artisan craft:component-guide:stories:check`
  *
  * Answers one question with an exit code: do the stories, the adapters and the
  * entry types still agree? That agreement is the thing that rots quietly. A

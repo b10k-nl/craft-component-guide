@@ -128,7 +128,7 @@
 
 {{ forms.booleanMenuField({
     label: "Enable History Clearing"|t('component-guide'),
-    instructions: "Lets admins — and anyone given “Clear the client review history” in user permissions — clear the review history — of one block, or of all — from the control panel: your own trial runs, before the client starts. Off by default, because the history is what you point to when someone remembers a decision differently. To allow it on staging but never on production, choose an environment variable, e.g. $CG_REVIEW_CLEARING, and set it only on staging. The console command (php craft component-guide/reviews/clear) works either way."|t('component-guide'),
+    instructions: "Lets admins — and anyone given “Clear the client review history” in user permissions — clear the review history — of one block, or of all — from the control panel: your own trial runs, before the client starts. Off by default, because the history is what you point to when someone remembers a decision differently. To allow it on staging but never on production, choose an environment variable, e.g. $CG_REVIEW_CLEARING, and set it only on staging. The console command (php artisan craft:component-guide:reviews:clear) works either way."|t('component-guide'),
     id: 'enableReviewClearing',
     name: 'enableReviewClearing',
     value: settings.formValue('enableReviewClearing'),

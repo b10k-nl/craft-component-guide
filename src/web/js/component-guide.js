@@ -94,7 +94,10 @@
                         document.documentElement.setAttribute('data-cg-card-size-value', size);
                     }
                     Array.prototype.forEach.call(sizeControl.querySelectorAll('[data-size]'), function (btn) {
-                        btn.setAttribute('aria-pressed', btn.getAttribute('data-size') === size ? 'true' : 'false');
+                        var on = btn.getAttribute('data-size') === size;
+                        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                        // <craft-button> shows its pressed state from `active`.
+                        btn.toggleAttribute('active', on);
                     });
                 };
                 var savedSize = 'm';
@@ -331,7 +334,31 @@
             // far below the fold, which made 80 requests out of 15 cards.
             var loadThumb = function (thumb) {
                 var iframe = thumb.querySelector('iframe[data-src]');
-                if (iframe && !iframe.getAttribute('src')) { iframe.setAttribute('src', iframe.getAttribute('data-src')); }
+                if (!iframe || iframe.classList.contains('is-fitted')) { return; }
+                // The white page ends where the block does, and the frame is
+                // shown only then (see .is-fitted): a short block never flashes
+                // a tall white sheet first, which glared in the dark theme.
+                iframe.addEventListener('load', function () { fitThumbHeight(iframe); }, { signal: signal });
+                if (!iframe.getAttribute('src')) {
+                    iframe.setAttribute('src', iframe.getAttribute('data-src'));
+                } else {
+                    // Already loading from before a restart: fit it if done.
+                    try {
+                        if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete'
+                            && iframe.contentDocument.URL !== 'about:blank') { fitThumbHeight(iframe); }
+                    } catch (e) { fitThumbHeight(iframe); }
+                }
+            };
+            var fitThumbHeight = function (iframe) {
+                try {
+                    var doc = iframe.contentDocument;
+                    // The body, not <html>: the root is always at least the
+                    // frame's own 800px tall.
+                    var h = doc && doc.body ? Math.ceil(doc.body.getBoundingClientRect().height) : 0;
+                    if (h > 0 && h < 800) { iframe.style.height = h + 'px'; }
+                } catch (e) { /* not readable: stays a full sheet */ }
+                // Shown only now, at its final height: no white flash first.
+                iframe.classList.add('is-fitted');
             };
             if (window.IntersectionObserver) {
                 var thumbLoader = new IntersectionObserver(function (entries) {
@@ -668,7 +695,10 @@
             var selectDevice = function (device, btn) {
                 currentDevice = DEVICES[device] ? device : 'desktop';
                 orientation = 'portrait';
-                devButtons.forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+                devButtons.forEach(function (b) {
+                    b.classList.toggle('is-active', b === btn);
+                    b.toggleAttribute('active', b === btn); // <craft-button> pressed state
+                });
                 if (rotateBtn) { rotateBtn.hidden = currentDevice === 'desktop'; }
                 layout();
                 fitDevice();
@@ -1133,45 +1163,37 @@
         })();
 
         // --- Detail: the story's tabs ---
-        // Craft's own tab manager (Craft.Tabs) does the tabs — selection, focus,
-        // arrow keys, the overflow menu; this shows the matching pane and
-        // remembers the last tab chosen in this browser.
+        // Craft 6's <craft-tabs> does the tabs; this remembers the last one
+        // chosen in this browser and folds the panes.
         (function () {
             var root = document.querySelector('[data-cg-tabs]');
             if (!root) { return; }
             var KEY = 'componentGuide.tab';
-            var paneOf = function (tab) { return tab ? document.getElementById(tab.getAttribute('data-id')) : null; };
-            var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
-            var show = function (tab) {
-                tabs.forEach(function (t) {
-                    var pane = paneOf(t);
-                    if (pane) { pane.classList.toggle('hidden', t !== tab); }
-                });
+            // Craft 6: <craft-tabs> selects tabs and shows the matching
+            // slot="panel" itself (keys, focus, overflow). This only remembers
+            // the last tab chosen, by its data-id.
+            var tabsEl = root.querySelector('craft-tabs');
+            var tabs = Array.prototype.slice.call(root.querySelectorAll('craft-tab[data-id]'));
+            var rememberTab = function (tab) {
+                if (!tab) { return; }
                 try { window.localStorage.setItem(KEY, tab.getAttribute('data-id')); } catch (e) { /* not remembered */ }
             };
 
             var remembered = null;
             try { remembered = window.localStorage.getItem(KEY); } catch (e) { remembered = null; }
-            var start = tabs.filter(function (t) { return t.getAttribute('data-id') === remembered; })[0] || null;
-
-            var container = root.querySelector('.pane-tabs');
-            if (window.Craft && Craft.Tabs && container && window.jQuery) {
-                var manager = new Craft.Tabs(container);
-                manager.on('selectTab', function (event) { show(event.$tab[0]); });
-                if (start) { manager.selectTab(start, false); }
-            } else {
-                // Without Craft's manager: the same, by hand.
-                tabs.forEach(function (tab) {
-                    tab.addEventListener('click', function (event) {
-                        event.preventDefault();
-                        tabs.forEach(function (t) {
-                            t.classList.toggle('sel', t === tab);
-                            t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
-                        });
-                        show(tab);
-                    }, { signal: signal });
-                });
-                if (start) { start.click(); }
+            var startIndex = tabs.map(function (t) { return t.getAttribute('data-id'); }).indexOf(remembered);
+            if (tabsEl && startIndex > 0) {
+                tabsEl.setAttribute('selected-index', String(startIndex));
+                tabsEl.selectedIndex = startIndex;
+            }
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function () { rememberTab(tab); }, { signal: signal });
+            });
+            if (tabsEl) {
+                // Arrow keys change the tab too; read the index once it has.
+                tabsEl.addEventListener('craft-tab-show', function () {
+                    window.setTimeout(function () { rememberTab(tabs[tabsEl.selectedIndex]); }, 0);
+                }, { signal: signal });
             }
 
             // Fold the panes away (the tabs stay), remembered in this browser;
@@ -1206,15 +1228,23 @@
 
             // Controls changed: the tab says so, wherever you are.
             var controlsTab = tabs.filter(function (t) { return t.getAttribute('data-id') === 'cg-tab-controls'; })[0];
-            var label = controlsTab ? controlsTab.querySelector('.tab-label') : null;
+            var label = controlsTab || null;
             if (label) {
-                var dot = document.createElement('span');
+                // An icon in the tab's suffix slot, added and removed rather
+                // than hidden: <craft-tab> sizes itself from its whole text,
+                // so a hidden " · changed" still made the tab wide.
+                var dot = document.createElement('craft-icon');
                 dot.className = 'cg-tab-changed';
-                dot.textContent = ' · ' + (root.getAttribute('data-msg-changed') || 'changed');
-                dot.hidden = true;
-                label.appendChild(dot);
+                dot.setAttribute('slot', 'suffix');
+                dot.setAttribute('name', 'circle-small');
+                dot.setAttribute('label', root.getAttribute('data-msg-changed') || 'changed');
+                dot.setAttribute('title', root.getAttribute('data-msg-changed') || 'changed');
                 document.addEventListener('cg-controls-change', function (event) {
-                    dot.hidden = !(event.detail && event.detail.changed);
+                    if (event.detail && event.detail.changed) {
+                        if (!dot.parentNode) { label.appendChild(dot); }
+                    } else if (dot.parentNode) {
+                        dot.remove();
+                    }
                 }, { signal: signal });
             }
         })();
@@ -1752,6 +1782,27 @@
             boot(run.signal);
         });
     };
+
+    // <craft-button type="submit"> submits its form with requestSubmit() and
+    // no submitter, so a button's own name/value never reaches the server.
+    // Carry it over as a hidden input (once per page, for every such button).
+    if (!window.cgButtonValues) {
+        window.cgButtonValues = true;
+        document.addEventListener('click', function (event) {
+            var btn = event.target && event.target.closest && event.target.closest('craft-button[type="submit"][name]');
+            var form = btn && btn.closest('form');
+            if (!form) { return; }
+            var input = form.querySelector('input[type="hidden"][data-cg-submitter]');
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.setAttribute('data-cg-submitter', '');
+                form.appendChild(input);
+            }
+            input.name = btn.getAttribute('name');
+            input.value = btn.getAttribute('value') || '';
+        }, true);
+    }
 
     if (!window.customElements || window.customElements.get('cg-page')) { return; }
     window.customElements.define('cg-page', class extends HTMLElement {

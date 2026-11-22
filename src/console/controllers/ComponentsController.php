@@ -108,6 +108,9 @@ class ComponentsController extends Controller
         return ExitCode::OK;
     }
 
+    /**
+     * Runs the same component discovery as the control panel and lists what it found.
+     */
     public function actionScan(): int
     {
         $repository = Plugin::getInstance()->getRepository();

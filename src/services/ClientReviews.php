@@ -5,7 +5,7 @@ namespace b10k\componentguide\services;
 use b10k\componentguide\helpers\ClientReview;
 use b10k\componentguide\Plugin;
 use Craft;
-use craft\elements\User;
+use CraftCms\Cms\User\Elements\User;
 use yii\base\Component;
 use yii\base\InvalidArgumentException;
 

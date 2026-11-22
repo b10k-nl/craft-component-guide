@@ -6,15 +6,16 @@ use b10k\componentguide\models\AdapterBinding;
 use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\ScanError;
 use Craft;
-use craft\base\FieldInterface;
-use craft\fields\Assets;
-use craft\fields\BaseOptionsField;
-use craft\fields\BaseRelationField;
-use craft\fields\Checkboxes;
-use craft\fields\Lightswitch;
-use craft\fields\Matrix;
-use craft\fields\MultiSelect;
-use craft\fields\Number;
+use CraftCms\Cms\Field\Contracts\FieldInterface;
+use CraftCms\Cms\Field\Assets;
+use CraftCms\Cms\Field\BaseOptionsField;
+use CraftCms\Cms\Field\BaseRelationField;
+use CraftCms\Cms\Field\Checkboxes;
+use CraftCms\Cms\Field\Lightswitch;
+use CraftCms\Cms\Field\Link;
+use CraftCms\Cms\Field\Matrix;
+use CraftCms\Cms\Field\MultiSelect;
+use CraftCms\Cms\Field\Number;
 use yii\base\Component;
 
 /**
@@ -297,10 +298,10 @@ class ContractInspector extends Component
             $field instanceof Number => 'number',
             $field instanceof Checkboxes, $field instanceof MultiSelect => 'options',
             $field instanceof BaseOptionsField => 'option',
-            class_exists('craft\\fields\\Link') && is_a($field, 'craft\\fields\\Link') => 'link',
-            is_a($field, 'craft\\htmlfield\\HtmlField'),
-            str_contains($class, '\\ckeditor\\'),
-            str_contains($class, '\\redactor\\') => 'html',
+            $field instanceof Link => 'link',
+            is_a($field, 'CraftCms\\HtmlField\\HtmlField'),
+            str_contains(strtolower($class), '\\ckeditor\\'),
+            str_contains(strtolower($class), '\\redactor\\') => 'html',
             default => 'text',
         };
     }

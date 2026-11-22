@@ -56,6 +56,13 @@ final class StoryAsset
         return $this->url;
     }
 
+    public function transform(mixed $transform = null): static
+    {
+        $this->getUrl($transform ?? []);
+
+        return $this;
+    }
+
     public function getImg(mixed $transform = null, ?array $sizes = null): Markup
     {
         $url = $this->getUrl($transform);

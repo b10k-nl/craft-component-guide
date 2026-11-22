@@ -34,8 +34,9 @@
         "source": "https://github.com/b10k-nl/craft-component-guide"
     },
     "require": {
-        "php": ">=8.2",
-        "craftcms/cms": "^5.0.0"
+        "php": ">=8.5",
+        "craftcms/cms": "^6.0.0-beta.1",
+        "craftcms/yii2-adapter": "^6.0.0-beta.1"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.0",

@@ -25,6 +25,8 @@
         current: component,
         story: story,
     } only %}
+    {# Starts this page's script whenever the control panel renders the page (see component-guide.js). #}
+    <cg-page hidden></cg-page>
 {% endblock %}
 
 
@@ -296,4 +298,6 @@
             </div>
         {% endif %}
     </div>
+    {# Starts this page's script whenever the control panel renders the page (see component-guide.js). #}
+    <cg-page hidden></cg-page>
 {% endblock %}

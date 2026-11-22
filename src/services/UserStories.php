@@ -7,7 +7,7 @@ use b10k\componentguide\models\AdapterBinding;
 use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\StoryDefinition;
 use Craft;
-use craft\elements\User;
+use CraftCms\Cms\User\Elements\User;
 use yii\base\Component;
 use yii\base\InvalidArgumentException;
 

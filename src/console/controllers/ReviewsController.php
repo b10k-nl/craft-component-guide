@@ -96,6 +96,8 @@ class ReviewsController extends Controller
     }
 
     /**
+     * Brings client review decisions from staging into the story files.
+     *
      * @param string|null $path The exported file; the same as --file.
      */
     public function actionImport(?string $path = null): int

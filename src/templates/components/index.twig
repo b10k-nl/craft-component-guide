@@ -23,6 +23,8 @@
         pro: pro,
         autofocus: true,
     } only %}
+    {# Starts this page's script whenever the control panel renders the page (see component-guide.js). #}
+    <cg-page hidden></cg-page>
 {% endblock %}
 
 {% block content %}
@@ -523,4 +525,6 @@ hero{{ settings.twigStorySuffix() }}</div>
             </div>
         </div>
     {% endif %}
+    {# Starts this page's script whenever the control panel renders the page (see component-guide.js). #}
+    <cg-page hidden></cg-page>
 {% endblock %}

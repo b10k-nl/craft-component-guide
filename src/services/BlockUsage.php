@@ -6,9 +6,9 @@ use b10k\componentguide\helpers\BlockOwners;
 use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\Plugin;
 use Craft;
-use craft\base\Element;
-use craft\base\ElementInterface;
-use craft\elements\Entry;
+use CraftCms\Cms\Element\Element;
+use CraftCms\Cms\Element\Contracts\ElementInterface;
+use CraftCms\Cms\Entry\Elements\Entry;
 use yii\base\Component;
 
 /**

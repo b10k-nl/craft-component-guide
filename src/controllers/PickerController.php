@@ -141,6 +141,8 @@ class PickerController extends Controller
                 static fn(array $type): array => $type + ['matchKey' => GalleryMatcher::matchKey($type['handle'])],
                 $matcher->entryTypes(),
             ),
+            // Craft 6: the “New entry” menu names its types without handles.
+            'fields' => (object)$matcher->matrixFieldTypes(),
         ]);
     }
 

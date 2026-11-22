@@ -5,6 +5,7 @@ namespace b10k\componentguide\services;
 use b10k\componentguide\models\ComponentDefinition;
 use b10k\componentguide\models\ScanError;
 use Craft;
+use CraftCms\Cms\Field\Matrix;
 use yii\base\Component;
 
 /**
@@ -183,6 +184,36 @@ class GalleryMatcher extends Component
         }
 
         return $types;
+    }
+
+    /**
+     * Each Matrix field's entry types, by field handle, named the way that
+     * field's own “New entry” menu names them (a field can rename a type).
+     * Craft 6 draws that menu without the types' handles — only their names —
+     * so the gallery matches its items by these.
+     *
+     * @return array<string, list<array{handle: string, name: string}>>
+     */
+    public function matrixFieldTypes(): array
+    {
+        $fields = [];
+        foreach (Craft::$app->getFields()->getAllFields() as $field) {
+            if (!$field instanceof Matrix) {
+                continue;
+            }
+            foreach ($field->getEntryTypes() as $type) {
+                // Icon and colour too, so a gallery card's header can show the
+                // block the way the Matrix field's own block header does.
+                $fields[$field->handle][] = [
+                    'handle' => (string)$type->handle,
+                    'name' => (string)$type->name,
+                    'icon' => $type->icon !== null && $type->icon !== '' ? (string)$type->icon : null,
+                    'color' => $type->color?->value,
+                ];
+            }
+        }
+
+        return $fields;
     }
 
     /**

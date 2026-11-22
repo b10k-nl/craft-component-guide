@@ -1116,45 +1116,71 @@
         panel.setAttribute('role', 'complementary');
         panel.setAttribute('aria-label', Craft.t('component-guide', 'Blocks gallery'));
 
-        var head = document.createElement('div');
+        // Header markup of Craft 6's own slideouts (SlideoutScreen.vue):
+        // <header> > flex row > heading (h2 title + meta) | actions (close).
+        var head = document.createElement('header');
         head.className = 'cg-picker-panel__head';
-        head.innerHTML = '<strong>' + Craft.t('component-guide', 'Blocks gallery') + '</strong>'
-            + '<span class="cg-picker-panel__hint">' + (isPro
-                ? Craft.t('component-guide', 'Click a block to add it')
-                : Craft.t('component-guide', 'Browse the blocks this field accepts')) + '</span>';
-        var closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
+        var headRow = document.createElement('div');
+        headRow.className = 'flex items-center gap-sm justify-between';
+        var heading = document.createElement('div');
+        heading.className = 'cg-picker-panel__heading flex gap-md items-center';
+        var headTitle = document.createElement('h2');
+        headTitle.className = 'cg-picker-panel__title';
+        headTitle.textContent = Craft.t('component-guide', 'Blocks gallery');
+        var headHint = document.createElement('span');
+        headHint.className = 'cg-picker-panel__hint';
+        headHint.textContent = isPro
+            ? Craft.t('component-guide', 'Click a block to add it')
+            : Craft.t('component-guide', 'Browse the blocks this field accepts');
+        heading.appendChild(headTitle);
+        heading.appendChild(headHint);
+        var headActions = document.createElement('div');
+        headActions.className = 'flex gap-sm items-center';
+        // Same close button as a slideout's: small, plain, flush to the edge.
+        var closeBtn = document.createElement('craft-button');
+        closeBtn.setAttribute('type', 'button');
+        closeBtn.setAttribute('icon', '');
+        closeBtn.setAttribute('size', 'small');
+        closeBtn.setAttribute('variant', 'plain');
+        closeBtn.setAttribute('flush', 'inline-end');
         closeBtn.className = 'cg-picker-panel__close';
-        closeBtn.setAttribute('aria-label', Craft.t('app', 'Close'));
-        closeBtn.innerHTML = '&times;';
-        head.appendChild(closeBtn);
+        var closeIcon = document.createElement('craft-icon');
+        closeIcon.setAttribute('name', 'xmark-large');
+        closeIcon.setAttribute('label', Craft.t('app', 'Close'));
+        closeBtn.appendChild(closeIcon);
+        headActions.appendChild(closeBtn);
+        headRow.appendChild(heading);
+        headRow.appendChild(headActions);
+        head.appendChild(headRow);
 
         var searchWrap = document.createElement('div');
         searchWrap.className = 'cg-picker-search';
+        // <craft-input> with the native input slotted in, the markup
+        // Craft 6's Input component renders — so `search` stays a plain
+        // <input> for everything below.
+        var searchField = document.createElement('craft-input');
+        searchField.className = 'cg-picker-search__field';
+        searchField.setAttribute('type', 'search');
+        searchField.setAttribute('placeholder', Craft.t('component-guide', 'Search blocks…'));
         var search = document.createElement('input');
+        search.setAttribute('slot', 'input');
         search.type = 'search';
-        search.className = 'text fullwidth';
+        search.className = 'text fullwidth form-control';
         search.placeholder = Craft.t('component-guide', 'Search blocks…');
-        searchWrap.appendChild(search);
+        search.setAttribute('aria-label', Craft.t('component-guide', 'Search blocks…'));
+        searchField.appendChild(search);
+        searchWrap.appendChild(searchField);
 
-        var groupToggle = document.createElement('label');
+        var groupToggle = craftCheckbox('cg-picker-group', Craft.t('component-guide', 'Group'), isGroupingEnabled());
         groupToggle.className = 'cg-picker-group-toggle';
-        var groupCheckbox = document.createElement('input');
-        groupCheckbox.type = 'checkbox';
-        groupCheckbox.checked = isGroupingEnabled();
-        groupToggle.appendChild(groupCheckbox);
-        groupToggle.appendChild(document.createTextNode(Craft.t('component-guide', 'Group')));
+        var groupCheckbox = groupToggle.querySelector('input');
         searchWrap.appendChild(groupToggle);
 
         var items = source.items();
 
-        var splitToggle = document.createElement('label');
+        var splitToggle = craftCheckbox('cg-picker-split', Craft.t('component-guide', 'Variants as cards'), isSplitEnabled());
         splitToggle.className = 'cg-picker-group-toggle cg-picker-split-toggle';
-        var splitCheckbox = document.createElement('input');
-        splitCheckbox.type = 'checkbox';
-        splitCheckbox.checked = isSplitEnabled();
-        splitToggle.appendChild(splitCheckbox);
-        splitToggle.appendChild(document.createTextNode(Craft.t('component-guide', 'Variants as cards')));
+        var splitCheckbox = splitToggle.querySelector('input');
         // Same rule as the Group checkbox: a control that would change nothing
         // in this field is not offered.
         splitToggle.hidden = !items.some(function (item) {
@@ -1242,9 +1268,22 @@
         var buildCard = function (item, comp, story) {
             // Craft's own card classes do the styling (border, titlebar,
             // radius); cg-* classes only add picker behavior on top.
-            var card = document.createElement('button');
-            card.type = 'button';
-            card.className = 'card cg-picker-card';
+            // <craft-card>, Craft 6's own card: its header, badge, actions,
+            // body and footer slots carry the look, so the gallery changes
+            // whenever Craft's cards do. The card is the add button, so it
+            // takes the button role and keyboard itself (a <button> may not
+            // contain the variant <select>).
+            var card = document.createElement('craft-card');
+            card.className = 'cg-picker-card';
+            card.setAttribute('role', 'button');
+            card.tabIndex = 0;
+            card.addEventListener('keydown', function (event) {
+                if (event.target !== card) { return; }
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    card.click();
+                }
+            });
             if (comp) { card.dataset.component = comp.id; }
             card.dataset.search = [
                 item.type,
@@ -1267,7 +1306,7 @@
                 blockReason = comp.status
                     ? Craft.t('component-guide', 'Marked “{status}” — not ready for editors yet.', { status: comp.status })
                     : Craft.t('component-guide', 'No status yet — mark it stable to offer it to editors.');
-                card.disabled = true;
+                card.setAttribute('aria-disabled', 'true');
                 card.classList.add('cg-picker-card--disabled');
                 card.title = blockReason;
             }
@@ -1290,45 +1329,58 @@
             var description = (story && story.description) || (comp ? comp.description : null);
 
             // Native card titlebar, same markup as Cp::elementCardHtml().
-            var head = document.createElement('div');
-            head.className = 'card-titlebar';
+            // Header slots of <craft-card>: label (icon + name), badge
+            // (status and review), actions (variant switcher or story name).
             var headFlex = document.createElement('div');
-            // Wraps, so the chips move under the name rather than squeezing it
-            // onto two lines next to the story dropdown.
-            headFlex.className = 'flex flex-gap-s cg-picker-card__headline';
+            headFlex.setAttribute('slot', 'label');
+            // Same element and classes as the Matrix block header's label.
+            headFlex.className = 'flex flex-nowrap gap-sm items-center cg-picker-card__headline';
+            headFlex.setAttribute('data-card-label', '');
+            if (item.color) { card.setAttribute('data-color', item.color); }
+            var badges = document.createElement('div');
+            badges.setAttribute('slot', 'badge');
+            badges.className = 'cg-picker-card__badges';
 
             // Reuse the entry type's icon from the native menu item; carry its
             // color class over so Craft tints it exactly like the block does.
-            var nativeIcon = item.el.querySelector('span.icon, .cp-icon');
-            var nativeSvg = nativeIcon && nativeIcon.querySelector('svg');
-            if (nativeSvg) {
-                var icon = document.createElement('div');
-                icon.className = 'cp-icon small';
-                nativeIcon.classList.forEach(function (cls) {
-                    if (cls !== 'icon' && cls !== 'cp-icon') {
-                        icon.classList.add(cls);
-                    }
-                });
+            // Craft 6: the entry type's own icon as a <craft-icon>, the way
+            // the Matrix block header draws it (item.icon comes from the map).
+            if (item.icon) {
+                var icon = document.createElement('craft-icon');
+                icon.setAttribute('name', item.icon);
                 icon.setAttribute('aria-hidden', 'true');
-                icon.appendChild(nativeSvg.cloneNode(true));
                 headFlex.appendChild(icon);
+            } else {
+                // Craft 5 menu markup.
+                var nativeIcon = item.el && item.el.querySelector('span.icon, .cp-icon');
+                var nativeSvg = nativeIcon && nativeIcon.querySelector('svg');
+                if (nativeSvg) {
+                    var legacyIcon = document.createElement('div');
+                    legacyIcon.className = 'cp-icon small';
+                    nativeIcon.classList.forEach(function (cls) {
+                        if (cls !== 'icon' && cls !== 'cp-icon') { legacyIcon.classList.add(cls); }
+                    });
+                    legacyIcon.setAttribute('aria-hidden', 'true');
+                    legacyIcon.appendChild(nativeSvg.cloneNode(true));
+                    headFlex.appendChild(legacyIcon);
+                }
             }
 
-            var title = document.createElement('div');
-            title.className = 'card-titlebar-label';
+            var title = document.createElement('span');
+            title.className = 'cg-picker-card__title';
             title.textContent = comp ? comp.title : item.label;
             headFlex.appendChild(title);
             if (comp && comp.status) {
-                var chip = document.createElement('span');
-                chip.className = 'cg-chip cg-chip--status cg-chip--' + comp.status;
+                var chip = document.createElement('craft-badge');
+                chip.setAttribute('fill', STATUS_FILL[comp.status] || 'gray');
                 chip.textContent = comp.status;
-                headFlex.appendChild(chip);
+                badges.appendChild(chip);
             }
             // Where the client's review of the state on offer stands — a
             // version they signed off, one they asked to change, or one
             // changed since. The server words it; nothing when nobody has
             // reviewed it. Follows the dropdown below.
-            var reviewChip = document.createElement('span');
+            var reviewChip = document.createElement('craft-badge');
             var paintReview = function () {
                 var review = active && active.review;
                 if (!review) {
@@ -1337,33 +1389,33 @@
                     return;
                 }
                 reviewChip.style.display = '';
-                reviewChip.className = 'cg-chip cg-chip--review cg-chip--review-' + review.state;
+                reviewChip.className = 'cg-chip--review';
+                reviewChip.setAttribute('fill', REVIEW_FILL[review.state] || 'gray');
                 reviewChip.textContent = review.label;
                 reviewChip.title = review.note;
             };
             paintReview();
-            headFlex.appendChild(reviewChip);
-            head.appendChild(headFlex);
+            badges.appendChild(reviewChip);
+            card.appendChild(headFlex);
+            card.appendChild(badges);
             if (story) {
                 // Where the dropdown sits on a block's card: the state this
                 // card is, named the way the story file names it.
                 var storyLabel = document.createElement('span');
                 storyLabel.className = 'cg-picker-card__story';
+                storyLabel.setAttribute('slot', 'actions');
                 storyLabel.textContent = (story.mine ? '★ ' : '') + story.title;
                 storyLabel.title = story.title;
-                head.appendChild(storyLabel);
+                card.appendChild(storyLabel);
             }
-            card.appendChild(head);
 
             // Description + thumbnail in a native card body under the titlebar.
             // Bare entry types (no matching component) collapse to the bar.
             if (comp && (description || previewUrl)) {
-                var main = document.createElement('div');
-                main.className = 'card-main';
-                var content = document.createElement('div');
-                content.className = 'card-content';
+                // Default slot of <craft-card>; .card-content is the class
+                // Craft 6 gives an element card's content, for its spacing.
                 var body = document.createElement('div');
-                body.className = 'card-body';
+                body.className = 'card-content';
 
                 if (description) {
                     var desc = document.createElement('div');
@@ -1386,9 +1438,7 @@
                     body.appendChild(thumb);
                 }
 
-                content.appendChild(body);
-                main.appendChild(content);
-                card.appendChild(main);
+                card.appendChild(body);
             }
 
             // A component with several reproducible states gets a switcher.
@@ -1398,10 +1448,13 @@
             // developer and can be any length, and a wrapping row pushes the
             // card's own title around.
             if (variants.length > 1) {
-                var variantWrap = document.createElement('div');
-                variantWrap.className = 'select small cg-picker-card__variants';
+                var variantWrap = document.createElement('craft-select');
+                variantWrap.className = 'cg-picker-card__variants';
+                variantWrap.setAttribute('slot', 'actions');
+                variantWrap.setAttribute('small', '');
 
                 var variantSelect = document.createElement('select');
+                variantSelect.setAttribute('slot', 'input');
                 variantSelect.setAttribute('aria-label', Craft.t('component-guide', 'Variant'));
 
                 variants.forEach(function (story, index) {
@@ -1416,7 +1469,7 @@
                 // the dropdown — merely opening it included — has to stop here.
                 // Otherwise choosing a variant would silently add a block.
                 ['click', 'mousedown', 'keydown'].forEach(function (type) {
-                    variantSelect.addEventListener(type, function (event) {
+                    variantWrap.addEventListener(type, function (event) {
                         event.stopPropagation();
                     });
                 });
@@ -1438,7 +1491,7 @@
                 });
 
                 variantWrap.appendChild(variantSelect);
-                head.appendChild(variantWrap);
+                card.appendChild(variantWrap);
             }
 
             // An editor's own variant can be handed to a developer or removed,
@@ -1447,6 +1500,7 @@
             if (variants.some(function (v) { return v.mine; })) {
                 var mineRow = document.createElement('div');
                 mineRow.className = 'cg-picker-card__mine';
+                mineRow.setAttribute('slot', 'footer');
 
                 var mineAction = function (labelText, handler) {
                     var a = document.createElement('a');
@@ -1524,6 +1578,7 @@
             if (blockReason) {
                 var reason = document.createElement('div');
                 reason.className = 'cg-picker-card__reason';
+                reason.setAttribute('slot', 'footer');
                 reason.textContent = blockReason;
                 card.appendChild(reason);
             }
@@ -1533,6 +1588,7 @@
             }
 
             card.addEventListener('click', function () {
+                if (card.getAttribute('aria-disabled') === 'true') { return; }
                 // Lite browses; it does not add. Giving away the click would
                 // give away the gallery itself and leave only the prefill
                 // behind the paywall — and choosing a block by looking at it is
@@ -1746,6 +1802,30 @@
     // server left out of the map (no story, an ambiguous name) simply isn't
     // here, and its card collapses to a bare title bar like any undocumented
     // block type.
+
+    // Craft 6 badge fills for the guide's statuses and review states — the
+    // same colours the guide's own tree uses for its dots.
+    var STATUS_FILL = { stable: 'green', beta: 'blue', draft: 'amber', wip: 'amber', deprecated: 'red' };
+    var REVIEW_FILL = { approved: 'green', changes: 'amber', changed: 'amber' };
+
+    // A <craft-checkbox> with its native input and label slotted in, the
+    // markup Craft 6's Checkbox component renders.
+    var craftCheckbox = function (id, labelText, checked) {
+        var host = document.createElement('craft-checkbox');
+        var input = document.createElement('input');
+        input.setAttribute('slot', 'input');
+        input.type = 'checkbox';
+        input.id = id;
+        input.checked = !!checked;
+        if (checked) { host.setAttribute('checked', ''); }
+        var label = document.createElement('label');
+        label.setAttribute('slot', 'label');
+        label.setAttribute('for', id);
+        label.textContent = labelText;
+        host.appendChild(input);
+        host.appendChild(label);
+        return host;
+    };
     var componentsByHandle = function (data) {
         var byKey = {};
         (data.components || []).forEach(function (c) { byKey[c.matchKey] = c; });
@@ -1796,6 +1876,133 @@
             });
 
             anchor.appendChild(btn);
+            reopenIfRemembered(key, function () { btn.click(); });
+        });
+    };
+
+    // --- Craft 6 Matrix ----------------------------------------------------
+    // Craft 6 draws an inline Matrix field as a Vue component: the field is
+    // `[data-matrix-field]` (no `.matrix-field`), the add button is a
+    // <craft-button data-create-element> inside a <craft-action-menu>, and the
+    // menu's <craft-action-item>s carry only the entry type's name — no
+    // `data-type`. The field handle is the last step of the field's
+    // `data-ui-control-path`, and the map says which names that field gives
+    // its types, so a menu item still resolves to a handle.
+
+    var vueFieldPath = function (field) {
+        return field.getAttribute('data-ui-control-path') || '';
+    };
+
+    var vueFieldHandle = function (field) {
+        try {
+            var path = JSON.parse(vueFieldPath(field) || '[]');
+            return path.length ? String(path[path.length - 1]) : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    // Vue may draw the field again (Live Preview, a tab switch) and give it a
+    // new id; its control path stays.
+    var vueLiveField = function (field) {
+        if (field.isConnected) { return field; }
+        var path = vueFieldPath(field);
+        if (!path) { return null; }
+        return document.querySelector('[data-matrix-field][data-ui-control-path="' + CSS.escape(path) + '"]');
+    };
+
+    // Only the menu under the blocks: every block has an action menu of its
+    // own, and its items would insert in the middle of the list.
+    var vueAddZone = function (field) {
+        return field.querySelector('.matrix-add--after-blocks');
+    };
+
+    var vueTypeItems = function (field, data) {
+        var zone = vueAddZone(field);
+        if (!zone) { return []; }
+
+        var handle = vueFieldHandle(field);
+        var types = (data.fields && handle && data.fields[handle]) || [];
+        var byName = {};
+        types.forEach(function (t) { byName[t.name.trim().toLowerCase()] = t; });
+
+        var items = [];
+        var seen = {};
+        zone.querySelectorAll('craft-action-item').forEach(function (el) {
+            var label = el.textContent.trim();
+            var t = byName[label.toLowerCase()];
+            if (t && !seen[t.handle]) {
+                seen[t.handle] = true;
+                items.push({ type: t.handle, label: label, el: el, icon: t.icon || null, color: t.color || null });
+            }
+        });
+
+        // A field with one entry type has a plain button and no menu.
+        if (!items.length && types.length === 1) {
+            var button = zone.querySelector('craft-button[data-create-element]');
+            if (button) {
+                items.push({ type: types[0].handle, label: types[0].name, el: button, icon: types[0].icon || null, color: types[0].color || null });
+            }
+        }
+
+        return items;
+    };
+
+    var vueSource = function (field, data) {
+        return {
+            items: function () {
+                var live = vueLiveField(field);
+                return live ? vueTypeItems(live, data) : [];
+            },
+            add: function (item) {
+                var live = vueLiveField(field);
+                if (!live) { closePanel(); return null; }
+                var fresh = vueTypeItems(live, data).find(function (it) { return it.type === item.type; });
+                if (!fresh || !fresh.el.isConnected) { return null; }
+                // The native item, so the entry is created by Matrix's own code.
+                fresh.el.click();
+                // No prefill or undo yet: they read Craft 5's block markup.
+                return true;
+            },
+        };
+    };
+
+    var enhanceVue = function (field) {
+        var zone = vueAddZone(field);
+        // Vue may drop a node it did not draw, so the button itself is the
+        // flag, not a data attribute on the field.
+        if (!zone || zone.querySelector('.cg-picker-open') || field.cgPickerPending) { return; }
+        field.cgPickerPending = true;
+
+        loadMap().then(function (data) {
+            field.cgPickerPending = false;
+            if (!field.isConnected || zone.querySelector('.cg-picker-open')) { return; }
+
+            var comps = componentsByHandle(data);
+            var items = vueTypeItems(field, data);
+            if (!items.some(function (it) { return comps[it.type]; })) { return; }
+
+            // Craft 6's own button, dashed like the native "New entry"
+            // beside it.
+            var btn = document.createElement('craft-button');
+            btn.setAttribute('type', 'button');
+            btn.setAttribute('variant', 'dashed');
+            btn.setAttribute('icon', 'grid-2');
+            btn.className = 'cg-picker-open cg-picker-open--craft6';
+            btn.textContent = Craft.t('component-guide', 'Blocks gallery');
+            var key = 'vue:' + vueFieldPath(field);
+            btn.addEventListener('click', function () {
+                loadMap().then(function (fresh) {
+                    openPanel(vueSource(field, fresh), componentsByHandle(fresh), key);
+                });
+            });
+
+            var menu = zone.querySelector('craft-action-menu') || zone.querySelector('craft-button[data-create-element]');
+            if (menu) {
+                menu.insertAdjacentElement('afterend', btn);
+            } else {
+                zone.appendChild(btn);
+            }
             reopenIfRemembered(key, function () { btn.click(); });
         });
     };
@@ -1919,6 +2126,7 @@
 
     var scan = function (root) {
         (root || document).querySelectorAll('.matrix-field').forEach(enhance);
+        (root || document).querySelectorAll('[data-matrix-field]').forEach(enhanceVue);
         document.querySelectorAll('.lp-editor-container').forEach(enhancePreviewHeader);
     };
 

@@ -187,10 +187,11 @@
                                    {% if isCurrent and not expanded %}aria-current="page"{% endif %}>
                                     {# The status the filter above asks about, as Craft marks an
                                        element's: a dot, named in its tooltip. #}
-                                    {# Craft's own status names next to the colour, so “Use shapes
-                                       to represent statuses” (My Account → Preferences) draws a
-                                       draft as a triangle and a deprecated block as a square. #}
-                                    {% set dot = { stable: 'green', beta: 'blue', draft: 'orange pending', deprecated: 'red expired' }[c.status ?? ''] ?? null %}
+                                    {# Colours only. Craft 5's status names (`pending`, `expired`)
+                                       also gave the dot a shape under “Use shapes to represent
+                                       statuses”, but Craft 6 colours `.status.pending` itself
+                                       and it overrode the orange (a draft showed blue). #}
+                                    {% set dot = { stable: 'green', beta: 'blue', draft: 'orange', deprecated: 'red' }[c.status ?? ''] ?? null %}
                                     <span class="status {{ dot ?? 'cg-status--none' }}" data-cg-tree-dot
                                           title="{{ c.status ?: (c.isDocumented ? 'No status'|t('component-guide') : 'No story'|t('component-guide')) }}"
                                           aria-hidden="true"></span>

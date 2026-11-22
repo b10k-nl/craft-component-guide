@@ -1581,8 +1581,8 @@
                             treeItem.setAttribute('data-tree-status', status);
                             var dot = treeItem.querySelector('[data-cg-tree-dot]');
                             if (dot) {
-                                // The same classes as _tree.twig: colour, and Craft's shape.
-                                var colors = { stable: 'green', beta: 'blue', draft: 'orange pending', deprecated: 'red expired' };
+                                // The same classes as _tree.twig (colours only, see there).
+                                var colors = { stable: 'green', beta: 'blue', draft: 'orange', deprecated: 'red' };
                                 dot.className = 'status ' + (colors[status] || 'cg-status--none');
                                 dot.title = status;
                             }

@@ -41,7 +41,6 @@ use craft\utilities\ClearCaches;
 use craft\events\RegisterCacheOptionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\web\UrlManager;
-use craft\web\View;
 use yii\base\Event;
 
 /**
@@ -745,38 +744,37 @@ class Plugin extends BasePlugin
     }
 
     /**
-     * Loads the Matrix block-picker assets on CP pages for users who can
-     * access the guide. The JS enhances Matrix "New Block" menus with a
-     * visual gallery of matching components (see web/js/picker.js).
+     * Loads the Matrix block-picker assets on CP pages. The JS enhances Matrix
+     * "New entry" menus with a visual gallery of matching components (see
+     * web/js/picker.js).
+     *
+     * Craft 6 draws the entry editor as a Vue page, without a Twig page
+     * template, so View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE never fires there
+     * and an asset bundle registered from it never reaches the page. The
+     * control panel's own shell prints every plugin's registered scripts and
+     * styles on every CP page instead, and they stay loaded while the editor
+     * moves between pages without reloading. Who may use the gallery is not
+     * known this early in the request; the map the script asks for answers
+     * that (PickerController), and without access it never draws a button.
      */
     private function registerBlockPicker(): void
     {
-        // Console requests are never CP requests, so one check suffices.
         if (!Craft::$app->getRequest()->getIsCpRequest()) {
             return;
         }
 
-        Event::on(
-            View::class,
-            View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
-            function (): void {
-                if (!self::canAccess()) {
-                    return;
-                }
+        $url = Craft::$app->getAssetManager()->getPublishedUrl('@b10k/componentguide/web', true);
+        if ($url === false) {
+            return;
+        }
 
-                $view = Craft::$app->getView();
-                $view->registerAssetBundle(assetbundles\PickerAsset::class);
+        // The published folder keeps its name when the files change; the
+        // version makes the browser fetch the new ones.
+        $dir = (string)Craft::getAlias('@b10k/componentguide/web');
+        $version = static fn(string $file): string => (string)(@filemtime($dir . '/' . $file) ?: '');
 
-                // The gallery opens in both editions; only inserting a block is
-                // held back. The flag rides along so the panel can say so in
-                // place of the add action, rather than the button vanishing and
-                // leaving the editor to wonder what they are missing.
-                $view->registerJs(
-                    'window.CraftComponentGuide = Object.assign(window.CraftComponentGuide || {}, '
-                    . Json::encode(['pro' => $this->isPro()]) . ');',
-                    View::POS_HEAD,
-                );
-            }
-        );
+        $plugins = app(\CraftCms\Cms\Plugin\Plugins::class);
+        $plugins->addStyle($this->handle, $url . '/css/picker.css?v=' . $version('css/picker.css'));
+        $plugins->addScript($this->handle, $url . '/js/picker.js?v=' . $version('js/picker.js'));
     }
 }

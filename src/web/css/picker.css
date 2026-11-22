@@ -3,7 +3,7 @@
 /* Mimics Craft's .btn WITHOUT the class — MatrixInput binds its add-entry
    handler to every `.btn:not(.menubtn)` inside `.buttons` on (re)init, and a
    captured button without data-type crashes it (see picker.js). */
-.cg-picker-open {
+button.cg-picker-open {
     appearance: none; border: 0; cursor: pointer;
     display: inline-flex; align-items: center;
     margin-inline-start: 8px; padding: 0 14px; min-height: 34px;
@@ -12,8 +12,10 @@
     color: var(--ui-control-color, #33414f);
     font-size: 14px; line-height: 20px; font-family: inherit;
 }
-.cg-picker-open:hover { background-color: var(--ui-control-hover-bg-color, #d4dbe2); }
-.cg-picker-open:active { background-color: var(--ui-control-active-bg-color, #c9d1da); }
+button.cg-picker-open:hover { background-color: var(--ui-control-hover-bg-color, #d4dbe2); }
+button.cg-picker-open:active { background-color: var(--ui-control-active-bg-color, #c9d1da); }
+/* Craft 6: a <craft-button> beside the field's <craft-action-menu>. */
+.cg-picker-open--craft6 { vertical-align: middle; margin-inline-start: var(--c-spacing-sm, 8px); }
 
 /* Non-stable / unmatched entry types: visible but not addable from here. */
 .cg-picker-card--disabled { opacity: .55; cursor: not-allowed; }
@@ -63,23 +65,23 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
     to { transform: none; opacity: 1; }
 }
 
+/* Header: the same box as Craft 6's slideout header (.slideout-screen__header
+   in AppLayout.css) — one header height plus the hairline, title 1.125rem/600,
+   container padding at the sides. */
 .cg-picker-panel__head {
-    display: flex; align-items: center; gap: 10px;
-    /* Same height and hairline as Craft's own header (#global-header), so
-       the two lines meet across the screen. */
-    box-sizing: content-box;
-    flex: none; /* a flex column would squeeze it below its height */
-    height: var(--header-height, 44px);
-    padding: 0 20px;
-    border-bottom: 1px solid var(--border-hairline, #e4e8ec);
-    font-size: 15px;
+    flex: none;
+    display: grid; align-items: center;
+    min-height: calc(var(--cp-header-height, 2.875rem) + 1px);
+    box-sizing: border-box;
+    padding-inline: var(--cp-container-padding, var(--c-spacing-md, 1rem));
+    border-bottom: 1px solid var(--c-color-border-quiet, #e4e8ec);
 }
-.cg-picker-panel__hint { flex: 1; font-size: 12px; color: #8b97a3; }
-.cg-picker-panel__close {
-    appearance: none; border: 0; background: none; cursor: pointer;
-    font-size: 22px; line-height: 1; color: #7a8794; padding: 2px 6px;
+.cg-picker-panel__heading { min-width: 0; }
+.cg-picker-panel__title {
+    margin: 0; font-size: 1.125rem; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.cg-picker-panel__close:hover { color: #3f4d5a; }
+.cg-picker-panel__hint { font-size: var(--c-text-sm, .8125rem); color: var(--c-text-quiet, #8b97a3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Same var(--s) gap as Craft's .nested-element-cards, so cards sit as tight
    as the Matrix blocks themselves. */
@@ -126,10 +128,13 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
     font: inherit; text-align: start; cursor: pointer;
     transition: box-shadow .15s;
 }
-.cg-picker-card:hover {
+button.cg-picker-card:hover {
     --custom-border-color: var(--gray-300, #9aa5b1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
 }
+craft-card.cg-picker-card:hover::part(base) { box-shadow: var(--c-shadow-md, 0 2px 8px rgba(0, 0, 0, .12)); }
+craft-card.cg-picker-card--disabled:hover::part(base),
+craft-card.cg-picker-card--locked:hover::part(base) { box-shadow: none; }
 /* Author display:flex would beat the UA's [hidden] rule — restate it. */
 .cg-picker-card[hidden] { display: none; }
 
@@ -195,28 +200,11 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
    construction. Craft's own `select small` does the styling; all this adds is
    the push to the end of the titlebar, because the switcher belongs to the
    card's header rather than to its content. */
-.cg-picker-card__variants {
-    margin-left: auto;
-    padding-left: 8px;
-    flex: 0 0 auto;
-    max-width: 45%;
-}
-/* Craft's `small` select is still sized for a form row; in a card titlebar it
-   out-weighs the component's own name. Trimmed to the height of the status
-   chip beside it so the header reads as one line of controls. */
-.cg-picker-card__variants select {
-    max-width: 100%;
-    height: 24px;
-    min-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    font-size: 12px;
-    line-height: 24px;
-}
-/* The chevron is deliberately left alone. Craft draws it as a rotated
-   pseudo-element, so overriding `transform` to centre it destroys the
-   rotation and leaves a bare corner mark — vertical nudges here have to be
-   margins, never transforms. */
+/* A fixed width on the host with the slotted <select> filling it, so the
+   visible control ends at the card's edge, like a header's actions do. */
+.cg-picker-card__variants { inline-size: 8rem; }
+.cg-picker-card__variants select { inline-size: 100%; }
+
 
 /* Per-story card label --------------------------------------------------
    With "Variants as cards" on, a story's card shows its name where a block's
@@ -335,3 +323,53 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
 /* On the titlebar's tinted background the light chips blur into it: a soft
    shadow underneath lifts them off. */
 .cg-picker-card__headline .cg-chip { box-shadow: 0 1px 2px rgba(31, 41, 51, .16); }
+
+/* Craft 6 ---------------------------------------------------------------
+   The gallery is built from Craft 6's own components — <craft-card>,
+   <craft-badge>, <craft-input>, <craft-checkbox>, <craft-select>,
+   <craft-button> — so it looks like the rest of the CP and follows Craft's
+   design (and dark mode) as it changes. What is left here is layout only:
+   the docked panel, and where things sit inside a card. */
+.cg-picker-panel {
+    background: var(--c-surface-raised, #fff);
+    color: var(--c-text-default, inherit);
+    border-left-color: var(--c-color-neutral-border-quiet, #e4e8ec);
+    box-shadow: var(--c-shadow-xl, -12px 0 40px rgba(31, 41, 51, .25));
+}
+.cg-picker-search__field { flex: 1; min-width: 0; }
+.cg-picker-group__title { color: var(--c-text-quiet, #8b97a3); }
+
+craft-card.cg-picker-card { display: block; cursor: pointer; }
+craft-card.cg-picker-card[hidden] { display: none; }
+craft-card.cg-picker-card:focus-visible { outline: 2px solid var(--c-color-focus, #2563eb); outline-offset: 2px; }
+.cg-picker-grid.is-searching .cg-picker-group.is-collapsed > craft-card.cg-picker-card:not([hidden]) { display: block; }
+
+.cg-picker-card__headline { min-width: 0; }
+.cg-picker-card__headline .cp-icon { flex: none; width: 16px; height: 16px; }
+.cg-picker-card__headline .cp-icon svg { width: 100%; height: 100%; }
+/* The header fill Craft gives a Matrix block's card
+   (`[data-matrix-block] > craft-card::part(header)`), from the same tokens —
+   the gallery card is not inside a Matrix block, so it is restated here. */
+craft-card.cg-picker-card:not([data-color]):not([active])::part(header) {
+    background-color: var(--cp-element-header-fill, var(--c-card-header-fill-neutral));
+}
+.cg-picker-card__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-picker-card__badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.cg-picker-card__story { color: var(--c-text-quiet, #7a8794); }
+.cg-picker-card__desc { color: var(--c-text-quiet, #7a8794); }
+.cg-picker-card__thumb { border-color: var(--c-color-neutral-border-quiet, #eef1f4); }
+.cg-picker-card__reason, .cg-picker-card__mine { padding: 0; }
+/* Search row and cards line up with the title, on the slideout's side padding. */
+.cg-picker-search { padding-inline: var(--cp-container-padding, 16px); }
+.cg-picker-grid { padding-inline: var(--cp-container-padding, 16px); }
+
+/* Vertical centring: title and hint share one line height, so
+   align-items: center lines up their middles (text-box trimming clipped the
+   title's descenders under its overflow: hidden). */
+.cg-picker-panel__heading { display: flex; align-items: center; }
+.cg-picker-panel__title,
+.cg-picker-panel__hint { line-height: 1.5rem; }
+/* The checkbox keeps its label beside it and sits on the search field's
+   centre line. */
+.cg-picker-search { align-items: center; }
+craft-checkbox.cg-picker-group-toggle { flex: none; white-space: nowrap; align-self: center; margin: 0; }

@@ -28,17 +28,10 @@ button.cg-picker-open:active { background-color: var(--ui-control-active-bg-colo
 
 /* Compact duplicate of the trigger in the Live Preview editor pane header —
    the field's own button sits below the fold on long Matrix fields. */
-.cg-picker-open--header {
+button.cg-picker-open--header {
     margin-inline-start: auto;
     min-height: 28px; padding: 0 10px; font-size: 13px;
     flex: none; white-space: nowrap;
-}
-
-/* Fallback bar when the editor pane has no <header> to attach to. */
-.cg-picker-headerbar {
-    display: flex; justify-content: flex-end;
-    padding: 8px 24px 0;
-    position: sticky; top: 0; z-index: 3;
 }
 
 /* Docked right-hand panel — NOT a modal: no backdrop, the entry stays
@@ -284,10 +277,7 @@ craft-card.cg-picker-card--locked:hover::part(base) { box-shadow: none; }
     cursor: pointer;
 }
 
-/* An editor's own variants ------------------------------------------------
-   "Save as my variant…" lives in Craft's block action menu (picker.js adds it);
-   its icon is ours, so it is sized to sit level with Craft's own. */
-[data-cg-variant] .icon svg { width: 16px; height: 16px; }
+/* An editor's own variants: the name form (in the gallery on Craft 6). */
 
 .cg-variant-form {
     display: flex; flex-direction: column; gap: 10px;
@@ -373,3 +363,52 @@ craft-card.cg-picker-card:not([data-color]):not([active])::part(header) {
    centre line. */
 .cg-picker-search { align-items: center; }
 craft-checkbox.cg-picker-group-toggle { flex: none; white-space: nowrap; align-self: center; margin: 0; }
+
+/* Card headers on narrow cards ------------------------------------------
+   <craft-card> lays its header out as label | badges + actions. When a name,
+   two badges and the variant switcher do not fit, the label used to give way
+   first — the icon landed above the name and the badges stacked. Now the
+   label keeps one line (and ellipsises if it must), and the badges and
+   switcher wrap under it as a group. */
+craft-card.cg-picker-card::part(header) { flex-wrap: wrap; row-gap: 6px; }
+.cg-picker-card__headline { flex: 1 1 auto; flex-wrap: nowrap; white-space: nowrap; min-width: 0; }
+.cg-picker-card__badges { flex-wrap: nowrap; white-space: nowrap; }
+
+/* The panel never grows past its width: a grid track sized `1fr` takes its
+   items' min-content width, which one long card header could push past the
+   panel's edge. */
+.cg-picker-grid, .cg-picker-group { grid-template-columns: minmax(0, 1fr); }
+.cg-picker-grid > *, .cg-picker-group > * { min-width: 0; max-width: 100%; }
+.cg-picker-panel { overflow-x: hidden; }
+
+/* Craft 6 Live Preview: the shortcut sits in header.lp-pane-header, before
+   the close button, pushed to the end with the header's own actions. */
+.lp-pane-header .cg-picker-open--header { margin-inline-start: auto; flex: none; }
+
+/* "Save as my variant" from the gallery (Craft 6) --------------------------
+   A note / small form under the panel's search row, and the field's blocks
+   outlined while one is being picked. */
+.cg-variant-inline {
+    margin: 12px var(--cp-container-padding, 16px) 0;
+    padding: 10px 12px;
+    border: 1px solid var(--c-color-border-quiet, #e4e8ec);
+    border-radius: var(--c-radius-md, 6px);
+    background: var(--c-surface-sunken, #f3f7fc);
+    font-size: 13px;
+}
+.cg-variant-inline--pick {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--c-color-blue-fill-quiet, #eef3f8);
+    border-color: var(--c-color-blue-border-quiet, #cfdbe8);
+    color: var(--c-color-blue-on-quiet, #1a5dab);
+}
+.cg-variant-form__buttons { display: flex; gap: 8px; }
+.cg-variant-inline .cg-variant-form { width: auto; max-width: none; }
+.cg-variant-form__label { font-weight: 600; }
+
+body.cg-variant-picking [data-matrix-field] [data-matrix-block] { cursor: copy; }
+body.cg-variant-picking [data-matrix-field] [data-matrix-block]:hover {
+    outline: 2px dashed var(--c-color-blue-border-loud, #2563eb);
+    outline-offset: 2px;
+    border-radius: var(--c-radius-md, 6px);
+}

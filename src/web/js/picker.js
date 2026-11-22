@@ -180,41 +180,6 @@
     //
     // Everything below the sources is UI and knows nothing about either mode.
 
-    var inlineSource = function (field) {
-        return {
-            items: function () {
-                return collectTypeItems(field);
-            },
-            add: function (item) {
-                // Entering Live Preview re-renders the editor, so every DOM
-                // reference from panel-build time may be stale. Re-resolve the
-                // LIVE field by id, then go straight to Matrix's own input
-                // instance (stored via jQuery data on the container) — clicking
-                // a stale menu item crashes MatrixInput on an unknown handle.
-                var live = field.isConnected
-                    ? field
-                    : (field.id ? document.getElementById(field.id) : null);
-                if (!live) { closePanel(); return null; }
-
-                var matrix = window.jQuery ? window.jQuery(live).data('matrix') : null;
-                if (matrix && matrix.entryTypesByHandle && matrix.entryTypesByHandle[item.type]
-                    && typeof matrix.addEntry === 'function') {
-                    matrix.addEntry(item.type); // appends at the end
-                    return live;
-                }
-
-                // Fallback: click the live field's native menu item.
-                var fresh = collectTypeItems(live).find(function (it) { return it.type === item.type; });
-                if (fresh && fresh.el.isConnected) {
-                    fresh.el.click();
-                    return live;
-                }
-
-                return null;
-            },
-        };
-    };
-
     var nestedSource = function (manager, typesById) {
         return {
             items: function () {
@@ -410,6 +375,24 @@
         apply();
     };
 
+    // The same, for Craft 6, where the editor is found inside the field's
+    // control wrapper (it may still be loading when the block appears).
+    var setRichTextIn = function (control, html) {
+        var attempts = 0;
+        var apply = function () {
+            var editable = control.querySelector('.ck-editor__editable');
+            var editor = editable ? editable.ckeditorInstance : null;
+            if (editor && typeof editor.setData === 'function') {
+                if (typeof editor.getData !== 'function' || editor.getData() === '') {
+                    editor.setData(html);
+                }
+                return;
+            }
+            if (++attempts < 100) { setTimeout(apply, 50); }
+        };
+        apply();
+    };
+
     var fillBlock = function (blockEl, prefill) {
         // Keys are real field handles now: the server reads them off the
         // adapter's include site, which is the only place the mapping between
@@ -431,6 +414,15 @@
             var rich = blockEl.querySelector('textarea.hidden' + tail);
             if (rich) {
                 setRichText(rich, String(value));
+                return;
+            }
+
+            // Craft 6: a CKEditor field has no named input at all — only its
+            // control wrapper, `[data-ui-control-path]` ending in the handle,
+            // with the editor drawn inside it.
+            var control = blockEl.querySelector('[data-ui-control-path$=\'"fields","' + handle + '"]\']');
+            if (control && !control.querySelector('[name]')) {
+                setRichTextIn(control, String(value));
                 return;
             }
 
@@ -490,6 +482,9 @@
     };
 
     var fieldLabel = function (input, handle) {
+        // Craft 6: <craft-field label="…">.
+        var cField = input && input.closest('craft-field');
+        if (cField && cField.getAttribute('label')) { return cField.getAttribute('label'); }
         var field = input && input.closest('.field');
         var label = field && field.querySelector('.heading label, legend');
         return label ? label.textContent.trim() : handle;
@@ -505,9 +500,25 @@
             // of its own whose names end the same way.
             var own = Array.prototype.filter.call(
                 blockEl.querySelectorAll('[name$="[fields][' + handle + ']"]'),
-                function (el) { return el.closest('.matrixblock') === blockEl; }
+                function (el) { return el.closest('.matrixblock, [data-matrix-block]') === blockEl; }
             );
-            if (!own.length) { return; }
+            if (!own.length) {
+                // Craft 6: a CKEditor field has no named input, only its control
+                // wrapper — read the editor itself (fillBlock writes it the
+                // same way, so a saved variant comes back whole).
+                var control = blockEl.querySelector('[data-ui-control-path$=\'"fields","' + handle + '"]\']');
+                var editable = control && control.closest('[data-matrix-block]') === blockEl
+                    ? control.querySelector('.ck-editor__editable') : null;
+                var editor = editable ? editable.ckeditorInstance : null;
+                if (editor && typeof editor.getData === 'function') {
+                    var html = editor.getData();
+                    if (html === '') { return; }
+                    if (html.length > 5000) { skipped.push(fieldLabel(control, handle)); return; }
+                    values[handle] = html;
+                    kept.push(fieldLabel(control, handle));
+                }
+                return;
+            }
 
             var hidden = own.filter(function (el) {
                 return el.type === 'hidden' && el.closest('.lightswitch');
@@ -558,47 +569,107 @@
         return { values: values, kept: kept, skipped: skipped };
     };
 
-    // --- An editor's own variants ------------------------------------------
-    // "Save as my variant…" in a block's own action menu: the block as the
-    // editor filled it becomes a card in the blocks gallery, theirs only. It is
-    // kept in their Craft user preferences, never in a file and never in a
-    // table of ours (see UserStories.php).
-    var VARIANT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" aria-hidden="true"><path fill="currentColor" d="M287.9 0c9.2 0 17.6 5.2 21.6 13.5l68.6 141.3 153.2 22.6c9 1.3 16.5 7.6 19.3 16.3s.5 18.1-5.9 24.5L433.6 328.4l26.2 155.6c1.5 9-2.2 18.1-9.7 23.5s-17.3 6-25.3 1.7l-137-73.2L151 509.1c-8.1 4.3-17.9 3.7-25.3-1.7s-11.2-14.5-9.7-23.5l26.2-155.6L31.1 218.2c-6.5-6.4-8.7-15.9-5.9-24.5s10.3-14.9 19.3-16.3l153.2-22.6L266.3 13.5C270.4 5.2 278.7 0 287.9 0z"/></svg>';
+    // --- Craft 6: "Save as my variant" from the gallery ----------------------
+    // Pick mode: the field's blocks outline on hover; a click on one opens a
+    // small form at the top of the panel. Escape, Cancel or closing the panel
+    // leaves without saving.
+    var variantPick = null;
 
-    var hideActionMenu = function (trigger) {
-        var menu = window.jQuery ? window.jQuery(trigger).data('disclosureMenu') : null;
-        if (menu && typeof menu.hide === 'function') { menu.hide(); }
+    var stopVariantPick = function () {
+        if (!variantPick) { return; }
+        document.removeEventListener('click', variantPick.onClick, true);
+        document.removeEventListener('keydown', variantPick.onKey, true);
+        document.body.classList.remove('cg-variant-picking');
+        if (variantPick.bar && variantPick.bar.parentNode) { variantPick.bar.remove(); }
+        variantPick = null;
     };
 
-    var saveVariant = function (block, comp, trigger) {
+    var panelNote = function (panel, className) {
+        var old = panel.querySelector('.cg-variant-inline');
+        if (old) { old.remove(); }
+        var box = document.createElement('div');
+        box.className = 'cg-variant-inline ' + (className || '');
+        var search = panel.querySelector('.cg-picker-search');
+        panel.insertBefore(box, search ? search.nextSibling : null);
+        return box;
+    };
+
+    var startVariantPick = function (source, comps, panel) {
+        stopVariantPick();
         if (!isPro) {
             Craft.cp.displayNotice(Craft.t('component-guide', 'Saving your own variants is a Pro feature.'));
             return;
         }
 
+        var bar = panelNote(panel, 'cg-variant-inline--pick');
+        var text = document.createElement('span');
+        text.textContent = Craft.t('component-guide', 'Click the block you want to keep as your variant.');
+        var cancel = document.createElement('craft-button');
+        cancel.setAttribute('type', 'button');
+        cancel.setAttribute('size', 'small');
+        cancel.textContent = Craft.t('app', 'Cancel');
+        cancel.addEventListener('click', stopVariantPick);
+        bar.appendChild(text);
+        bar.appendChild(cancel);
+        document.body.classList.add('cg-variant-picking');
+
+        var onClick = function (event) {
+            var field = source.field();
+            var block = event.target && event.target.closest ? event.target.closest('[data-matrix-block]') : null;
+            if (!block || !field || !field.contains(block)) { return; }
+            // The block's own outermost one: a click inside a nested block's
+            // fields still means the block of this field.
+            while (block.parentElement && block.parentElement.closest('[data-matrix-block]')
+                && field.contains(block.parentElement.closest('[data-matrix-block]'))) {
+                block = block.parentElement.closest('[data-matrix-block]');
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            var comp = comps[block.getAttribute('data-type')];
+            if (!comp || !comp.baseStoryId || !Object.keys(comp.editableFields || {}).length) {
+                Craft.cp.displayNotice(Craft.t('component-guide', 'This block has no story to keep a variant of.'));
+                return;
+            }
+            stopVariantPick();
+            variantForm(block, comp, panel);
+        };
+        var onKey = function (event) {
+            if (event.key === 'Escape') { event.stopPropagation(); stopVariantPick(); }
+        };
+        document.addEventListener('click', onClick, true);
+        document.addEventListener('keydown', onKey, true);
+        variantPick = { onClick: onClick, onKey: onKey, bar: bar };
+    };
+
+    var variantForm = function (block, comp, panel) {
         var read = readBlock(block, Object.keys(comp.editableFields || {}));
         if (!Object.keys(read.values).length) {
             Craft.cp.displayError(Craft.t('component-guide', 'None of this block’s fields can be saved in a variant yet.'));
             return;
         }
 
+        var box = panelNote(panel, 'cg-variant-inline--form');
         var form = document.createElement('form');
         form.className = 'cg-variant-form';
 
+        var inputId = 'cg-variant-name';
         var label = document.createElement('label');
         label.className = 'cg-variant-form__label';
+        label.setAttribute('for', inputId);
         label.textContent = Craft.t('component-guide', 'Name this variant');
+        var field = document.createElement('craft-input');
         var input = document.createElement('input');
+        input.setAttribute('slot', 'input');
         input.type = 'text';
-        input.className = 'text fullwidth';
+        input.id = inputId;
+        input.className = 'text fullwidth form-control';
         input.maxLength = 80;
         input.required = true;
         input.value = Craft.t('component-guide', '{block} — my variant', { block: comp.title });
-        label.appendChild(input);
+        field.appendChild(input);
         form.appendChild(label);
+        form.appendChild(field);
 
-        // Saying what is kept before it is saved: a rich-text field the variant
-        // leaves out would otherwise come back as the default and look lost.
         var kept = document.createElement('p');
         kept.className = 'cg-variant-form__note';
         kept.textContent = Craft.t('component-guide', 'Keeps: {fields}.', { fields: read.kept.join(', ') });
@@ -610,14 +681,22 @@
             form.appendChild(skipped);
         }
 
-        var submit = document.createElement('button');
-        submit.type = 'submit';
-        submit.className = 'btn submit';
+        var buttons = document.createElement('div');
+        buttons.className = 'cg-variant-form__buttons';
+        var submit = document.createElement('craft-button');
+        submit.setAttribute('type', 'submit');
+        submit.setAttribute('variant', 'primary');
+        submit.setAttribute('size', 'small');
         submit.textContent = Craft.t('component-guide', 'Save');
-        form.appendChild(submit);
-
-        var anchor = block.querySelector('.actions') || block;
-        var hud = new Garnish.HUD(window.jQuery(anchor), window.jQuery(form), { hudClass: 'hud cg-variant-hud' });
+        var cancel = document.createElement('craft-button');
+        cancel.setAttribute('type', 'button');
+        cancel.setAttribute('size', 'small');
+        cancel.textContent = Craft.t('app', 'Cancel');
+        cancel.addEventListener('click', function () { box.remove(); });
+        buttons.appendChild(submit);
+        buttons.appendChild(cancel);
+        form.appendChild(buttons);
+        box.appendChild(form);
         setTimeout(function () { input.focus(); input.select(); }, 50);
 
         form.addEventListener('submit', function (event) {
@@ -631,10 +710,6 @@
                     values: read.values,
                 },
             }).then(function (response) {
-                hud.hide();
-                // The new variant becomes this block's chosen state, and a
-                // gallery that is already open is redrawn with it — saving with
-                // the panel open and not seeing the card reads as a failure.
                 writeState(function (state) {
                     state.stories = state.stories || {};
                     state.stories[comp.id] = 'mine-' + response.data.id;
@@ -650,69 +725,6 @@
         });
     };
 
-    // Craft draws a block's action menu itself, with no hook for plugins, so
-    // the item is added the moment the menu is about to open: on the click
-    // that opens it, in the capture phase, before Craft's own handler runs.
-    //
-    // The trigger is found by where it sits — the block's own `.actions` row —
-    // not by its menu's id: Craft computes a `matrixblock-action-menu--<uid>`
-    // id in the block template but never passes it on, so the menu gets a
-    // random one.
-    var blockOfTrigger = function (trigger) {
-        var actions = trigger.closest('.actions');
-        var block = actions ? actions.parentElement : null;
-        return block && block.classList.contains('matrixblock') ? block : null;
-    };
-
-    var ensureVariantItem = function (trigger) {
-        var menuId = trigger.getAttribute('aria-controls') || '';
-        var block = blockOfTrigger(trigger);
-        if (!menuId || !block) { return; }
-
-        loadMap().then(function (data) {
-            var comp = componentsByHandle(data)[block.getAttribute('data-type')];
-            if (!comp || !comp.baseStoryId || !Object.keys(comp.editableFields || {}).length) { return; }
-
-            var menu = document.getElementById(menuId);
-            if (!menu || menu.querySelector('[data-cg-variant]')) { return; }
-
-            var li = document.createElement('li');
-            var button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'menu-item';
-            button.setAttribute('data-cg-variant', '');
-            button.innerHTML = '<span class="icon">' + VARIANT_ICON + '</span>';
-            var text = document.createElement('span');
-            text.className = 'menu-item-label';
-            text.textContent = Craft.t('component-guide', 'Save as my variant…');
-            button.appendChild(text);
-            li.appendChild(button);
-
-            // Next to Craft's own "Copy": both take what the block holds now.
-            var copy = menu.querySelector('[data-action="copy"]');
-            var after = copy ? copy.closest('li') : null;
-            if (after && after.parentNode) {
-                after.parentNode.insertBefore(li, after.nextSibling);
-            } else {
-                var list = menu.querySelector('ul');
-                if (!list) { return; }
-                list.appendChild(li);
-            }
-
-            button.addEventListener('click', function () {
-                hideActionMenu(trigger);
-                saveVariant(block, comp, trigger);
-            });
-        });
-    };
-
-    document.addEventListener('click', function (event) {
-        var trigger = event.target && event.target.closest
-            ? event.target.closest('.matrixblock > .actions [aria-controls]')
-            : null;
-        if (trigger) { ensureVariantItem(trigger); }
-    }, true);
-
     // Matrix inserts the new block asynchronously; poll the field for an
     // element of the added type that wasn't there before the click.
     //
@@ -723,19 +735,33 @@
     // finishes. onReady is therefore held back until that object exists, so an
     // Undo affordance is never drawn for a block it could not actually remove.
     var watchForNewBlock = function (field, type, prefill, onReady) {
-        var deadline = Date.now() + 4000;
-        var existing = new Set(
+        var deadline = Date.now() + 10000;
+        // Craft 6: ids taken before the click, and a way to find the field
+        // again after Vue has replaced it (see vueSource.add).
+        var idsBefore = field.cgBlockIdsBefore || null;
+        var relocate = field.cgRelocate || null;
+        field.cgBlockIdsBefore = null;
+        field.cgRelocate = null;
+        var existing = idsBefore ? null : new Set(
             Array.prototype.slice.call(field.querySelectorAll('[data-type="' + type + '"]'))
         );
+        var isOld = function (el) {
+            return idsBefore ? idsBefore.has(el.getAttribute('data-id')) : existing.has(el);
+        };
         var found = null;
         var tick = function () {
             if (!found) {
+                if (!field.isConnected && relocate) { field = relocate() || field; }
                 var candidates = field.querySelectorAll('[data-type="' + type + '"]');
                 for (var i = candidates.length - 1; i >= 0; i--) {
                     var el = candidates[i];
                     // Menu buttons carry data-type too — a real block has inputs.
-                    if (!existing.has(el) && el.tagName !== 'BUTTON' && el.querySelector('input, textarea')) {
+                    if (!isOld(el) && el.tagName !== 'BUTTON' && el.querySelector('input:not([type="hidden"]), textarea, select')) {
                         found = el;
+                        if (window.cgPickerDebug) {
+                            console.log('[component-guide] new block', el, Array.prototype.map.call(
+                                el.querySelectorAll('[name]'), function (i) { return i.tagName.toLowerCase() + (i.type ? '[' + i.type + ']' : '') + ' ' + i.name; }));
+                        }
                         if (prefill) { fillBlock(el, prefill); }
                         break;
                     }
@@ -744,6 +770,12 @@
 
             if (found) {
                 if (!onReady) { return; }
+                // Craft 6 has no jQuery entry object to wait for: the block is
+                // ready as soon as it is there (Undo goes through its menu).
+                if (idsBefore) {
+                    onReady(found, null);
+                    return;
+                }
                 var entry = window.jQuery ? window.jQuery(found).data('entry') : null;
                 if (entry && typeof entry.selfDestruct === 'function') {
                     onReady(found, entry);
@@ -751,7 +783,12 @@
                 }
             }
 
-            if (Date.now() < deadline) { requestAnimationFrame(tick); }
+            if (Date.now() < deadline) {
+                requestAnimationFrame(tick);
+            } else if (!found && window.cgPickerDebug) {
+                console.log('[component-guide] no new block', type, field,
+                    field.querySelectorAll('[data-type="' + type + '"]').length, idsBefore ? idsBefore.size : existing.size);
+            }
         };
         requestAnimationFrame(tick);
     };
@@ -808,98 +845,86 @@
         return null;
     };
 
-    var followInPreview = function () {
-        if (!window.Garnish || !window.Craft || !Craft.Preview) { return; }
-        var frames = document.querySelectorAll('iframe.lp-preview');
-        var frame = frames.length ? frames[frames.length - 1] : null;
-        if (!frame) { return; }
+    // Craft 6: no Craft.Preview to listen to. The preview is simply the
+    // largest visible same-origin iframe outside the gallery; it is polled
+    // until a new document in it (or the same one, updated in place) has the
+    // added block, then scrolled to it once its height has settled.
+    var previewFrame = function () {
+        var best = null;
+        var bestArea = 0;
+        document.querySelectorAll('iframe').forEach(function (f) {
+            if (f.closest('.cg-picker-panel, .cg-zoom') || !f.offsetParent) { return; }
+            var r = f.getBoundingClientRect();
+            var area = r.width * r.height;
+            if (area < 40000) { return; }
+            try { if (!f.contentDocument) { return; } } catch (e) { return; }
+            if (area > bestArea) { best = f; bestArea = area; }
+        });
+        return best;
+    };
 
+    var followInPreviewVue = function () {
+        var frame = previewFrame();
+        if (!frame) { return; }
+        var beforeDoc;
         var before;
         try {
-            var doc = frame.contentDocument;
-            // A frame still loading has nothing to compare against.
-            if (!doc || !doc.body || !doc.body.firstElementChild) { return; }
-            // Shapes only: the old frame is thrown away on refresh.
-            before = shapeOf(doc.body);
+            beforeDoc = frame.contentDocument;
+            if (!beforeDoc || !beforeDoc.body || !beforeDoc.body.firstElementChild) { return; }
+            before = shapeOf(beforeDoc.body);
             (function strip(node) { node.el = null; node.kids.forEach(strip); })(before);
         } catch (e) {
-            return; // a preview on another origin cannot be read
+            return;
         }
 
-        // Followed for a few seconds — the block's own refresh and the one
-        // its prefill causes — and given up the moment the editor scrolls,
-        // clicks or types in the preview: their scroll wins over ours.
-        var deadline = Date.now() + 10000;
         var done = false;
-        var poll = null;
-        var stop = function () {
-            done = true;
-            clearTimeout(poll);
-            Garnish.off(Craft.Preview, 'afterUpdateIframe', onUpdate);
-        };
+        var deadline = Date.now() + 12000;
+        var stop = function () { done = true; };
         var userEvents = ['wheel', 'touchstart', 'mousedown', 'keydown'];
+        var watched = [];
         var watchUser = function (target) {
+            if (watched.indexOf(target) !== -1) { return; }
+            watched.push(target);
             userEvents.forEach(function (type) {
                 target.addEventListener(type, stop, { once: true, passive: true });
             });
         };
-        var container = document.querySelector('.lp-iframe-container');
-        if (container) { watchUser(container); }
+        try { watchUser(beforeDoc); } catch (e) { /* ignore */ }
 
-        // Craft swaps the frame, sets its height and scroll position, and —
-        // with its iframe resizer, the default — resizes the frame again once
-        // the page inside reports its size. A scroll made before that is
-        // undone. So wait until Craft calls the frame loaded and its height
-        // has held still for a moment, then scroll.
-        var whenSettled = function (preview, iframe, then) {
-            var lastHeight = -1;
-            var steady = 0;
-            var giveUp = Date.now() + 4000;
-            var check = function () {
-                if (done || !iframe.isConnected) { return; }
-                var height = iframe.offsetHeight;
-                var loaded = !preview || preview.iframeLoaded !== false;
-                var ready = iframe.contentDocument && iframe.contentDocument.readyState === 'complete';
-                steady = (loaded && ready && height === lastHeight) ? steady + 1 : 0;
-                lastHeight = height;
-                if (steady >= 3 || Date.now() > giveUp) { then(); return; }
-                poll = setTimeout(check, 100);
-            };
-            check();
-        };
-
-        var onLoad = function (preview, iframe) {
+        var lastHeight = -1;
+        var steady = 0;
+        var target = null;
+        var check = function () {
             if (done) { return; }
             if (Date.now() > deadline) { stop(); return; }
-            var target;
-            try {
-                var body = iframe.contentDocument && iframe.contentDocument.body;
-                target = body ? addedElement(before, shapeOf(body)) : null;
-                if (body) { watchUser(iframe.contentDocument); }
-            } catch (e) {
-                stop();
-                return;
+            var f = previewFrame();
+            var doc = null;
+            try { doc = f ? f.contentDocument : null; } catch (e) { stop(); return; }
+            if (doc && doc.readyState === 'complete' && doc.body) {
+                watchUser(doc);
+                if (!target || !target.isConnected) {
+                    target = addedElement(before, shapeOf(doc.body));
+                    steady = 0;
+                }
+                if (target) {
+                    // Settled: the page's height held still for a few checks.
+                    var h = doc.documentElement.scrollHeight;
+                    steady = h === lastHeight ? steady + 1 : 0;
+                    lastHeight = h;
+                    if (steady >= 3) {
+                        try { target.scrollIntoView({ block: 'start' }); } catch (e) { /* old browser */ }
+                        stop();
+                        return;
+                    }
+                }
             }
-            // A block whose template renders nothing until its fields are
-            // filled shows up only in a later refresh; keep waiting for it.
-            if (!target) { return; }
-
-            whenSettled(preview, iframe, function () {
-                if (done || !target.isConnected) { return; }
-                try { target.scrollIntoView({ block: 'start' }); } catch (e) { /* old browser */ }
-            });
+            setTimeout(check, 150);
         };
+        setTimeout(check, 150);
+    };
 
-        var onUpdate = function (ev) {
-            var iframe = ev && ev.$iframe && ev.$iframe[0];
-            if (!iframe || done) { return; }
-            clearTimeout(poll);
-            var preview = ev.target || null;
-            iframe.addEventListener('load', function () { onLoad(preview, iframe); }, { once: true });
-        };
-
-        Garnish.on(Craft.Preview, 'afterUpdateIframe', onUpdate);
-        setTimeout(stop, 10000);
+    var followInPreview = function () {
+        if (document.querySelector('.lp-editor-pane')) { followInPreviewVue(); }
     };
 
     // --- Undo ---------------------------------------------------------------
@@ -911,6 +936,25 @@
     // the new block. A link does the same job, stays keyboard-reachable, and
     // leaves the focus where the editor expects it.
     var undoNotification = null;
+
+    // The Delete item of a Craft 6 block's action menu: its own menu (the
+    // block's header), not one of a nested block inside it. Craft marks it as
+    // the destructive item (variant="danger"); the icon is a fallback.
+    var vueDeleteItem = function (block) {
+        var items = Array.prototype.filter.call(
+            block.querySelectorAll('craft-action-item'),
+            function (it) { return it.closest('[data-matrix-block]') === block; }
+        );
+        var pick = function (test) { return items.filter(test)[0] || null; };
+        var item = pick(function (it) { return it.getAttribute('variant') === 'danger'; })
+            || pick(function (it) { return /^(trash|xmark|circle-xmark)$/.test(it.getAttribute('icon') || ''); });
+        if (!item && window.cgPickerDebug) {
+            console.log('[component-guide] no delete item', items.map(function (it) {
+                return (it.getAttribute('icon') || '') + ' ' + (it.getAttribute('variant') || '') + ' ' + it.textContent.trim();
+            }));
+        }
+        return item;
+    };
 
     var offerUndo = function (label, field, uid) {
         // One notice at a time: adding three blocks in a row should not leave
@@ -935,6 +979,24 @@
         );
         undoNotification = notification;
 
+        // Craft keeps a notice with details open until it is closed, so the
+        // Undo closes itself after a while — but not under the mouse or the
+        // keyboard: reaching for it must not make it go away.
+        var UNDO_MS = 8000;
+        var timer = null;
+        var holder = details.closest('.notification') || details.parentElement || details;
+        var arm = function () {
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                if (undoNotification === notification) { undoNotification = null; }
+                if (notification && typeof notification.close === 'function') { notification.close(); }
+            }, UNDO_MS);
+        };
+        var hold = function () { clearTimeout(timer); };
+        ['mouseenter', 'focusin'].forEach(function (t) { holder.addEventListener(t, hold); });
+        ['mouseleave', 'focusout'].forEach(function (t) { holder.addEventListener(t, arm); });
+        arm();
+
         link.addEventListener('click', function (event) {
             event.preventDefault();
 
@@ -945,19 +1007,33 @@
             // outlives the re-render, so the block is found through it.
             var live = field.isConnected
                 ? field
-                : (field.id ? document.getElementById(field.id) : null);
-            var block = live
-                ? live.querySelector('.matrixblock[data-uid="' + uid + '"]')
-                : null;
-            var entry = (block && window.jQuery) ? window.jQuery(block).data('entry') : null;
+                : (field.matches && field.matches('[data-matrix-field]')
+                    ? vueLiveField(field)
+                    : (field.id ? document.getElementById(field.id) : null));
 
-            // The editor may have deleted the block themselves in the meantime;
-            // undoing one that is already gone is a no-op, not an error.
-            // selfDestruct() is Craft's own delete — the same call behind the
-            // block's action menu — so nothing is reimplemented here.
-            if (entry && typeof entry.selfDestruct === 'function') {
-                entry.selfDestruct();
-                Craft.cp.announce(Craft.t('component-guide', 'Block removed.'));
+            // Craft 6: the block's own action menu holds Delete — clicking that
+            // item runs Craft's delete, so nothing is reimplemented here.
+            var vueBlock = live ? live.querySelector('[data-matrix-block][data-id="' + uid + '"]') : null;
+            if (vueBlock) {
+                var del = vueDeleteItem(vueBlock);
+                if (del) {
+                    del.click();
+                    if (Craft.cp && Craft.cp.announce) { Craft.cp.announce(Craft.t('component-guide', 'Block removed.')); }
+                }
+            } else {
+                var block = live
+                    ? live.querySelector('.matrixblock[data-uid="' + uid + '"]')
+                    : null;
+                var entry = (block && window.jQuery) ? window.jQuery(block).data('entry') : null;
+
+                // The editor may have deleted the block themselves in the
+                // meantime; undoing one that is already gone is a no-op.
+                // selfDestruct() is Craft's own delete — the same call behind
+                // the block's action menu.
+                if (entry && typeof entry.selfDestruct === 'function') {
+                    entry.selfDestruct();
+                    Craft.cp.announce(Craft.t('component-guide', 'Block removed.'));
+                }
             }
 
             if (undoNotification === notification) { undoNotification = null; }
@@ -1034,6 +1110,7 @@
     };
 
     var closePanel = function () {
+        stopVariantPick();
         if (activePanel) {
             activePanel.el.remove();
             document.removeEventListener('keydown', activePanel.onKey, true);
@@ -1148,6 +1225,21 @@
         closeIcon.setAttribute('name', 'xmark-large');
         closeIcon.setAttribute('label', Craft.t('app', 'Close'));
         closeBtn.appendChild(closeIcon);
+        // Craft 6 has no hook for a plugin item in a Matrix block's own menu,
+        // so "Save as my variant" starts here: pick a block in the field, name
+        // it in the panel.
+        if (typeof source.field === 'function') {
+            var variantBtn = document.createElement('craft-button');
+            variantBtn.setAttribute('type', 'button');
+            variantBtn.setAttribute('size', 'small');
+            variantBtn.setAttribute('variant', 'plain');
+            variantBtn.setAttribute('icon', 'star');
+            variantBtn.className = 'cg-picker-panel__variant';
+            variantBtn.setAttribute('title', Craft.t('component-guide', 'Save a block as my variant'));
+            variantBtn.setAttribute('aria-label', Craft.t('component-guide', 'Save a block as my variant'));
+            variantBtn.addEventListener('click', function () { startVariantPick(source, comps, panel); });
+            headActions.appendChild(variantBtn);
+        }
         headActions.appendChild(closeBtn);
         headRow.appendChild(heading);
         headRow.appendChild(headActions);
@@ -1613,6 +1705,7 @@
                 followInPreview();
 
                 var target = source.add(item);
+                if (window.cgPickerDebug) { console.log('[component-guide] add', item.type, target, prefill); }
                 if (!target) { return; }
 
                 // Inline fields hand back the live field element, so the new
@@ -1630,7 +1723,8 @@
                         // entry”, not the block's name.
                         var name = ((comp ? comp.title : item.label) || item.type)
                             + (story ? ' — ' + story.title : '');
-                        var uid = blockEl.getAttribute('data-uid');
+                        // Craft 5: data-uid; Craft 6: data-id (the entry's uuid).
+                        var uid = blockEl.getAttribute('data-uid') || blockEl.getAttribute('data-id');
                         if (uid) { offerUndo(name, target, uid); }
                     });
                 }
@@ -1838,48 +1932,6 @@
         return comps;
     };
 
-    // --- Field enhancement --------------------------------------------------
-
-    var enhance = function (field) {
-        if (field.dataset.cgPicker) { return; }
-        field.dataset.cgPicker = '1';
-
-        var items = collectTypeItems(field);
-        if (!items.length) { return; }
-
-        loadMap().then(function (data) {
-            var comps = componentsByHandle(data);
-
-            // Only offer the gallery where it adds value: at least one entry
-            // type has a matching component.
-            if (!items.some(function (it) { return comps[it.type]; })) { return; }
-
-            // The "New Block" UI always lives in the field's .buttons row.
-            var anchor = field.querySelector(':scope > .buttons') || field.querySelector('.buttons');
-            if (!anchor) { return; }
-
-            // NO `btn` class: MatrixInput binds its add-entry handler to every
-            // `.btn:not(.menubtn)` inside `.buttons` (re-running on re-init, e.g.
-            // entering Live Preview) — a captured button without data-type then
-            // crashes it. Styled to match via our own class instead.
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'cg-picker-open';
-            btn.textContent = Craft.t('component-guide', 'Blocks gallery');
-            // The map is read again on every open: a variant saved or deleted
-            // since the page loaded has to be there, or gone.
-            var key = 'inline:' + (field.id || '');
-            btn.addEventListener('click', function () {
-                loadMap().then(function (fresh) {
-                    openPanel(inlineSource(field), componentsByHandle(fresh), key);
-                });
-            });
-
-            anchor.appendChild(btn);
-            reopenIfRemembered(key, function () { btn.click(); });
-        });
-    };
-
     // --- Craft 6 Matrix ----------------------------------------------------
     // Craft 6 draws an inline Matrix field as a Vue component: the field is
     // `[data-matrix-field]` (no `.matrix-field`), the add button is a
@@ -1950,6 +2002,8 @@
 
     var vueSource = function (field, data) {
         return {
+            // The live field, for "Save as my variant" (picks a block in it).
+            field: function () { return vueLiveField(field); },
             items: function () {
                 var live = vueLiveField(field);
                 return live ? vueTypeItems(live, data) : [];
@@ -1959,10 +2013,24 @@
                 if (!live) { closePanel(); return null; }
                 var fresh = vueTypeItems(live, data).find(function (it) { return it.type === item.type; });
                 if (!fresh || !fresh.el.isConnected) { return null; }
+                // Craft 6 creates the entry in the browser (a uuid id) and can
+                // draw its block during this very click — so the blocks that
+                // were there are counted *before* it, or the new one would be
+                // mistaken for an old one and never filled.
+                // By id, not by node: Vue re-keys the whole field when an entry
+                // is added, so every block — old ones too — comes back as a new
+                // node, and the field element itself is replaced.
+                live.cgBlockIdsBefore = new Set(Array.prototype.map.call(
+                    live.querySelectorAll('[data-matrix-block][data-id]'),
+                    function (b) { return b.getAttribute('data-id'); }
+                ));
+                live.cgRelocate = function () { return vueLiveField(live); };
                 // The native item, so the entry is created by Matrix's own code.
                 fresh.el.click();
-                // No prefill or undo yet: they read Craft 5's block markup.
-                return true;
+                // The live field, so the new block can be found and filled:
+                // Craft 6 draws it as `[data-matrix-block][data-type=<handle>]`
+                // once the server has created the entry.
+                return live;
             },
         };
     };
@@ -2051,40 +2119,37 @@
     };
 
     // --- Live Preview header shortcut ------------------------------------
-    // The field's own "Blocks gallery" button sits in its bottom .buttons
-    // row, which on long Matrix fields is below the fold. Duplicate the
-    // trigger in the Live Preview editor pane's header so it is always in
-    // reach. It only proxies a click to the field's live button, so panel
-    // logic stays in one place and stale-DOM re-renders are a non-issue.
-    var enhancePreviewHeader = function (container) {
-        if (container.dataset.cgPickerHeader) { return; }
+    // The field's own "Blocks gallery" button sits below the blocks, which on
+    // long Matrix fields is below the fold; a copy in the Live Preview
+    // editor pane's header keeps it in reach.
 
-        // Fields are enhanced asynchronously (picker map fetch); until a real
-        // gallery button exists there is nothing to proxy — the mutation
-        // observer will re-run this scan once it appears.
-        if (!container.querySelector('.cg-picker-open:not(.cg-picker-open--header)')) { return; }
+    // Craft 6: the Live Preview editor is `.lp-editor-pane`, its header
+    // `header.lp-pane-header` (title, status, actions, close). The shortcut is
+    // a small <craft-button> placed before the close button. Vue may redraw
+    // the header, so the button itself is the flag, and it proxies the click
+    // to the field's own gallery button, as on Craft 5.
+    var enhanceVuePreviewHeader = function (pane) {
+        var header = pane.querySelector('header.lp-pane-header');
+        if (!header || header.querySelector('.cg-picker-open--header')) { return; }
+        if (!pane.querySelector('.cg-picker-open--craft6')) { return; }
 
-        container.dataset.cgPickerHeader = '1';
-
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'cg-picker-open cg-picker-open--header';
+        var btn = document.createElement('craft-button');
+        btn.setAttribute('type', 'button');
+        btn.setAttribute('size', 'small');
+        btn.setAttribute('variant', 'dashed');
+        btn.setAttribute('icon', 'grid-2');
+        btn.className = 'cg-picker-open--header';
         btn.textContent = Craft.t('component-guide', 'Blocks gallery');
         btn.addEventListener('click', function () {
-            // Re-resolve on every click — Preview re-renders its editor pane.
-            var live = container.querySelector('.cg-picker-open:not(.cg-picker-open--header)');
+            var live = pane.querySelector('.cg-picker-open--craft6');
             if (live) { live.click(); }
         });
 
-        var header = container.querySelector('header');
-        if (header) {
-            header.appendChild(btn);
+        var close = header.lastElementChild;
+        if (close && close.tagName === 'CRAFT-BUTTON') {
+            header.insertBefore(btn, close);
         } else {
-            // Fallback for markup drift: our own slim sticky bar at the top.
-            var bar = document.createElement('div');
-            bar.className = 'cg-picker-headerbar';
-            bar.appendChild(btn);
-            container.insertBefore(bar, container.firstChild);
+            header.appendChild(btn);
         }
     };
 
@@ -2125,9 +2190,8 @@
     };
 
     var scan = function (root) {
-        (root || document).querySelectorAll('.matrix-field').forEach(enhance);
         (root || document).querySelectorAll('[data-matrix-field]').forEach(enhanceVue);
-        document.querySelectorAll('.lp-editor-container').forEach(enhancePreviewHeader);
+        document.querySelectorAll('.lp-editor-pane').forEach(enhanceVuePreviewHeader);
     };
 
     var init = function () {

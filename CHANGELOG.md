@@ -3,7 +3,7 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
-## 6.0.0-beta.1 - Unreleased
+## 6.0.0-beta.1 - 2026-11-23
 
 Version numbers now follow Craft: **6.x is for Craft 6**, the 1.x line stays
 on Craft 5 and keeps getting fixes.

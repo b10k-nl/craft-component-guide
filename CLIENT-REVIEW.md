@@ -105,8 +105,8 @@ Then:
 
 - one block — **Clear this block's review history…** under its Client review;
 - everything — **Clear review history…** in the sidebar, under Export;
-- or from the command line, whatever the setting: `php craft
-  component-guide/reviews/clear [--component=blocks-hero]`.
+- or from the command line, whatever the setting: `php artisan
+  craft:component-guide:reviews:clear [--component=blocks-hero]`.
 
 Admins can, and so can anyone you give **Clear the client review history**
 (beside the review permission, under *Access Component Guide*) — a developer
@@ -178,14 +178,14 @@ Where the story files are written — usually locally, on the same commit as
 staging:
 
 ```sh
-php craft component-guide/reviews/import --file=component-guide-reviews-staging.example.com-2026-10-30.json --dry-run
+php artisan craft:component-guide:reviews:import --file=component-guide-reviews-staging.example.com-2026-10-30.json --dry-run
 ```
 
 In DDEV the command runs in a container that cannot see `~/Downloads`; read
 the file through standard input instead:
 
 ```sh
-ddev craft component-guide/reviews/import --dry-run --file=- < ~/Downloads/component-guide-reviews-….json
+ddev artisan craft:component-guide:reviews:import --dry-run --file=- < ~/Downloads/component-guide-reviews-….json
 ```
 
 For each story, the latest decision:

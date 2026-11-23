@@ -4,7 +4,7 @@ namespace b10k\componentguide\mcp;
 
 /**
  * What Component Guide tells an agent connected to Craft's MCP server, in the
- * instructions `info.get` returns: which blocks the developer has marked as
+ * instructions `info_get` returns: which blocks the developer has marked as
  * ready for editors, so an agent filling a page uses those rather than
  * whatever entry types a Matrix field happens to accept.
  *
@@ -12,7 +12,7 @@ namespace b10k\componentguide\mcp;
  */
 final class McpBrief
 {
-    /** The id of the contract check in `content-model.audit` (see ContractCheck). */
+    /** The id of the contract check in `content_model_audit` (see ContractCheck). */
     public const CHECK_ID = 'component-guide-contract';
 
     /** Blocks listed at most; the rest are counted. Instructions are read on every connection. */
@@ -83,12 +83,12 @@ final class McpBrief
 
         if ($tools) {
             $lines[] = '';
-            $lines[] = 'Call `component-guide.stories` with an entry type handle for a block\'s stories and the field values to fill a new block with, and `component-guide.render` to see the HTML a block renders before you put it on a page.';
+            $lines[] = 'Call `component_guide_stories` with an entry type handle for a block\'s stories and the field values to fill a new block with, and `component_guide_render` to see the HTML a block renders before you put it on a page.';
         }
 
         $lines[] = '';
         $lines[] = sprintf(
-            'content-model.audit (admins) runs the check `%s`: stories that set a field the entry type does not have, and fields no template reads.',
+            'content_model_audit (admins) runs the check `%s`: stories that set a field the entry type does not have, and fields no template reads.',
             self::CHECK_ID,
         );
 

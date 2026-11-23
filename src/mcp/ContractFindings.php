@@ -5,7 +5,7 @@ namespace b10k\componentguide\mcp;
 use b10k\componentguide\models\ScanError;
 
 /**
- * The contract check's errors as `content-model.audit` findings: one row per
+ * The contract check's errors as `content_model_audit` findings: one row per
  * problem, the ones that break a block first.
  *
  * Kept free of Craft so it can be tested; ContractCheck feeds it.

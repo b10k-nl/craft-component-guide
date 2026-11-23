@@ -3,6 +3,30 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 6.0.0-beta.1 - Unreleased
+
+Version numbers now follow Craft: **6.x is for Craft 6**, the 1.x line stays
+on Craft 5 and keeps getting fixes.
+
+### Changed
+
+- **Craft 6 (beta).** Requires Craft 6 with the Yii2 adapter and PHP 8.5.
+- **The guide's pages are built from Craft 6's own components** — buttons,
+  tabs, inputs, selects, checkboxes, badges — so they look like the rest of the
+  control panel and follow it into **dark mode**. Preview thumbnails end where
+  the block does instead of on a full white sheet.
+- **The blocks gallery works in Craft 6's entry editor**, Live Preview
+  included: cards in Craft's own card style with the entry type's icon, the
+  block added and filled in from the story (rich text too), Undo, a shortcut in
+  the Live Preview header, and the preview scrolled to the new block.
+- **Save as my variant** starts in the gallery (★, then a click on the block):
+  Craft 6 has no way for a plugin to add an item to a Matrix block's own menu.
+  Rich text is now kept in a variant.
+- Commands are Artisan commands: `php artisan craft:component-guide:…`.
+- Craft's MCP server is Craft 6's. Tool names follow Craft 6:
+  `component_guide_stories`, `component_guide_render`; the contract check is in
+  `content_model_audit`, the instructions in `info_get`.
+
 ## 1.13.0 - 2026-11-14
 
 ### Added

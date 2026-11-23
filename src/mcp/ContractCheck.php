@@ -4,11 +4,11 @@ namespace b10k\componentguide\mcp;
 
 use b10k\componentguide\Plugin;
 use Craft;
-use craft\mcp\contentmodel\Check;
+use CraftCms\Cms\Mcp\ContentModel\Check;
 
 /**
  * The contract check — a story setting a field the entry type does not have,
- * a field no template reads — as a check of Craft's `content-model.audit`
+ * a field no template reads — as a check of Craft's `content_model_audit`
  * (Craft 5.12+), next to unused fields and empty sections.
  *
  * Only loaded when Craft has MCP: Plugin registers it behind a class_exists().

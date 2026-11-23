@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main and 1.x: Craft 5. craft-6 / 6.x: Craft 6 (PHP 8.5).
+    branches: [main, 1.x, craft-6, 6.x]
     tags: ['*']
   pull_request:
   # Weekly, against the newest Craft and MCP SDK: there is no composer.lock,
@@ -19,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3']
+        php: ['8.5']
 
     steps:
       - uses: actions/checkout@v5

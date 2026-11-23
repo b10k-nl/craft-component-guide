@@ -28,8 +28,10 @@ Nothing configured yet? The guide starts by explaining how to get there:
 
 ## Requirements
 
-- Craft CMS **5.0+**
-- PHP **8.2+**
+- Craft CMS **6** (beta) with the Yii2 adapter
+- PHP **8.5+**
+
+For Craft 5, use the 1.x line of this plugin.
 
 ## What it does
 
@@ -69,7 +71,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
   stories shows them in a dropdown on its card, or — with **Variants as cards**
   ticked — as one card per story, for stories that change the layout rather
   than a colour.
-- **Editors' own variants:** "Save as my variant…" in a block's action menu
+- **Editors' own variants:** ★ in the blocks gallery, then a click on a block,
   keeps the block as the editor filled it, under a name, as a card of their own
   in the gallery. Personal, stored in their Craft user preferences — no table,
   no migration — and handed to a developer as a ready-to-paste story when it
@@ -78,7 +80,7 @@ Nothing configured yet? The guide starts by explaining how to get there:
   entry itself — `{{ block.heading }}`, `block.cards.all()`, `block.image.one().url`
   — previews from a story written in field handles; the guide builds the block
   it reads, in the shape Craft gives each field. No adapter needed to start.
-- **Craft's MCP server** (Craft 5.12+): an agent learns which blocks are
+- **Craft's MCP server** (Craft 6): an agent learns which blocks are
   ready for editors, reads their stories and renders them from your own
   templates. See [Craft's MCP server](#crafts-mcp-server).
 - **Bulk setup with a coding agent:** a recipe in `AGENT-SETUP.md` any agent
@@ -151,8 +153,8 @@ in it:
 - loud render errors, rather than a silent broken thumbnail
 - **Used on** and the usage filter — where each block is on the site, and
   which blocks no page uses
-- on Craft's MCP server: the instructions, `component-guide.render`, the
-  stories and the contract check in `content-model.audit`
+- on Craft's MCP server: the instructions, `component_guide_render`, the
+  stories and the contract check in `content_model_audit`
 - the story scaffolder, including the whole-library pass
 - the write journal
 
@@ -160,12 +162,12 @@ in it:
 
 - **inserting a block from the gallery** — an editor picks a card and the block
   lands filled in, from the state whose preview they were looking at
-- **saving their own variants** — "Save as my variant…" on a block, and the
+- **saving their own variants** — ★ in the gallery, then a block, and the
   card it becomes in the gallery (see below)
 - **client review** — turned on in the settings: a client approves a story or
   asks for changes, and the approval reaches the story file in git (see
   *Client review*)
-- **field values for agents** — `component-guide.stories` on Craft's MCP
+- **field values for agents** — `component_guide_stories` on Craft's MCP
   server gives the values to fill a new block with, as the gallery does
 - **`stories/check`** — the contract check as a console command with an exit
   code, for CI. The edition comes from your committed `project.yaml`, so a CI
@@ -193,8 +195,10 @@ the same block the same way — the dark coaching hero, the two-plan pricing
 table — can keep it:
 
 1. Fill in a block on any entry as usual.
-2. Open the block's action menu (⋯) and choose **Save as my variant…**.
-3. Name it. The panel says which fields are kept before anything is saved.
+2. Open the blocks gallery, click **★** in its header, then click the block.
+   (Craft 6 has no way for a plugin to add an item to a Matrix block's own
+   ⋯ menu, so the action starts in the gallery.)
+3. Name it. The gallery says which fields are kept before anything is saved.
 
 The variant appears in the blocks gallery next to the block's stories, marked
 ★, with a live preview. Clicking it adds the block filled in exactly as saved.
@@ -202,9 +206,9 @@ The variant appears in the blocks gallery next to the block's stories, marked
 **What is kept.** Only the fields the gallery can fill back in: each reaching
 the template as exactly one value, read directly or passed on by an adapter —
 text, number, URL, email,
-dropdown, radio buttons and lightswitches, up to 500 characters each. Rich text
-(CKEditor), assets, relations and nested blocks are not kept and start from the
-block's first story instead; the save panel names them. That rule is what keeps
+dropdown, radio buttons and lightswitches, up to 500 characters each, and rich
+text (CKEditor) up to 5,000. Assets, relations and nested blocks are not kept
+and start from the block's first story instead; the save form names them. That rule is what keeps
 a variant honest: its card previews exactly what a click puts back.
 
 **Where it lives.** In the editor's own Craft user preferences — personal,
@@ -219,8 +223,7 @@ deliberate: preferences are personal and cannot be searched efficiently, and a
 story in git is reviewed like any other change. **Delete** removes the variant.
 
 Saving a variant is a Pro feature. It works in Matrix fields set to
-**Inline-editable blocks**; Cards and Index modes have no block menu to add it
-to.
+**Inline-editable blocks**.
 
 ## Permissions
 
@@ -248,7 +251,7 @@ Or with Composer:
 
 ```bash
 composer require b10k/craft-component-guide
-php craft plugin/install component-guide
+php artisan craft:plugin:install component-guide
 ```
 
 On DDEV, prefix each command with `ddev`.
@@ -462,9 +465,9 @@ same gate Craft uses for its own project-file changes); elsewhere the guide
 says so instead of hiding the feature. The equivalent on the command line is:
 
 ```sh
-php craft component-guide/components/make hero            # writes hero.stories.twig
-php craft component-guide/components/make hero --states   # one story per detected state
-php craft component-guide/components/make hero --format=php
+php artisan craft:component-guide:components:make hero            # writes hero.stories.twig
+php artisan craft:component-guide:components:make hero --states   # one story per detected state
+php artisan craft:component-guide:components:make hero --format=php
 ```
 
 The scaffolder reads the template and guesses a `Default` story from it:
@@ -616,7 +619,7 @@ To start the client on a clean slate after your own trial runs — with
 **Enable History Clearing** on in the settings — an admin, or anyone with the
 **Clear the client review history** permission, can **Clear this
 block's review history…** (on its page) or **Clear review history…**
-(sidebar); or, with or without it, run `php craft component-guide/reviews/clear
+(sidebar); or, with or without it, run `php artisan craft:component-guide:reviews:clear
 [--component=<id>]` — it asks first, is logged, and leaves the approvals in the
 story files alone.
 
@@ -633,14 +636,14 @@ to the story files:
 2. Where the story files are written — usually locally:
 
    ```sh
-   php craft component-guide/reviews/import --file=component-guide-reviews-staging.example.com-2026-10-30.json
+   php artisan craft:component-guide:reviews:import --file=component-guide-reviews-staging.example.com-2026-10-30.json
    ```
 
    In DDEV (or any container) the command sees only the project folder, so
    read the download from your machine through standard input:
 
    ```sh
-   ddev craft component-guide/reviews/import --file=- < ~/Downloads/component-guide-reviews-staging.example.com-2026-10-30.json
+   ddev artisan craft:component-guide:reviews:import --file=- < ~/Downloads/component-guide-reviews-staging.example.com-2026-10-30.json
    ```
 
    For each story, the latest decision:
@@ -893,23 +896,23 @@ earns one).
 
 ## Craft's MCP server
 
-On Craft 5.12 and later, an agent connected to the site through
-[Craft's MCP server](https://craftcms.com/docs/5.x/system/mcp) can use what
+On Craft 6, an agent connected to the site through
+[Craft's MCP server](https://craftcms.com/docs/6.x/system/mcp) can use what
 the guide knows about your blocks — what the content model alone cannot tell
 it. Nothing to set up: it appears wherever MCP is on, for users who may open
-the guide, and on earlier Craft versions nothing changes.
+the guide.
 
-- **Instructions.** `info.get` lists the blocks ready for editors (stable,
+- **Instructions.** `info_get` lists the blocks ready for editors (stable,
   documented, matched to an entry type) with their stories, and — with client
   review on — which stories the client approved, so an agent filling a page
   reaches for those.
-- **`component-guide.stories`** — the blocks, or one block's stories with
+- **`component_guide_stories`** — the blocks, or one block's stories with
   their values. With Pro, also the field values to fill a new block with; asset
   and relation fields are left out, since a story's picture is a stand-in.
-- **`component-guide.render`** — a block rendered from your own templates with
+- **`component_guide_render`** — a block rendered from your own templates with
   a story's values, or changed ones, as Controls does: its HTML, or the error
   the template throws. Nothing is saved.
-- **`content-model.audit`** runs the contract check too, as
+- **`content_model_audit`** runs the contract check too, as
   `component-guide-contract`, next to Craft's own checks (admins).
 
 Both tools only read. If a later Craft changes what its MCP server accepts,
@@ -947,7 +950,7 @@ Either from the control panel — **Settings → Plugins → Component Guide →
 Uninstall** — or from the command line:
 
 ```bash
-php craft plugin/uninstall component-guide
+php artisan craft:plugin:uninstall component-guide
 composer remove b10k/craft-component-guide
 ```
 
@@ -1082,7 +1085,7 @@ not a sandbox.
 - **No "Blocks gallery" button** — the field's entry-type handles must match
   component names. Matching ignores case and separators (`inline-donation-form`
   ↔ `inlineDonationForm`), so the usual cause is a genuinely different name;
-  open `component-guide/picker-map` to compare.
+  open `craft:component-guide:picker-map` to compare.
 
 ## Development
 
@@ -1102,9 +1105,9 @@ Run the same discovery the CP uses, to verify configuration without opening the
 control panel:
 
 ```bash
-php craft component-guide/components/scan
+php artisan craft:component-guide:components:scan
 # DDEV:
-ddev exec php craft component-guide/components/scan
+ddev exec php artisan craft:component-guide:components:scan
 ```
 
 ## Roadmap

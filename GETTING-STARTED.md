@@ -11,22 +11,24 @@ per-site licence on production. See *Editions* in the README.
 
 ## Requirements
 
-- Craft CMS 5
-- PHP 8.2+
+- Craft CMS 6 (beta) with the Yii2 adapter
+- PHP 8.5+
+
+For Craft 5, use the 1.x line of this plugin.
 
 ## Install
 
 ```bash
 composer require b10k/craft-component-guide
-php craft plugin/install component-guide
+php artisan craft:plugin:install component-guide
 ```
 
 On DDEV, prefix each line with `ddev` (`ddev composer require …`, and
-`ddev craft plugin/install component-guide`).
+`ddev artisan craft:plugin:install component-guide`).
 
 To update later: `composer update b10k/craft-component-guide`.
 
-To remove it: `php craft plugin/uninstall component-guide`, then
+To remove it: `php artisan craft:plugin:uninstall component-guide`, then
 `composer remove b10k/craft-component-guide`. Your story and marker
 files stay in `templates/` — they're plain project files and do nothing without
 the plugin. Nothing in your content or field layouts is touched, and the plugin
@@ -53,7 +55,7 @@ only ever writes story files when you press “Add story”, “Mark stable” o
    environments where Craft's `allowAdminChanges` is on): it reads the
    template's variables and writes a first-draft `*.stories.twig` next to it.
    The values are guesses — open the file and fix them. Same thing from the
-   CLI: `php craft component-guide/components/make <component-id>`.
+   CLI: `php artisan craft:component-guide:components:make <component-id>`.
 
    For a library that already has dozens of templates, hand the whole job to a
    coding agent instead: `AGENT-SETUP.md` in this package is a recipe for it.
@@ -66,7 +68,7 @@ only ever writes story files when you press “Add story”, “Mark stable” o
    asset tags instead — it resolves the dev server and the built manifest just
    like the front end does (see the README).
 5. **Sanity-check from the command line:**
-   `php craft component-guide/components/scan` prints everything it found.
+   `php artisan craft:component-guide:components:scan` prints everything it found.
 6. **Try a block.** Open any component: under the preview, **Controls** lists
    its arguments — change a heading, pick another theme, choose an image from
    your assets — and the preview re-renders as you type. Nothing is saved;

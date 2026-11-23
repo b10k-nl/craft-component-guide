@@ -438,9 +438,9 @@ class Plugin extends BasePlugin
     }
 
     /**
-     * Craft's MCP server (Craft 5.12+): the tools `component-guide.stories`
-     * and `component-guide.render`, the contract check in
-     * `content-model.audit`, and a word in `info.get` on which blocks are
+     * Craft's MCP server (Craft 6): the tools `component_guide_stories`
+     * and `component_guide_render`, the contract check in
+     * `content_model_audit`, and a word in `info_get` on which blocks are
      * ready for editors. Nothing on an older Craft — the classes are only named, never
      * loaded — and nothing on an ordinary request: both run when an MCP
      * server is built, never on a page.
@@ -450,47 +450,39 @@ class Plugin extends BasePlugin
      */
     private function registerMcp(): void
     {
-        if (!class_exists(\craft\services\Mcp::class)) {
+        // Craft 6: CraftCms\Cms\Mcp. Registration is deferred to the moment
+        // Craft first reads its registries; a failure is logged and left out.
+        if (!class_exists(\CraftCms\Cms\Mcp\CapabilityRegistry::class)) {
             return;
         }
 
-        // Checks have no event of their own; capability types are collected
-        // once per server, before any tool can run — the audit included.
-        Event::on(
-            \craft\services\Mcp::class,
-            \craft\services\Mcp::EVENT_REGISTER_CAPABILITY_TYPES,
-            static function ($event): void {
-                // Untyped: a handler whose type no longer matches would throw
-                // inside Craft, not here.
-                if (!$event instanceof \craft\events\RegisterComponentTypesEvent) {
-                    return;
-                }
+        app(\CraftCms\Cms\Mcp\CapabilityRegistry::class)->defer(static function ($registry): void {
+            try {
                 if (McpCompat::toolsFit()) {
-                    $event->types[] = Tools::class;
+                    $registry->register(Tools::class);
                 }
-                if (!McpCompat::checkFits()) {
-                    return;
-                }
+            } catch (\Throwable $e) {
+                Craft::warning('Component Guide could not add its MCP tools: ' . $e->getMessage(), 'component-guide');
+            }
+        });
+
+        if (class_exists(\CraftCms\Cms\Mcp\ContentModel\CheckRegistry::class)) {
+            app(\CraftCms\Cms\Mcp\ContentModel\CheckRegistry::class)->defer(static function ($checks): void {
                 try {
-                    $checks = Craft::$app->get('mcp')->getCheckRegistry();
-                    if (!in_array(McpBrief::CHECK_ID, $checks->ids(), true)) {
+                    if (McpCompat::checkFits() && !in_array(McpBrief::CHECK_ID, $checks->ids(), true)) {
                         $checks->register(ContractCheck::class);
                     }
                 } catch (\Throwable $e) {
                     Craft::warning('Component Guide could not add its check to Craft’s MCP server: ' . $e->getMessage(), 'component-guide');
                 }
-            }
-        );
+            });
+        }
 
         // The tools ask for control-panel access; the guide's own access is
         // either of two permissions, which an attribute cannot say.
-        Event::on(
-            \craft\services\Mcp::class,
-            \craft\services\Mcp::EVENT_DISCOVERING_CAPABILITY,
-            static function ($event): void {
-                if (!$event instanceof \craft\mcp\events\DiscoveringCapability) {
-                    return;
-                }
+        \Illuminate\Support\Facades\Event::listen(
+            \CraftCms\Cms\Mcp\Events\DiscoveringCapability::class,
+            static function (\CraftCms\Cms\Mcp\Events\DiscoveringCapability $event): void {
                 try {
                     $handler = $event->reference->handler;
                     if (is_array($handler) && $handler[0] === Tools::class && !self::canAccess()) {
@@ -499,14 +491,13 @@ class Plugin extends BasePlugin
                 } catch (\Throwable $e) {
                     Craft::warning('Component Guide could not check access to its MCP tools: ' . $e->getMessage(), 'component-guide');
                 }
-            }
+            },
         );
 
-        Event::on(
-            \craft\mcp\AdminInstructions::class,
-            \craft\mcp\AdminInstructions::EVENT_COLLECT_INSTRUCTIONS,
-            function ($event): void {
-                if (!$event instanceof \craft\mcp\events\CollectingAdminInstructions || !self::canAccess()) {
+        \Illuminate\Support\Facades\Event::listen(
+            \CraftCms\Cms\Mcp\Events\CollectingAdminInstructions::class,
+            function (\CraftCms\Cms\Mcp\Events\CollectingAdminInstructions $event): void {
+                if (!self::canAccess()) {
                     return;
                 }
                 try {
@@ -514,7 +505,7 @@ class Plugin extends BasePlugin
                 } catch (\Throwable $e) {
                     Craft::warning('Component Guide could not add its MCP instructions: ' . $e->getMessage(), 'component-guide');
                 }
-            }
+            },
         );
     }
 

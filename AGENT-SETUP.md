@@ -408,14 +408,14 @@ human checks them in minutes instead of reading a large diff.
 
 Three commands help you find mistakes (prefix with `ddev` on a DDEV project):
 
-- `php craft component-guide/components/scan` — what the guide discovered, with
+- `php artisan craft:component-guide:components:scan` — what the guide discovered, with
   each component's id, its group, its story count, and any story file it could
   not read. Run it first: a story the scan does not list does not exist for the
   guide.
-- `php craft component-guide/components/render <componentId> <storyId>` — one
+- `php artisan craft:component-guide:components:render <componentId> <storyId>` — one
   story's preview document, or the error it fails with. The story id is its
   name in lower case with hyphens: `'Heading only'` → `heading-only`.
-- `php craft component-guide/stories/check` — stories that set a field the
+- `php artisan craft:component-guide:stories:check` — stories that set a field the
   entry type behind them does not have. Pro; under Lite it says so and exits 0.
 
 You should report every error you find — with the file and the message. **Do not report how many rendered

@@ -10,7 +10,7 @@ use b10k\componentguide\Plugin;
 use Craft;
 use craft\helpers\Json;
 use craft\helpers\UrlHelper;
-use craft\mcp\attributes\RequiresPermission;
+use CraftCms\Cms\Mcp\Attributes\RequiresPermission;
 use InvalidArgumentException;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
@@ -40,7 +40,7 @@ class Tools
      * @return array{blocks: list<array<string, mixed>>}
      */
     #[McpTool(
-        name: 'component-guide.stories',
+        name: 'component_guide_stories',
         description: 'Lists the blocks Component Guide documents — entry type, status, whether editors can use it — or, for one block, its stories: sample values as the developer intended the block to be filled, with the field values to give a new block of that entry type (Pro).',
         annotations: new ToolAnnotations(readOnlyHint: true),
     )]
@@ -122,7 +122,7 @@ class Tools
      * @return array{block: string, story: string, ok: bool, html: string, truncated: bool, notes: list<string>, error: string|null, details: string|null, url: string}
      */
     #[McpTool(
-        name: 'component-guide.render',
+        name: 'component_guide_render',
         description: 'Renders a block from the site\'s own Twig templates with a story\'s values, optionally changed, and returns the HTML — or the error the template throws. Use it to see what a block will look like before putting it on a page; the HTML is the block alone, without the site\'s CSS.',
         annotations: new ToolAnnotations(readOnlyHint: true),
     )]
@@ -212,7 +212,7 @@ class Tools
         }
 
         throw new ToolCallException(sprintf(
-            'No block “%s”: give a component id or an entry type handle, as component-guide.stories lists them.',
+            'No block “%s”: give a component id or an entry type handle, as component_guide_stories lists them.',
             $block,
         ));
     }

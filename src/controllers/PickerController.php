@@ -132,6 +132,7 @@ class PickerController extends Controller
 
         return $this->asJson([
             'pro' => $pro,
+            'zoom' => $plugin->getSettings()->enablePreviewZoom,
             'components' => $catalog,
             // Cards/Index-mode Matrix fields expose entry types as numeric IDs
             // (Craft.NestedElementManager settings.createAttributes.typeId),

@@ -45,7 +45,8 @@
 
     {% include "component-guide/components/_errors" with { errors: scanErrors } only %}
 
-    <div class="cg-toolbar">
+    {# Read by component-guide.js: Preview Zoom is off in the settings. #}
+    <div class="cg-toolbar"{% if not enablePreviewZoom %} data-cg-zoom-off{% endif %}>
         <div class="cg-stats">
             <span class="cg-stat">
                 <strong>{{ componentCount }}</strong>

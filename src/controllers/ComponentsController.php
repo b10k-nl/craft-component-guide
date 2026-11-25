@@ -85,6 +85,7 @@ class ComponentsController extends Controller
             // Kept in sync with the scanner so onboarding copy can't drift.
             'markerFiles' => \b10k\componentguide\services\ComponentScanner::MARKER_FILES,
             'canScaffold' => $this->canScaffold(),
+            'enablePreviewZoom' => Plugin::getInstance()->getSettings()->enablePreviewZoom,
             'scaffoldBlockedReason' => $this->scaffoldBlockedReason(),
             'statesByComponent' => $this->detectStates($components),
             // What the editor half of the plugin actually amounts to on THIS

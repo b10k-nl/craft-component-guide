@@ -96,6 +96,16 @@
     warning: overrides.enableIframePreview is defined ? overrideWarning : null,
 }) }}
 
+{{ forms.lightswitchField({
+    label: "Preview Zoom"|t('component-guide'),
+    instructions: "Rest the mouse on the magnifier in a thumbnail's corner to see a larger copy of it — on the Component Guide page and in the blocks gallery."|t('component-guide'),
+    id: 'enablePreviewZoom',
+    name: 'enablePreviewZoom',
+    on: settings.enablePreviewZoom,
+    disabled: overrides.enablePreviewZoom is defined,
+    warning: overrides.enablePreviewZoom is defined ? overrideWarning : null,
+}) }}
+
 <hr>
 
 <h2>{{ "Control panel"|t('component-guide') }}</h2>

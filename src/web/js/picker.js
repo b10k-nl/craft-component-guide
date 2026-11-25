@@ -18,6 +18,8 @@
     // the server decides this, not the browser. Withholding the prefill is done
     // server-side regardless; this only chooses what the panel says.
     var isPro = !!(window.CraftComponentGuide && window.CraftComponentGuide.pro);
+    // Preview Zoom setting; on unless the plugin says otherwise.
+    var zoomEnabled = !(window.CraftComponentGuide && window.CraftComponentGuide.zoom === false);
 
     // What the gallery should still look like after a reload: open or not,
     // which story each block's card was showing, grouping, Variants as cards
@@ -119,6 +121,7 @@
                 return r.ok ? r.json() : { components: [] };
             }).then(function (data) {
                 if (typeof data.pro === 'boolean') { isPro = data.pro; }
+                if (typeof data.zoom === 'boolean') { zoomEnabled = data.zoom; }
                 return data;
             }).catch(function () {
                 return { components: [] };
@@ -1177,6 +1180,107 @@
         return out;
     };
 
+    // Zoom, as on the guide's index: rest the mouse on the magnifier in a
+    // thumbnail's bottom-right corner and a larger copy opens to the left of
+    // the panel, over the entry. Only the corner, so moving across the cards
+    // doesn't keep popping previews up. The same
+    // address as the thumbnail, so the browser has it already. Lives inside
+    // the panel, so it stacks with it and goes when the panel closes.
+    // Only for a mouse: on a touch screen the tap adds the block anyway.
+    var bindZoom = function (panel, grid) {
+        var canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        if (!canHover || !zoomEnabled) { return; }
+
+        var zoom = document.createElement('div');
+        zoom.className = 'cg-picker-zoom';
+        zoom.hidden = true;
+        zoom.setAttribute('aria-hidden', 'true');
+        var zoomFrame = document.createElement('iframe');
+        zoomFrame.tabIndex = -1;
+        zoomFrame.title = '';
+        zoom.appendChild(zoomFrame);
+        panel.appendChild(zoom);
+
+        var ZOOM_DELAY = 350;
+        var zoomTimer = null;
+        var zoomedThumb = null;
+
+        var setZoomCursor = function (thumb, on) {
+            var card = thumb && thumb.closest('.cg-picker-card');
+            if (card) { card.classList.toggle('cg-picker-card--zoom', on); }
+        };
+
+        var hideZoom = function () {
+            clearTimeout(zoomTimer);
+            zoomTimer = null;
+            setZoomCursor(zoomedThumb, false);
+            zoomedThumb = null;
+            zoom.hidden = true;
+        };
+
+        var showZoom = function (thumb) {
+            var iframe = thumb.querySelector('iframe');
+            var src = iframe && iframe.getAttribute('src');
+            if (!src || !thumb.isConnected) { return; }
+            var rect = thumb.getBoundingClientRect();
+            if (!rect.width || !rect.height) { return; }
+            var gap = 16;
+            var panelLeft = panel.getBoundingClientRect().left;
+            // Thumbnails follow the component's real height, so the zoom keeps
+            // the thumbnail's own proportions — and fits the window.
+            var ratio = rect.height / rect.width;
+            var width = Math.min(720, panelLeft - gap - 8);
+            var height = width * ratio;
+            var maxHeight = window.innerHeight - 16;
+            if (height > maxHeight) {
+                height = maxHeight;
+                width = height / ratio;
+            }
+            // Too narrow a window to show more than the thumbnail does.
+            if (width < rect.width * 1.25) { return; }
+            width = Math.round(width);
+            height = Math.round(height);
+            var top = Math.max(8, Math.min(rect.top, window.innerHeight - height - 8));
+            if (zoomFrame.getAttribute('src') !== src) { zoomFrame.setAttribute('src', src); }
+            zoomFrame.style.height = (parseFloat(iframe.style.height) || 800) + 'px';
+            zoomFrame.style.transform = 'scale(' + (width / THUMB_VIEWPORT) + ')';
+            zoom.style.width = width + 'px';
+            zoom.style.height = height + 'px';
+            zoom.style.left = (panelLeft - gap - width) + 'px';
+            zoom.style.top = top + 'px';
+            zoom.hidden = false;
+        };
+
+        // The thumbnail lets the pointer through to the card, so whether the
+        // mouse is on its magnifier is read from the card and the hint's box.
+        var thumbAt = function (event) {
+            var card = event.target.closest && event.target.closest('.cg-picker-card');
+            var thumb = card && card.querySelector('.cg-picker-card__thumb');
+            var hint = thumb && thumb.querySelector('.cg-picker-card__zoom-hint');
+            if (!hint) { return null; }
+            var r = hint.getBoundingClientRect();
+            return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom
+                ? thumb : null;
+        };
+
+        panel.addEventListener('mousemove', function (event) {
+            var thumb = thumbAt(event);
+            if (thumb === zoomedThumb) { return; }
+            hideZoom();
+            if (!thumb) { return; }
+            zoomedThumb = thumb;
+            setZoomCursor(thumb, true);
+            zoomTimer = setTimeout(function () { showZoom(thumb); }, ZOOM_DELAY);
+        });
+        panel.addEventListener('mouseleave', hideZoom);
+        // A click, a variant switch or typing changes what is under the mouse.
+        panel.addEventListener('mousedown', hideZoom);
+        panel.addEventListener('change', hideZoom);
+        panel.addEventListener('keydown', hideZoom);
+        grid.addEventListener('scroll', hideZoom);
+        window.addEventListener('blur', hideZoom);
+    };
+
     var openPanel = function (source, comps, key) {
         closePanel();
 
@@ -1527,6 +1631,15 @@
                     iframe.setAttribute('title', '');
                     iframe.addEventListener('load', function () { sizeThumb(iframe); });
                     thumb.appendChild(iframe);
+                    // The zoom opens from this corner only (see bindZoom).
+                    if (zoomEnabled) {
+                        var zoomHint = document.createElement('span');
+                        zoomHint.className = 'cg-picker-card__zoom-hint';
+                        zoomHint.setAttribute('aria-hidden', 'true');
+                        zoomHint.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">'
+                            + '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14M7 5v4M5 7h4"/></svg>';
+                        thumb.appendChild(zoomHint);
+                    }
                     body.appendChild(thumb);
                 }
 
@@ -1883,6 +1996,8 @@
                 }
             });
         });
+
+        bindZoom(panel, grid);
 
         closeBtn.addEventListener('click', closeByEditor);
         // Capture phase: ahead of Garnish's own Escape handling (see onKey).

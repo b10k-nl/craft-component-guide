@@ -3,6 +3,18 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.14.0 - 2026-11-25
+
+### Added
+
+- **Zoom in the blocks gallery:** rest the mouse on the magnifier in a card's preview and a larger copy opens to the left of the gallery, over the entry. It keeps the block's real proportions, follows the chosen variant, and closes on a click, a scroll or a key. For a mouse only.
+- **Preview Zoom**, a setting under Previews (`enablePreviewZoom`, on by default): turned off, neither the component index nor the blocks gallery shows the magnifier or the zoom.
+
+### Changed
+
+- The zoom on the component index opens from a magnifier in the preview's bottom-right corner rather than from anywhere on the preview, so moving across the grid no longer keeps popping previews up.
+- The zoom on the component index is as tall as the block really is, rather than a fixed 16:10 — a short block no longer sits in a tall empty box.
+
 ## 1.13.0 - 2026-11-14
 
 ### Added

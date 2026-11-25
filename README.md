@@ -276,6 +276,7 @@ return [
     'previewJs' => ['/dist/js/app.js'],
     'previewTemplate' => '',               // site template rendered into the preview <head>
     'enableScanCache' => true,
+    'enablePreviewZoom' => true,
     'enableClientReview' => false,         // Pro: approve stories / ask for changes
     'enableReviewClearing' => false,       // the review history may be cleared in the CP
 ];
@@ -293,6 +294,7 @@ staging and production can differ while project config stays the same.
 | `enableCpSection` | `true` | Show/hide the CP nav item. The pages stay reachable by their address; the editors' gallery and the CLI keep working. |
 | `enableIframePreview` | `true` | On a component's page: the preview in an iframe (with Controls), or a link to it. |
 | `enableScanCache` | `true` | Cache the scan; it invalidates itself when a story, template or marker file changes. |
+| `enablePreviewZoom` | `true` | A magnifier in a thumbnail's corner opens a larger copy of it — on the Component Guide page and in the blocks gallery. |
 | `enableClientReview` | `false` | Client review (Pro) — see *Client review*. Yes or No goes into project config, so every environment follows it; an environment variable lets each decide. |
 | `enableReviewClearing` | `false` | Lets admins, and users with the *Clear the client review history* permission, clear the review history from the CP. For staging only, point it at an environment variable (`'$CG_REVIEW_CLEARING'`) set only there. The console command works either way. |
 | `previewCss` / `previewJs` | `[]` | Front-end assets injected into the preview. |

@@ -50,6 +50,12 @@ class Settings extends Model
     public bool $enableScanCache = true;
 
     /**
+     * @var bool Whether a thumbnail's magnifier opens a larger copy of it, on
+     * the Component Guide page and in the blocks gallery.
+     */
+    public bool $enablePreviewZoom = true;
+
+    /**
      * @var bool Whether client review is on (Pro): approve a story or ask for
      * changes, on the component page. Off by default — an agency decides to
      * use it with its client, and the setting travels in project config, so
@@ -199,7 +205,7 @@ class Settings extends Model
         return [
             [['componentPath', 'storySuffix', 'previewTemplate'], 'trim'],
             [['storySuffix'], 'required'],
-            [['enableCpSection', 'enableIframePreview', 'enableScanCache'], 'boolean'],
+            [['enableCpSection', 'enableIframePreview', 'enableScanCache', 'enablePreviewZoom'], 'boolean'],
             [array_keys(self::SWITCHES), 'validateSwitch'],
             [['previewCss', 'previewJs', 'previewTemplate'], 'safe'],
             ['storySuffix', 'match', 'pattern' => '/\.php$/', 'message' => 'The story suffix must end in “.php”.'],
@@ -252,6 +258,7 @@ class Settings extends Model
             'enableCpSection' => 'Enable Control-Panel Section',
             'enableIframePreview' => 'Isolated Iframe Preview',
             'enableScanCache' => 'Cache Scan Results',
+            'enablePreviewZoom' => 'Preview Zoom',
             'previewCss' => 'Preview CSS',
             'previewJs' => 'Preview JavaScript',
             'previewTemplate' => 'Preview Template',

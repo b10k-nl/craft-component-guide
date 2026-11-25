@@ -361,12 +361,25 @@
         }
         thumbs.forEach(scaleThumb);
 
-        // Zoom: rest the mouse on a thumbnail and a larger copy of it opens
-        // beside the card, so small cards can still be read. The same address
-        // as the thumbnail, so the browser has it already (versioned, cached).
+        // Zoom: rest the mouse on the magnifier in a thumbnail's bottom-right
+        // corner and a larger copy of it opens beside the card, so small cards
+        // can still be read. Only the corner, so moving across the grid
+        // doesn't keep popping previews up. The same address as the
+        // thumbnail, so the browser has it already (versioned, cached).
         // Only for a mouse: on a touch screen the tap opens the block anyway.
+        // Off in the plugin's settings (Preview Zoom): no magnifier, no zoom.
+        var zoomEnabled = !(window.CraftComponentGuide && window.CraftComponentGuide.zoom === false);
         var canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-        if (canHover) {
+        if (canHover && zoomEnabled) {
+            thumbs.forEach(function (thumb) {
+                if (!thumb.querySelector('iframe')) { return; }
+                var hint = document.createElement('span');
+                hint.className = 'cg-card__zoom-hint';
+                hint.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">'
+                    + '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14M7 5v4M5 7h4"/></svg>';
+                thumb.appendChild(hint);
+            });
+
             var zoom = document.createElement('div');
             zoom.className = 'cg-zoom';
             zoom.hidden = true;
@@ -404,7 +417,23 @@
                 var gap = 12;
                 // About half the window, never larger than the preview itself.
                 var width = Math.round(Math.min(640, window.innerWidth * 0.45));
-                var height = Math.round(width * 10 / 16);
+                // As tall as the component really is (same origin, so its
+                // height is readable), not the thumbnail's fixed 16:10 — a
+                // short block shouldn't sit in a tall empty box.
+                var docHeight = 800;
+                try {
+                    var doc = iframe.contentDocument;
+                    // Still loading (about:blank) would measure as nothing.
+                    if (doc && doc.readyState === 'complete' && doc.location.href !== 'about:blank') {
+                        docHeight = Math.min(Math.max(doc.body.scrollHeight, 80), 900);
+                    }
+                } catch (e) { /* not readable — keep 16:10 */ }
+                var height = Math.round(width * docHeight / 1280);
+                var maxHeight = window.innerHeight - 16;
+                if (height > maxHeight) {
+                    width = Math.round(width * maxHeight / height);
+                    height = maxHeight;
+                }
                 var spaceRight = window.innerWidth - rect.right - gap;
                 var left = spaceRight >= width + 8 ? rect.right + gap : rect.left - gap - width;
                 left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
@@ -414,17 +443,19 @@
                 zoom.style.height = height + 'px';
                 zoom.style.left = left + 'px';
                 zoom.style.top = top + 'px';
+                zoomFrame.style.height = docHeight + 'px';
                 zoomFrame.style.transform = 'scale(' + (width / 1280) + ')';
                 zoom.hidden = false;
             };
 
             // The thumbnail lets the pointer through to the card's link, so
-            // which one is under the mouse is read from the card and its box.
+            // whether the mouse is on its magnifier is read from the hint's box.
             var thumbAt = function (event) {
                 var card = event.target.closest && event.target.closest('.cg-card__link');
                 var thumb = card && card.querySelector('[data-cg-thumb]');
-                if (!thumb) { return null; }
-                var r = thumb.getBoundingClientRect();
+                var hint = thumb && thumb.querySelector('.cg-card__zoom-hint');
+                if (!hint) { return null; }
+                var r = hint.getBoundingClientRect();
                 return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom
                     ? thumb : null;
             };

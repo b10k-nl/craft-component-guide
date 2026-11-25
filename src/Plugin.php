@@ -773,7 +773,10 @@ class Plugin extends BasePlugin
                 // leaving the editor to wonder what they are missing.
                 $view->registerJs(
                     'window.CraftComponentGuide = Object.assign(window.CraftComponentGuide || {}, '
-                    . Json::encode(['pro' => $this->isPro()]) . ');',
+                    . Json::encode([
+                        'pro' => $this->isPro(),
+                        'zoom' => $this->getSettings()->enablePreviewZoom,
+                    ]) . ');',
                     View::POS_HEAD,
                 );
             }

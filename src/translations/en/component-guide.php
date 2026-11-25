@@ -42,6 +42,7 @@ return [
     'Story File Suffix' => 'Story File Suffix',
     'Enable Control-Panel Section' => 'Enable Control-Panel Section',
     'Isolated Iframe Preview' => 'Isolated Iframe Preview',
+    'Preview Zoom' => 'Preview Zoom',
     'Preview CSS' => 'Preview CSS',
     'Preview JavaScript' => 'Preview JavaScript',
     'This value is being overridden by config/component-guide.php.' => 'This value is being overridden by config/component-guide.php.',

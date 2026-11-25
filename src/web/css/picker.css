@@ -160,6 +160,34 @@ body.cg-overlay-open .cg-picker-panel { z-index: 99; }
     position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
     border: 0; background: #fff; transform-origin: 0 0;
 }
+/* Zoom: a larger copy of the thumbnail under the mouse, left of the panel
+   (see bindZoom in picker.js). It never takes the pointer. */
+.cg-picker-zoom {
+    position: fixed; overflow: hidden; pointer-events: none;
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(31,41,51,.10), 0 12px 32px rgba(31,41,51,.22);
+}
+.cg-picker-zoom[hidden] { display: none; }
+.cg-picker-zoom iframe {
+    position: absolute; top: 0; left: 0; width: 1280px; height: 800px;
+    border: 0; background: #fff; transform-origin: 0 0;
+}
+.cg-picker-card--zoom { cursor: zoom-in; }
+/* The magnifier that opens the zoom: quiet until the card is hovered. */
+.cg-picker-card__zoom-hint {
+    position: absolute; right: 6px; bottom: 6px; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px;
+    background: rgba(255,255,255,.92); color: #3f4d5a;
+    box-shadow: 0 0 0 1px rgba(31,41,51,.12), 0 2px 6px rgba(31,41,51,.15);
+    opacity: 0; transition: opacity .12s ease-out;
+}
+.cg-picker-card:hover .cg-picker-card__zoom-hint { opacity: .85; }
+.cg-picker-card--zoom .cg-picker-card__zoom-hint { opacity: 1; color: #1f2933; }
+/* No mouse, no zoom (bindZoom skips it), so no magnifier either. */
+@media not ((hover: hover) and (pointer: fine)) {
+    .cg-picker-card__zoom-hint { display: none; }
+}
 .cg-picker-search { padding: 12px 16px 0; display: flex; align-items: center; gap: 12px; }
 .cg-picker-search .text { flex: 1; }
 .cg-picker-group-toggle {

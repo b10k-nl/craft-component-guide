@@ -3,6 +3,12 @@
 All notable changes to Component Guide are documented here. This project adheres
 to [Semantic Versioning](https://semver.org).
 
+## 1.14.1 - 2026-11-25
+
+### Changed
+
+- Release notes for 1.14.0 now appear in the Plugin Store; no changes to the plugin itself.
+
 ## 1.14.0 - 2026-11-25
 
 ### Added
